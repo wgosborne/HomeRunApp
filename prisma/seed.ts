@@ -73,7 +73,6 @@ async function main() {
       data: {
         email: "commissioner@example.com",
         name: "Commissioner",
-        googleId: "google-commissioner",
         image: "https://i.pravatar.cc/150?img=1",
       },
     }),
@@ -81,7 +80,6 @@ async function main() {
       data: {
         email: "player1@example.com",
         name: "Player One",
-        googleId: "google-player1",
         image: "https://i.pravatar.cc/150?img=2",
       },
     }),
@@ -89,7 +87,6 @@ async function main() {
       data: {
         email: "player2@example.com",
         name: "Player Two",
-        googleId: "google-player2",
         image: "https://i.pravatar.cc/150?img=3",
       },
     }),
@@ -97,7 +94,6 @@ async function main() {
       data: {
         email: "player3@example.com",
         name: "Player Three",
-        googleId: "google-player3",
         image: "https://i.pravatar.cc/150?img=4",
       },
     }),
@@ -105,7 +101,6 @@ async function main() {
       data: {
         email: "player4@example.com",
         name: "Player Four",
-        googleId: "google-player4",
         image: "https://i.pravatar.cc/150?img=5",
       },
     }),
@@ -113,7 +108,6 @@ async function main() {
       data: {
         email: "player5@example.com",
         name: "Player Five",
-        googleId: "google-player5",
         image: "https://i.pravatar.cc/150?img=6",
       },
     }),

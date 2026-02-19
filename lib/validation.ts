@@ -29,6 +29,12 @@ export const submitPickSchema = z.object({
 
 export type SubmitPickInput = z.infer<typeof submitPickSchema>;
 
+export const startDraftSchema = z.object({
+  // No required fields - just need league context
+});
+
+export type StartDraftInput = z.infer<typeof startDraftSchema>;
+
 // Trade validation
 export const proposeTradSchema = z.object({
   receiverId: z.string().min(1),
