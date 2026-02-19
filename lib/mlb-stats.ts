@@ -12,24 +12,19 @@ interface MLBPlayer {
 }
 
 interface MLBLeaderboardResponse {
-  leaders: Array<{
-    person: {
-      id: number;
-      fullName: string;
-    };
-    stats: Array<{
-      group: {
-        displayName: string;
+  leagueLeaders: Array<{
+    leaderCategory: string;
+    leaders: Array<{
+      rank: number;
+      value: string;
+      person: {
+        id: number;
+        fullName: string;
       };
-      stats: Array<{
-        stat: {
-          homeRuns?: number;
-        };
-      }>;
+      team: {
+        name: string;
+      };
     }>;
-    team: {
-      name: string;
-    };
   }>;
 }
 
@@ -56,7 +51,7 @@ async function fetchMLBLeaders(): Promise<MLBPlayer[]> {
 
   try {
     const response = await fetch(
-      "https://statsapi.mlb.com/api/v1/stats/leaders?leaderCategories=homeRuns&season=2025&sportId=1",
+      "https://statsapi.mlb.com/api/v1/stats/leaders?leaderCategories=homeRuns&season=2025&sportId=1&limit=1000",
       {
         headers: {
           "User-Agent": "FantasyBaseball/1.0",
@@ -71,21 +66,26 @@ async function fetchMLBLeaders(): Promise<MLBPlayer[]> {
     const data = (await response.json()) as MLBLeaderboardResponse;
 
     // Parse response and transform to our format
-    const players: MLBPlayer[] = data.leaders
-      .map((leader, index) => {
-        const stats = leader.stats[0]?.stats[0];
-        const homeRuns = stats?.stat?.homeRuns || 0;
+    // The API returns leagueLeaders array with leaders inside
+    const leagueLeader = data.leagueLeaders?.[0];
+    if (!leagueLeader?.leaders) {
+      logger.warn("No leaders data in MLB response");
+      return [];
+    }
+
+    const players: MLBPlayer[] = leagueLeader.leaders
+      .map((leader) => {
+        const homeRuns = parseInt(leader.value, 10) || 0;
 
         return {
           id: leader.person.id.toString(),
           name: leader.person.fullName,
-          position: "DH", // Default position, MLB API doesn't always have position
+          position: "OF", // Default position for home run leaders
           team: leader.team.name,
           homeRuns,
-          rank: index + 1,
+          rank: leader.rank,
         };
-      })
-      .sort((a, b) => (b.homeRuns || 0) - (a.homeRuns || 0));
+      });
 
     // Cache the result
     cache[cacheKey] = {

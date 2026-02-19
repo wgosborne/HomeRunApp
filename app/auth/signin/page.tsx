@@ -1,6 +1,13 @@
 import { signIn } from "@/lib/auth";
 
-export default function SignInPage() {
+interface SignInPageProps {
+  searchParams?: Promise<{ callbackUrl?: string }>;
+}
+
+export default async function SignInPage({ searchParams }: SignInPageProps) {
+  const params = await searchParams;
+  const callbackUrl = params?.callbackUrl || "/dashboard";
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-4 bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="max-w-md w-full text-center bg-white rounded-lg shadow-lg p-8">
@@ -12,7 +19,7 @@ export default function SignInPage() {
         <form
           action={async () => {
             "use server";
-            await signIn("google", { redirectTo: "/dashboard" });
+            await signIn("google", { redirectTo: callbackUrl });
           }}
         >
           <button

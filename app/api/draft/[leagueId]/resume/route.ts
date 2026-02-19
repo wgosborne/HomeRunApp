@@ -5,7 +5,7 @@ import { pusherServer } from "@/lib/pusher-server";
 import { handleError, AuthorizationError, ConflictError } from "@/lib/errors";
 import { createLogger } from "@/lib/logger";
 
-const logger = createLogger("draft-start");
+const logger = createLogger("draft-resume");
 
 export async function POST(
   _request: NextRequest,
@@ -31,10 +31,6 @@ export async function POST(
 
     const league = await prisma.league.findUnique({
       where: { id: leagueId },
-      include: {
-        memberships: true,
-        draftPicks: true,
-      },
     });
 
     if (!league) {
@@ -43,61 +39,39 @@ export async function POST(
 
     // Check if user is commissioner
     if (league.commissionerId !== user.id) {
-      throw new AuthorizationError("Only commissioner can start draft");
+      throw new AuthorizationError("Only commissioner can resume draft");
     }
 
-    // Check if draft already started
-    if (league.draftStartedAt) {
-      throw new ConflictError("Draft has already started");
+    // Check if draft is paused
+    if (league.draftStatus !== "paused") {
+      throw new ConflictError("Draft is not paused");
     }
 
-    // Check if draft already completed
-    if (league.draftCompletedAt) {
-      throw new ConflictError("Draft has already completed");
-    }
-
-    // Update league - set draftStartedAt, draftStatus to active, and currentPickStartedAt
+    // Update league - set draftStatus back to active and reset timer
     const now = new Date();
     const updatedLeague = await prisma.league.update({
       where: { id: leagueId },
       data: {
-        draftStartedAt: now,
         draftStatus: "active",
         currentPickStartedAt: now,
       },
-      include: {
-        memberships: true,
-        draftPicks: true,
-      },
     });
 
-    // Broadcast draft started event to all members
+    // Broadcast draft resumed event
     const channel = `draft-${leagueId}`;
-    await pusherServer.trigger(channel, "draft:started", {
+    await pusherServer.trigger(channel, "draft:resumed", {
       leagueId,
-      startedAt: updatedLeague.draftStartedAt,
-      memberCount: updatedLeague.memberships.length,
       timestamp: Date.now(),
     });
 
-    logger.info("Draft started", {
-      leagueId,
-      commissionerId: user.id,
-      memberCount: updatedLeague.memberships.length,
-    });
+    logger.info("Draft resumed", { leagueId, commissionerId: user.id });
 
     return NextResponse.json(
-      {
-        id: updatedLeague.id,
-        name: updatedLeague.name,
-        draftStartedAt: updatedLeague.draftStartedAt,
-        memberships: updatedLeague.memberships,
-        message: "Draft started successfully",
-      },
+      { id: updatedLeague.id, draftStatus: updatedLeague.draftStatus, message: "Draft resumed" },
       { status: 200 }
     );
   } catch (error) {
-    const { statusCode, message } = handleError(error, "Failed to start draft");
+    const { statusCode, message } = handleError(error, "Failed to resume draft");
     return NextResponse.json({ error: message }, { status: statusCode });
   }
 }

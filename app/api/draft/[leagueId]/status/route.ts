@@ -8,6 +8,7 @@ const logger = createLogger("draft-status");
 
 interface DraftStatus {
   leagueId: string;
+  draftStatus: string;
   isDraftActive: boolean;
   currentRound: number;
   currentPickNumber: number;
@@ -86,10 +87,11 @@ export async function GET(
     const memberCount = league.memberships.length;
     const totalPicks = memberCount * 10; // 10 rounds
     const completedPicks = league.draftPicks.length;
-    const isDraftActive = !!league.draftStartedAt && !league.draftCompletedAt;
+    const isDraftActive = league.draftStatus === "active";
 
     let status: DraftStatus = {
       leagueId: league.id,
+      draftStatus: league.draftStatus,
       isDraftActive,
       currentRound: 0,
       currentPickNumber: 0,
@@ -109,7 +111,7 @@ export async function GET(
       })),
     };
 
-    if (isDraftActive && league.draftStartedAt) {
+    if (isDraftActive && league.currentPickStartedAt) {
       // Calculate current round and pick number
       const nextPickNumber = completedPicks + 1;
       const currentRound = Math.ceil(nextPickNumber / memberCount);
@@ -122,18 +124,15 @@ export async function GET(
       status.currentPickerName =
         league.memberships[pickerIndexInRound].user.name || "Unknown";
 
-      // Calculate time remaining
-      const draftStartTime = league.draftStartedAt.getTime();
-      const picksBeforeThisOne = completedPicks;
-      const timeElapsedForPreviousPicks = picksBeforeThisOne * PICK_TIMEOUT_SECONDS * 1000;
-      const currentPickStartTime = draftStartTime + timeElapsedForPreviousPicks;
-      const currentPickEndTime = currentPickStartTime + PICK_TIMEOUT_SECONDS * 1000;
+      // Calculate time remaining from server timestamp
+      const pickStartTime = league.currentPickStartedAt.getTime();
+      const pickEndTime = pickStartTime + PICK_TIMEOUT_SECONDS * 1000;
       const now = Date.now();
 
-      status.timeStarted = currentPickStartTime;
+      status.timeStarted = pickStartTime;
       status.timeRemainingSeconds = Math.max(
         0,
-        Math.ceil((currentPickEndTime - now) / 1000)
+        Math.ceil((pickEndTime - now) / 1000)
       );
     }
 

@@ -2,16 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher-server";
-import { submitPickSchema } from "@/lib/validation";
-import { handleError, ConflictError, AuthorizationError, ValidationError } from "@/lib/errors";
+import { handleError, ConflictError, ValidationError } from "@/lib/errors";
 import { createLogger } from "@/lib/logger";
 
-const logger = createLogger("draft-pick");
+const logger = createLogger("draft-autopick");
 
 const TOTAL_ROUNDS = 10;
 
 export async function POST(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ leagueId: string }> }
 ) {
   try {
@@ -22,33 +21,7 @@ export async function POST(
     }
 
     const { leagueId } = await params;
-    const body = await request.json();
-    const validatedData = submitPickSchema.parse(body);
 
-    // Get current user
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    // Verify user is a member of the league
-    const membership = await prisma.leagueMembership.findUnique({
-      where: {
-        userId_leagueId: {
-          userId: user.id,
-          leagueId,
-        },
-      },
-    });
-
-    if (!membership) {
-      return NextResponse.json({ error: "Not a league member" }, { status: 403 });
-    }
-
-    // Get league with draft info
     const league = await prisma.league.findUnique({
       where: { id: leagueId },
       include: {
@@ -68,12 +41,8 @@ export async function POST(
     }
 
     // Check if draft is active
-    if (!league.draftStartedAt) {
-      throw new ConflictError("Draft has not started yet");
-    }
-
-    if (league.draftCompletedAt) {
-      throw new ConflictError("Draft has already completed");
+    if (league.draftStatus !== "active") {
+      throw new ConflictError("Draft is not active");
     }
 
     // Calculate whose turn it is
@@ -91,42 +60,60 @@ export async function POST(
     const currentRound = Math.ceil(nextPickNumber / memberCount);
     const pickerIndexInRound = (nextPickNumber - 1) % memberCount;
     const currentPickerId = league.memberships[pickerIndexInRound].userId;
+    const pickerName = league.memberships[pickerIndexInRound].user?.name || "Unknown";
 
-    // Verify it's this user's turn
-    if (currentPickerId !== user.id) {
-      const pickerName = league.memberships[pickerIndexInRound].user?.name || "Unknown";
-      throw new AuthorizationError(
-        `It's ${pickerName}'s turn to pick, not yours`
-      );
+    // Get all available MLB players from statsapi
+    let availablePlayers: any[] = [];
+    try {
+      const response = await fetch("https://statsapi.mlb.com/api/v1/teams");
+      const data = await response.json();
+
+      // Fetch players for each team (this is a simplified approach)
+      // In production, you'd want to cache this or use a better data source
+      const players: any[] = [];
+      for (const team of data.teams) {
+        const rosterRes = await fetch(`https://statsapi.mlb.com/api/v1/teams/${team.id}/roster?rosterType=active`);
+        const rosterData = await rosterRes.json();
+
+        if (rosterData.roster) {
+          rosterData.roster.forEach((player: any) => {
+            players.push({
+              id: player.person.id.toString(),
+              name: player.person.fullName,
+              position: player.position?.abbreviation || "DH",
+              team: team.teamName,
+            });
+          });
+        }
+      }
+
+      // Filter out already drafted players
+      const draftedPlayerIds = new Set(league.draftPicks.map((p) => p.playerId));
+      availablePlayers = players.filter((p) => !draftedPlayerIds.has(p.id)).slice(0, 100);
+    } catch (error) {
+      logger.error("Failed to fetch available players", { error });
+      throw new ValidationError("Failed to fetch available players for autopick");
     }
 
-    // Check if player already drafted
-    const existingPick = await prisma.draftPick.findUnique({
-      where: {
-        leagueId_playerId: {
-          leagueId,
-          playerId: validatedData.playerId,
-        },
-      },
-    });
-
-    if (existingPick) {
-      throw new ConflictError(
-        `${validatedData.playerName} has already been drafted`
-      );
+    if (availablePlayers.length === 0) {
+      throw new ConflictError("No available players for autopick");
     }
+
+    // Pick the first available player (highest rank by default)
+    const selectedPlayer = availablePlayers[0];
 
     // Create the draft pick
     const draftPick = await prisma.draftPick.create({
       data: {
         leagueId,
-        userId: user.id,
-        playerId: validatedData.playerId,
-        playerName: validatedData.playerName,
-        position: validatedData.position,
+        userId: currentPickerId,
+        playerId: selectedPlayer.id,
+        playerName: selectedPlayer.name,
+        position: selectedPlayer.position,
         round: currentRound,
         pickNumber: nextPickNumber,
         isPick: true,
+        autoPickedAt: new Date(),
         pickedAt: new Date(),
       },
     });
@@ -135,10 +122,10 @@ export async function POST(
     await prisma.rosterSpot.create({
       data: {
         leagueId,
-        userId: user.id,
-        playerId: validatedData.playerId,
-        playerName: validatedData.playerName,
-        position: validatedData.position,
+        userId: currentPickerId,
+        playerId: selectedPlayer.id,
+        playerName: selectedPlayer.name,
+        position: selectedPlayer.position,
         draftedRound: currentRound,
         draftedPickNumber: nextPickNumber,
       },
@@ -147,6 +134,7 @@ export async function POST(
     // Check if draft is now complete
     const isComplete = nextPickNumber >= totalPicks;
     const now = new Date();
+
     if (isComplete) {
       await prisma.league.update({
         where: { id: leagueId },
@@ -165,35 +153,34 @@ export async function POST(
 
     // Broadcast pick to all members via Pusher
     const channel = `draft-${leagueId}`;
-    const pickerName = league.memberships[pickerIndexInRound].user?.name || "Unknown";
-
     await pusherServer.trigger(channel, "pick-made", {
       leagueId,
       pickNumber: nextPickNumber,
       round: currentRound,
-      pickerId: user.id,
+      pickerId: currentPickerId,
       pickerName,
-      playerName: validatedData.playerName,
-      playerId: validatedData.playerId,
-      position: validatedData.position,
+      playerName: selectedPlayer.name,
+      playerId: selectedPlayer.id,
+      position: selectedPlayer.position,
+      isAutoPick: true,
       timestamp: Date.now(),
     });
 
     // If draft is complete, broadcast completion
     if (isComplete) {
-      await pusherServer.trigger(channel, "draft-completed", {
+      await pusherServer.trigger(channel, "draft:completed", {
         leagueId,
-        completedAt: new Date(),
+        completedAt: now,
         timestamp: Date.now(),
       });
     }
 
-    logger.info("Draft pick submitted", {
+    logger.info("Auto-pick submitted", {
       leagueId,
       pickNumber: nextPickNumber,
       round: currentRound,
-      userId: user.id,
-      playerName: validatedData.playerName,
+      userId: currentPickerId,
+      playerName: selectedPlayer.name,
       isDraftComplete: isComplete,
     });
 
@@ -202,19 +189,12 @@ export async function POST(
         draftPick,
         nextPickNumber,
         isComplete,
-        message: "Pick submitted successfully",
+        message: "Auto-pick submitted",
       },
       { status: 201 }
     );
   } catch (error) {
-    if (error instanceof ValidationError) {
-      return NextResponse.json(
-        { error: error.message, context: error.context },
-        { status: 400 }
-      );
-    }
-
-    const { statusCode, message } = handleError(error, "Failed to submit pick");
+    const { statusCode, message } = handleError(error, "Failed to submit auto-pick");
     return NextResponse.json({ error: message }, { status: statusCode });
   }
 }

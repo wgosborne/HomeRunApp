@@ -2,8 +2,10 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { pusherClient } from "@/lib/pusher-client";
 import { DraftTimer } from "./DraftTimer";
 import { PlayerSearch } from "./PlayerSearch";
+import { DevPanel } from "./DevPanel";
 
 interface Player {
   id: string;
@@ -82,6 +84,45 @@ export function DraftRoom({ leagueId, userId }: DraftRoomProps) {
     return () => clearInterval(interval);
   }, [fetchStatus]);
 
+  // Pusher real-time subscription
+  useEffect(() => {
+    const channel = pusherClient.subscribe(`draft-${leagueId}`);
+
+    // Listen for pick made events
+    const handlePickMade = (data: any) => {
+      console.log("Pick made event received", data);
+      fetchStatus();
+    };
+
+    // Listen for draft state change events
+    const handleDraftStateChange = (data: any) => {
+      console.log("Draft state changed", data);
+      fetchStatus();
+    };
+
+    // Listen for draft reset
+    const handleDraftReset = (data: any) => {
+      console.log("Draft reset event received", data);
+      setTimeout(() => {
+        router.push(`/league/${leagueId}`);
+      }, 1000);
+    };
+
+    channel.bind("pick-made", handlePickMade);
+    channel.bind("draft:paused", handleDraftStateChange);
+    channel.bind("draft:resumed", handleDraftStateChange);
+    channel.bind("draft:completed", handleDraftStateChange);
+    channel.bind("draft:reset", handleDraftReset);
+
+    return () => {
+      channel.unbind("pick-made", handlePickMade);
+      channel.unbind("draft:paused", handleDraftStateChange);
+      channel.unbind("draft:resumed", handleDraftStateChange);
+      channel.unbind("draft:completed", handleDraftStateChange);
+      channel.unbind("draft:reset", handleDraftReset);
+    };
+  }, [leagueId, router, fetchStatus]);
+
   // Handle player selection
   const handlePlayerSelected = async (player: Player) => {
     if (!status?.isDraftActive || status.currentPickerId !== userId) {
@@ -143,6 +184,22 @@ export function DraftRoom({ leagueId, userId }: DraftRoomProps) {
 
   return (
     <div className="max-w-6xl mx-auto">
+      {/* Dev Panel */}
+      <DevPanel
+        leagueId={leagueId}
+        currentState={
+          status
+            ? {
+                round: status.currentRound,
+                pickNumber: status.currentPickNumber,
+                pickerName: status.currentPickerName,
+                timeRemainingSeconds: status.timeRemainingSeconds,
+              }
+            : undefined
+        }
+        onStatusChange={fetchStatus}
+      />
+
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Draft Room</h1>

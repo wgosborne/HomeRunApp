@@ -3,7 +3,6 @@ import { getServerSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { handleError, NotFoundError } from "@/lib/errors";
 import { createLogger } from "@/lib/logger";
-import { requireLeagueMember } from "@/lib/middleware";
 
 const logger = createLogger("leagues.[leagueId]");
 
@@ -33,9 +32,6 @@ export async function GET(
         { status: 404 }
       );
     }
-
-    // Verify user is member of this league
-    await requireLeagueMember(leagueId, user.id);
 
     const league = await prisma.league.findUnique({
       where: { id: leagueId },
