@@ -811,7 +811,293 @@ CRON_SECRET=<random-secret>
 
 ---
 
-## 12. Key Architectural Decisions
+## 12. Development & Testing Infrastructure
+
+### Seeded Development Database
+
+To enable full end-to-end testing before the MLB season starts (March 27), the project includes a comprehensive Prisma seed script that populates your local database with realistic test data.
+
+**File:** `prisma/seed.ts`
+
+**Seed Data Generated:**
+
+1. **50-100 MLB Players** (from statsapi.mlb.com)
+   - Real MLB player names, IDs, and positions
+   - Distributed across major teams (Yankees, Red Sox, Dodgers, etc.)
+   - Includes mix of starters, bench players, and role players
+
+2. **2-3 Test Leagues**
+   - League 1: "Dev Test League" (10 members, homerun-only scoring, draft March 1)
+   - League 2: "Advanced Scoring" (8 members, custom scoring rules, draft March 5)
+   - League 3: "Solo Practice" (1 commissioner + AI roster, for single-user testing)
+
+3. **10-15 Test Users**
+   - Test users with realistic names and emails
+   - Each user has a Google ID (mock: `google-dev-user-1`, etc.)
+   - Distributed across leagues
+
+4. **Sample Draft Picks** (completed drafts)
+   - League 1 & 2: Fully drafted (all rounds completed)
+   - Allows immediate testing of standings, rosters, and trades
+   - No waiting for draft phase
+
+5. **Sample Rosters & Homerun Events**
+   - 5-10 fake homerun events per league (scattered across dates)
+   - Pre-calculated scores for each user
+   - Allows testing standings recalculation, notifications, and UI updates
+
+**How to Run Locally:**
+
+```bash
+# Install dependencies
+npm install
+
+# Set up environment variables
+cp .env.example .env.local
+
+# Spin up Postgres (if using Docker)
+docker-compose up -d postgres
+
+# Run migrations
+npx prisma migrate dev --name init
+
+# Seed the database with test data
+npx prisma db seed
+
+# Open Prisma Studio to inspect data
+npx prisma studio
+```
+
+**After seeding, you have:**
+- 10-15 logged-in test users ready to use
+- 2-3 complete leagues with drafted rosters
+- Historical homerun events to see scoring in action
+- Immediate ability to test trades, standings, notifications
+
+**Seeding Best Practices:**
+- Seed script is idempotent (safe to run multiple times)
+- Always runs in development (`NODE_ENV=development`)
+- Falls back gracefully if statsapi.mlb.com is unavailable (uses hardcoded fallback players)
+
+### Dev-Only "Trigger Homerun" Endpoint
+
+To test the complete homerun event pipeline without waiting for real MLB games, a development-only endpoint simulates homerun events with full side effects.
+
+**Endpoint:** `POST /api/dev/trigger-homerun`
+
+**Security:**
+- **Only available in development mode** (`NODE_ENV=development`)
+- Automatically disabled in production
+- Guard at route handler entry:
+
+```typescript
+export async function POST(request: NextRequest) {
+  if (process.env.NODE_ENV !== 'development') {
+    return NextResponse.json(
+      { error: 'Not available in production' },
+      { status: 403 }
+    )
+  }
+  // ... rest of handler
+}
+```
+
+**Request Body:**
+```json
+{
+  "leagueId": "abc123",
+  "userId": "user-1",
+  "playerId": "660285",
+  "playerName": "Aaron Judge",
+  "gameId": "test-game-001",
+  "inning": 3,
+  "team": "NYY"
+}
+```
+
+**Response (201 Created):**
+```json
+{
+  "event": {
+    "id": "hr-event-xyz",
+    "leagueId": "abc123",
+    "playerId": "660285",
+    "playerName": "Aaron Judge",
+    "inning": 3,
+    "gameId": "test-game-001",
+    "detectedAt": "2026-02-18T14:30:00Z"
+  },
+  "scoreDelta": {
+    "userId": "user-1",
+    "previousScore": 15,
+    "newScore": 16,
+    "pointsAwarded": 1
+  },
+  "notificationSent": true,
+  "pusherBroadcast": true
+}
+```
+
+**Full Pipeline Tested:**
+
+1. **Creates HomerrunEvent record** in database
+2. **Updates affected user's score** (finds all roster_spots for playerId)
+3. **Sends push notification** (if user subscribed to league)
+4. **Broadcasts via Pusher**:
+   - `homeruns-{leagueId}` channel — Real-time homerun feed
+   - `standings-{leagueId}` channel — Updated standings/scores
+5. **Returns success payload** with scoring delta
+
+**Example Usage in Frontend Testing:**
+
+```typescript
+// Simulate Aaron Judge homerun in Dev League
+const response = await fetch('/api/dev/trigger-homerun', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    leagueId: 'league-dev-1',
+    playerId: '660285',
+    playerName: 'Aaron Judge',
+    gameId: 'test-game-001',
+    inning: 3,
+    team: 'NYY'
+  })
+})
+
+const { event, scoreDelta, notificationSent } = await response.json()
+console.log(`${event.playerName} hit a homerun!`)
+console.log(`${scoreDelta.userId} gained ${scoreDelta.pointsAwarded} point(s)`)
+```
+
+**Testing Scenarios Enabled:**
+
+| Scenario | How to Test |
+|----------|------------|
+| **Real-time standings update** | Trigger homerun, observe standings refresh via Pusher |
+| **Push notifications** | Subscribe to push, trigger homerun, verify notification appears |
+| **Draft room + live scoring** | Join draft, trigger homerun, see score change in real-time |
+| **Trade acceptance with scoring** | Accept trade, trigger homerun for new roster player, verify score update |
+| **Standings ranking** | Trigger multiple homeruns across users, verify leaderboard recalculation |
+
+### Development Mode Environment
+
+**File:** `.env.development` (or `.env.local`)
+
+```env
+# Required for dev seeding & trigger endpoint
+NODE_ENV=development
+NEXT_PUBLIC_DEV_MODE=true
+
+# Development database (local or Neon)
+DATABASE_URL=postgresql://dev:dev@localhost:5432/fantasy_baseball_dev
+
+# Mock/test credentials (not real secrets)
+NEXTAUTH_SECRET=dev-secret-do-not-use-in-prod
+GOOGLE_CLIENT_ID=dev-client-id
+GOOGLE_CLIENT_SECRET=dev-client-secret
+
+# Pusher (use free tier dev app)
+PUSHER_APP_ID=dev-app-123
+NEXT_PUBLIC_PUSHER_APP_KEY=dev-key-abc
+PUSHER_SECRET=dev-secret-xyz
+
+# Optional: Disable external APIs for offline testing
+MOCK_STATSAPI=true
+MOCK_PUSHER=false
+```
+
+### Testing Workflow (MVP Launch)
+
+**Pre-Launch Checklist:**
+
+1. **Local Development Environment Setup**
+   - Clone repo, install dependencies
+   - Run `npx prisma db seed` to populate test data
+   - Verify `npm run dev` starts without errors
+
+2. **Manual Smoke Tests**
+   ```bash
+   # Test draft room
+   - Open /league/league-dev-1 in 2 browser tabs
+   - Make picks in one tab, see real-time update in other
+   - Verify Pusher presence shows both users
+
+   # Test homerun pipeline
+   - POST /api/dev/trigger-homerun with league & player
+   - Verify homerun appears in recent events
+   - Verify standings update
+   - Verify push notification if subscribed
+
+   # Test trades
+   - Propose trade between test users
+   - Accept/reject and verify score recalculation
+   - Veto a trade and verify cascade
+
+   # Test standings
+   - View standings after multiple homeruns
+   - Verify score ordering matches events
+   ```
+
+3. **End-to-End Scenarios**
+   - **Scenario 1:** Create league → invite users → draft → trigger homeruns → check standings
+   - **Scenario 2:** Draft → propose trade → trigger homerun on new player → verify score
+   - **Scenario 3:** Multiple leagues → trigger homerun in one → verify isolation (doesn't affect other)
+
+4. **PWA Installation Testing** (before launch)
+   - Open app in iOS Safari 16.4+ → "Add to Home Screen" → verify fullscreen
+   - Open app in Android Chrome → test "Install" prompt
+   - Test offline mode → go offline → verify cached assets load
+   - Test push notifications → send notification → verify receipt
+
+5. **Real-Time Sync Testing**
+   - Open 3 tabs of same league
+   - Trigger homerun in one tab
+   - Verify all 3 tabs update <100ms (via Pusher)
+   - Verify no race conditions in score recalculation
+
+6. **Database Consistency**
+   - After each test scenario, run `SELECT COUNT(*) FROM homerun_events`
+   - Verify no duplicate playByPlayId values
+   - Verify cascade deletes work (delete league → verify orphaned records cleaned)
+
+### Dev-Only Features Summary
+
+| Feature | Dev Only? | How to Access | When to Use |
+|---------|-----------|---------------|------------|
+| **Seed Script** | Yes | `npx prisma db seed` | Setup: initial database population |
+| **Trigger Homerun** | Yes | `POST /api/dev/trigger-homerun` | Testing: event pipeline without real games |
+| **Prisma Studio** | Yes | `npx prisma studio` | Debugging: inspect/edit database directly |
+| **Mock statsapi** | Optional | `MOCK_STATSAPI=true` | Testing: offline, faster local dev |
+| **Dev Leagues** | No | Created via seed, real endpoints | Staging: realistic user workflows |
+
+### Deployment Safeguards
+
+**The dev-only endpoint is automatically disabled in production:**
+
+```typescript
+// In /api/dev/trigger-homerun/route.ts
+export async function POST(request: NextRequest) {
+  // Fail-safe: always check NODE_ENV at handler entry
+  if (process.env.NODE_ENV !== 'development') {
+    return NextResponse.json(
+      { error: 'Endpoint not available' },
+      { status: 403 }
+    )
+  }
+  // Handler code
+}
+```
+
+**Vercel Production Environment:**
+- `NODE_ENV=production` is set automatically
+- Dev endpoint returns 403 Forbidden
+- Seed script `prisma/seed` is never executed in prod
+- All test data stays local only
+
+---
+
+## 13. Key Architectural Decisions
 
 ### Decision 1: Google OAuth Only (No Magic Link)
 - **Trade-off:** Simpler auth, but users need Google account
@@ -833,9 +1119,13 @@ CRON_SECRET=<random-secret>
 - **Trade-off:** Seamless, but user may not notice
 - **Rationale:** Best UX—no interruptions, optional refresh available
 
+### Decision 6: Dev-Only Trigger Homerun Endpoint (Not Mocking in Production)
+- **Trade-off:** Extra route handler code, but complete safety isolation
+- **Rationale:** Enables full E2E testing of event pipeline; disabled in production via NODE_ENV check; safe guard prevents accidental exposure
+
 ---
 
-## 13. Tech Stack Summary & Costs
+## 14. Tech Stack Summary & Costs
 
 | Service | Tier | Cost/Month | Limit | When to Upgrade |
 |---------|------|-----------|-------|-----------------|
