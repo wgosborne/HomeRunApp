@@ -1,0 +1,272 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// User: Created by NextAuth via Google OAuth
+// ============================================================================
+model User {
+  id                    String       @id @default(cuid())
+  email                 String       @unique
+  name                  String?
+  googleId              String       @unique
+  image                 String?
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+
+  // Relations
+  leagueMemberships     LeagueMembership[]
+  draftPicks            DraftPick[]
+  rosterSpots           RosterSpot[]
+  trades                Trade[]
+  tradeResponses        Trade[]        @relation("tradeReceiver")
+  pushSubscriptions     PushSubscription[]
+  accounts              Account[]
+  sessions              Session[]
+
+  @@index([googleId])
+}
+
+// ============================================================================
+// League: Created by commissioner
+// ============================================================================
+model League {
+  id                    String       @id @default(cuid())
+  name                  String
+  commissionerId        String
+  draftDate             DateTime?
+  draftStartedAt        DateTime?
+  draftCompletedAt      DateTime?
+  tradeDeadline         DateTime?
+  scoringFormat         String       @default("homerun_only")
+  maxTradeVetoVotes     Int          @default(2)
+  maxTeamSize           Int          @default(25)
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+
+  // Relations
+  memberships           LeagueMembership[]
+  draftPicks            DraftPick[]
+  rosterSpots           RosterSpot[]
+  homeruns              HomerrunEvent[]
+  trades                Trade[]
+  settings              LeagueSettings?
+
+  @@index([commissionerId])
+  @@index([draftDate])
+}
+
+// ============================================================================
+// LeagueMembership: Tracks which users are in which leagues
+// ============================================================================
+model LeagueMembership {
+  id                    String       @id @default(cuid())
+  userId                String
+  leagueId              String
+  role                  String       @default("member")
+  teamName              String?      @default("Team Name")
+  joinedAt              DateTime     @default(now())
+
+  // Relations
+  user                  User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  league                League       @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, leagueId])
+  @@index([leagueId])
+}
+
+// ============================================================================
+// DraftPick: One pick per user per round
+// ============================================================================
+model DraftPick {
+  id                    String       @id @default(cuid())
+  leagueId              String
+  userId                String
+  playerId              String
+  playerName            String
+  position              String?
+  round                 Int
+  pickNumber            Int
+  isPick                Boolean      @default(false)
+  autoPickedAt          DateTime?
+  pickedAt              DateTime     @default(now())
+  createdAt             DateTime     @default(now())
+
+  // Relations
+  league                League       @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  user                  User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([leagueId, playerId])
+  @@index([leagueId, round])
+  @@index([userId, leagueId])
+}
+
+// ============================================================================
+// RosterSpot: Tracks player assignment to user with homerun count
+// ============================================================================
+model RosterSpot {
+  id                    String       @id @default(cuid())
+  leagueId              String
+  userId                String
+  playerId              String
+  playerName            String
+  position              String?
+  homeruns              Int          @default(0)
+  points                Int          @default(0)
+  draftedRound          Int?
+  draftedPickNumber     Int?
+  addedViaTradeAt       DateTime?
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+
+  // Relations
+  league                League       @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  user                  User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([leagueId, userId, playerId])
+  @@index([leagueId, userId])
+  @@index([leagueId, playerId])
+}
+
+// ============================================================================
+// HomerrunEvent: Log every homerun hit during season
+// ============================================================================
+model HomerrunEvent {
+  id                    String       @id @default(cuid())
+  leagueId              String
+  playerId              String
+  playerName            String
+  playByPlayId          String       @unique
+  gameId                String
+  gameDate              DateTime
+  inning                Int
+  rbi                   Int          @default(1)
+  team                  String?
+  homeTeam              String?
+  awayTeam              String?
+  detectedAt            DateTime     @default(now())
+  createdAt             DateTime     @default(now())
+
+  // Relations
+  league                League       @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+
+  @@index([leagueId, gameDate])
+  @@index([playByPlayId])
+}
+
+// ============================================================================
+// Trade: User proposes to trade their roster player for another user's player
+// ============================================================================
+model Trade {
+  id                    String       @id @default(cuid())
+  leagueId              String
+  ownerId               String
+  receiverId            String
+  ownerPlayerId         String
+  ownerPlayerName       String
+  receiverPlayerId      String
+  receiverPlayerName    String
+  status                String       @default("pending")
+  vetoVotes             Int          @default(0)
+  expiresAt             DateTime
+  respondedAt           DateTime?
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+
+  // Relations
+  league                League       @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  owner                 User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  receiver              User         @relation("tradeReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@index([leagueId, status])
+  @@index([receiverId, status])
+  @@index([expiresAt])
+}
+
+// ============================================================================
+// PushSubscription: Stores Web Push subscription for each user/league combo
+// ============================================================================
+model PushSubscription {
+  id                    String       @id @default(cuid())
+  userId                String
+  leagueId              String
+  endpoint              String
+  p256dh                String
+  auth                  String
+  userAgent             String?
+  isActive              Boolean      @default(true)
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+
+  // Relations
+  user                  User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, leagueId, endpoint])
+  @@index([leagueId])
+  @@index([userId])
+}
+
+// ============================================================================
+// LeagueSettings: Global settings for a league (future expansion)
+// ============================================================================
+model LeagueSettings {
+  id                    String       @id @default(cuid())
+  leagueId              String       @unique
+  allowVetos            Boolean      @default(true)
+  autoExpireTradesHours Int          @default(48)
+  notificationsEnabled  Boolean      @default(true)
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+
+  // Relations
+  league                League       @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+}
+
+// ============================================================================
+// NextAuth Default Tables (auto-created by Prisma adapter)
+// ============================================================================
+model Account {
+  id                    String       @id @default(cuid())
+  userId                String
+  type                  String
+  provider              String
+  providerAccountId     String
+  refresh_token         String?      @db.Text
+  access_token          String?      @db.Text
+  expires_at            Int?
+  token_type            String?
+  scope                 String?
+  id_token              String?      @db.Text
+  session_state         String?
+
+  user                  User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id                    String       @id @default(cuid())
+  sessionToken          String       @unique
+  userId                String
+  expires               DateTime
+  user                  User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier            String
+  token                 String       @unique
+  expires               DateTime
+
+  @@unique([identifier, token])
+}
