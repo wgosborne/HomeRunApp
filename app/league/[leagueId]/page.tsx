@@ -1,8 +1,8 @@
 "use client";
 
+import React, { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useParams } from "next/navigation";
-import { useEffect, useState } from "react";
 import { pusherClient } from "@/lib/pusher-client";
 
 interface League {
@@ -30,6 +30,286 @@ function ComingSoonTab({ label }: { label: string }) {
       <div className="text-5xl mb-4">🚀</div>
       <h2 className="text-2xl font-bold text-gray-900 mb-2">{label}</h2>
       <p className="text-gray-600">Coming soon in Week 3</p>
+    </div>
+  );
+}
+
+interface StandingsEntry {
+  rank: number;
+  userId: string;
+  userName: string;
+  teamName: string;
+  userImage: string | null;
+  totalHomeruns: number;
+  totalPoints: number;
+  playerCount: number;
+  players: Array<{
+    playerId: string;
+    playerName: string;
+    position: string | null;
+    homeruns: number;
+    points: number;
+  }>;
+}
+
+interface RosterEntry {
+  playerId: string;
+  playerName: string;
+  position: string | null;
+  homeruns: number;
+  points: number;
+  draftedRound: number | null;
+  draftedPickNumber: number | null;
+}
+
+function LeaderboardTab({ leagueId }: { leagueId: string }) {
+  const [standings, setStandings] = useState<StandingsEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchStandings();
+    const interval = setInterval(fetchStandings, 5000);
+    return () => clearInterval(interval);
+  }, [leagueId]);
+
+  // Subscribe to homerun events via Pusher
+  useEffect(() => {
+    const channel = pusherClient.subscribe(`league-${leagueId}`);
+
+    const handleHomerun = () => {
+      console.log("Homerun event received, refreshing standings");
+      fetchStandings();
+    };
+
+    channel.bind("homerun", handleHomerun);
+
+    return () => {
+      channel.unbind("homerun", handleHomerun);
+    };
+  }, [leagueId]);
+
+  const fetchStandings = async () => {
+    try {
+      const res = await fetch(`/api/leagues/${leagueId}/standings`);
+      if (res.ok) {
+        const data = await res.json();
+        setStandings(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch standings:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return <div className="p-8 text-center">Loading standings...</div>;
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <table className="w-full">
+          <thead className="bg-gray-50 border-b">
+            <tr>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
+                Rank
+              </th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
+                Team
+              </th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
+                Manager
+              </th>
+              <th className="px-6 py-3 text-right text-sm font-semibold text-gray-900">
+                Homeruns
+              </th>
+              <th className="px-6 py-3 text-right text-sm font-semibold text-gray-900">
+                Players
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {standings.map((entry) => (
+              <React.Fragment key={entry.userId}>
+                <tr
+                  onClick={() =>
+                    setExpandedUserId(
+                      expandedUserId === entry.userId ? null : entry.userId
+                    )
+                  }
+                  className="hover:bg-gray-50 cursor-pointer"
+                >
+                  <td className="px-6 py-4 text-sm font-bold text-indigo-600">
+                    #{entry.rank}
+                  </td>
+                  <td className="px-6 py-4 text-sm font-semibold text-gray-900">
+                    {entry.teamName}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-600">
+                    {entry.userName}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-right font-semibold text-gray-900">
+                    {entry.totalHomeruns}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-right text-gray-600">
+                    {entry.playerCount}
+                  </td>
+                </tr>
+                {expandedUserId === entry.userId && (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-4 bg-gray-50">
+                      <div className="space-y-2">
+                        <h4 className="font-semibold text-gray-900 mb-3">
+                          Players
+                        </h4>
+                        {entry.players.map((player) => (
+                          <div
+                            key={player.playerId}
+                            className="flex justify-between items-center p-3 bg-white rounded border border-gray-200"
+                          >
+                            <div>
+                              <p className="font-medium text-gray-900">
+                                {player.playerName}
+                              </p>
+                              <p className="text-xs text-gray-600">
+                                {player.position || "N/A"}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-semibold text-gray-900">
+                                {player.homeruns} HR
+                              </p>
+                              <p className="text-xs text-gray-600">
+                                {player.points} pts
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function MyTeamTab({ leagueId }: { leagueId: string }) {
+  const [roster, setRoster] = useState<RosterEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [totalHomeruns, setTotalHomeruns] = useState(0);
+
+  useEffect(() => {
+    fetchRoster();
+    const interval = setInterval(fetchRoster, 5000);
+    return () => clearInterval(interval);
+  }, [leagueId]);
+
+  // Subscribe to homerun events via Pusher
+  useEffect(() => {
+    const channel = pusherClient.subscribe(`league-${leagueId}`);
+
+    const handleHomerun = () => {
+      console.log("Homerun event received, refreshing roster");
+      fetchRoster();
+    };
+
+    channel.bind("homerun", handleHomerun);
+
+    return () => {
+      channel.unbind("homerun", handleHomerun);
+    };
+  }, [leagueId]);
+
+  const fetchRoster = async () => {
+    try {
+      const res = await fetch(`/api/leagues/${leagueId}/roster`);
+      if (res.ok) {
+        const data: RosterEntry[] = await res.json();
+        setRoster(data);
+        setTotalHomeruns(data.reduce((sum, p) => sum + p.homeruns, 0));
+      }
+    } catch (error) {
+      console.error("Failed to fetch roster:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return <div className="p-8 text-center">Loading your team...</div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Team Summary */}
+      <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 rounded-lg shadow p-6 text-white">
+        <h3 className="text-lg font-semibold mb-2">Team Stats</h3>
+        <div className="grid grid-cols-3 gap-4">
+          <div>
+            <p className="text-indigo-100 text-sm">Players</p>
+            <p className="text-3xl font-bold">{roster.length}</p>
+          </div>
+          <div>
+            <p className="text-indigo-100 text-sm">Total Homeruns</p>
+            <p className="text-3xl font-bold">{totalHomeruns}</p>
+          </div>
+          <div>
+            <p className="text-indigo-100 text-sm">Total Points</p>
+            <p className="text-3xl font-bold">
+              {roster.reduce((sum, p) => sum + p.points, 0)}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Roster List */}
+      <div className="space-y-3">
+        <h3 className="text-lg font-semibold text-gray-900">Roster</h3>
+        {roster.length === 0 ? (
+          <div className="bg-white rounded-lg shadow p-8 text-center">
+            <p className="text-gray-600">
+              You haven't drafted any players yet. Start the draft to build your team!
+            </p>
+          </div>
+        ) : (
+          roster.map((player) => (
+            <div
+              key={player.playerId}
+              className="bg-white rounded-lg shadow p-4 hover:shadow-md transition"
+            >
+              <div className="flex justify-between items-start">
+                <div>
+                  <h4 className="font-semibold text-gray-900">
+                    {player.playerName}
+                  </h4>
+                  <div className="flex gap-4 mt-2 text-sm text-gray-600">
+                    <span>{player.position || "N/A"}</span>
+                    {player.draftedRound && (
+                      <span>
+                        Drafted: Round {player.draftedRound}, Pick{" "}
+                        {player.draftedPickNumber}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-lg font-bold text-indigo-600">
+                    {player.homeruns} HR
+                  </div>
+                  <div className="text-sm text-gray-600">{player.points} pts</div>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 }
@@ -363,10 +643,10 @@ export default function LeagueHomePage() {
               />
             )}
             {activeTab === "leaderboard" && (
-              <ComingSoonTab label="Leaderboard" />
+              <LeaderboardTab leagueId={leagueId} />
             )}
             {activeTab === "myteam" && (
-              <ComingSoonTab label="My Team" />
+              <MyTeamTab leagueId={leagueId} />
             )}
             {activeTab === "players" && (
               <ComingSoonTab label="Players" />

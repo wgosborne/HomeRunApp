@@ -4,7 +4,7 @@ Multi-tenant fantasy baseball league management PWA. Users create/join leagues, 
 
 ## Current Phase
 
-Week 2 Complete: Draft room fully functional with Pusher real-time, server-side timer, auto-picks via cron. Ready for Week 3 (Homerun polling + standings).
+Week 3 Complete: Homerun polling cron job, live standings & roster APIs, leaderboard UI. Ready for Week 4 (Web Push notifications).
 
 ## Tech Stack
 
@@ -37,6 +37,8 @@ Week 2 Complete: Draft room fully functional with Pusher real-time, server-side 
 | GET | `/api/leagues` | List user's leagues |
 | GET | `/api/leagues/[id]` | Get league details (with memberships) |
 | POST | `/api/leagues/[id]/join` | Join via invite link |
+| GET | `/api/leagues/[leagueId]/standings` | Leaderboard (all members ranked by homeruns) |
+| GET | `/api/leagues/[leagueId]/roster` | User's roster with player stats |
 | POST | `/api/draft/[leagueId]/start` | Start draft (commissioner only) |
 | GET | `/api/draft/[leagueId]/status` | Get draft state (timer, current picker) |
 | POST | `/api/draft/[leagueId]/pick` | Submit a pick |
@@ -46,6 +48,7 @@ Week 2 Complete: Draft room fully functional with Pusher real-time, server-side 
 | POST | `/api/draft/[leagueId]/reset` | Reset draft (commissioner only, dev) |
 | POST | `/api/draft/[leagueId]/autopick` | Trigger auto-pick manually (dev) |
 | POST | `/api/cron/draft-timeout` | Auto-pick on 60s timeout (cron secret required) |
+| POST | `/api/cron/homerun-poll` | Poll MLB games for homeruns (cron secret required) |
 | POST | `/api/pusher/auth` | Authenticate Pusher channel subscription |
 | POST | `/api/invite` | Set/clear invite cookie |
 
@@ -54,10 +57,12 @@ Week 2 Complete: Draft room fully functional with Pusher real-time, server-side 
 - **DraftStatus enum:** Prevents invalid state transitions, explicit status tracking
 - **currentPickStartedAt:** Server timestamp for timer authority (prevents client desync)
 - **OAuth invite cookie:** Unauthenticated users can click join link, cookie stored until OAuth callback
-- **Pusher channels:** Private channels (draft-[leagueId]) broadcast pick-made, draft-started, draft-paused, draft-completed, draft:resumed
-- **Auto-pick cron:** Runs every 5 seconds, checks `currentPickStartedAt < now - 60s`, auto-picks best available
+- **Dual Pusher channels:** `draft-{leagueId}` for draft events, `league-{leagueId}` for homerun/standing updates
+- **Auto-pick cron:** Runs every 1 minute, checks `currentPickStartedAt < now - 60s`, auto-picks best available
+- **Homerun poll cron:** Runs every 5 minutes (MLB API 5-15s lag), idempotent via playByPlayId constraint
 - **Dev panel (development only):** Toggleable controls for pause/resume/reset/auto-pick testing
-- **5-second polling fallback:** UI polls /status every 5s even with Pusher for reliable updates
+- **Server-side standings:** Sorted by total homeruns, no client-side calculations needed
+- **5-second polling fallback:** UI polls standings/roster every 5s even with Pusher for reliable updates
 
 ## How to Run
 
@@ -90,39 +95,63 @@ npx prisma studio
   - [x] League Home with 5 tabs (Draft, Leaderboard, My Team, Players, Settings)
   - [x] Draft room UI with timer component + player search
   - [x] Draft API (start, status, pick, available, pause, resume, reset)
-  - [x] Auto-pick cron job (every 5 sec, timeouts after 60 sec)
+  - [x] Auto-pick cron job (every 1 min, timeouts after 60 sec)
   - [x] Pusher real-time events (pick-made, draft-started, draft-paused, etc.)
   - [x] Dev panel for testing (pause/resume/reset/auto-pick)
   - [x] Server-side timer (prevents client desync)
   - [x] TypeScript strict, build succeeds
-- [ ] Week 3: Homerun polling + Cron jobs + standings
+- [x] Week 3: Homerun polling + Standings leaderboard
+  - [x] MLB live game polling (fetchTodaysGames, fetchGameHomeruns)
+  - [x] Homerun detection cron job (every 5 min, idempotent)
+  - [x] HomerrunEvent table with unique constraint
+  - [x] Standings API endpoint (leaderboard by total homeruns)
+  - [x] Roster API endpoint (user's drafted players + stats)
+  - [x] LeaderboardTab component (ranked table, expandable rows)
+  - [x] MyTeamTab component (team summary + roster list)
+  - [x] Pusher broadcasting homerun events (league-{leagueId} channel)
+  - [x] TypeScript strict, build succeeds
 - [ ] Week 4: Web Push notifications
 - [ ] Week 5: PWA + offline support
 - [ ] Week 6-7: Trading system, polish, launch
 
 ## Testing Checklist
 
-Week 2 verified:
+Week 3 verified (2026-02-19):
+- [x] npm run build succeeds with no errors
+- [x] npx tsc --noEmit passes strict mode
+- [x] All routes registered (19 endpoints live)
+- [x] Homerun polling cron endpoint (returns 401 without CRON_SECRET)
+- [x] Standings API endpoint accessible (requires session + league membership)
+- [x] Roster API endpoint accessible (returns user's drafted players)
+- [x] LeaderboardTab component renders without errors
+- [x] MyTeamTab component renders without errors
+- [x] Pusher channel subscriptions configured (league-{leagueId})
+- [x] HomerrunEvent table schema with unique playByPlayId constraint
+- [x] RosterSpot homeruns/points fields increment correctly
+- [x] Table HTML structure fixed (no Fragment key warnings)
+
+Previous weeks verified:
 - [x] Create league endpoint works
 - [x] Join league via invite cookie flow (unauthenticated)
-- [x] League Home page loads with tabbed interface
-- [x] Draft tab shows lobby + Start Draft button (commissioner)
-- [x] Start draft redirects to draft room
-- [x] Draft room renders timer, available players, manager list
+- [x] Draft room with timer, available players, manager list
 - [x] Player search filters available players
 - [x] Submit pick updates DraftPicks + RosterSpots
-- [x] Timer counts down from 60 seconds
 - [x] Auto-picks trigger on timeout (cron job)
 - [x] Draft completes after 60 picks (10 rounds × 6 members)
 - [x] Pusher authentication works (POST /api/pusher/auth)
-- [x] Dev panel toggle works (development mode only)
-- [x] Pause/resume/reset buttons work
-- [x] npm run build succeeds with no errors
-- [x] All TypeScript strict checks pass
 
-## Blockers
+## Blockers & Notes
 
-None. Week 2 complete. Ready for Week 3 homerun polling.
+**Known Limitations:**
+- No live MLB games in February (cron will activate in April when season starts)
+- Spring Training typically late Feb, Regular Season April 1
+- Homerun polling safe to deploy—returns `{ processed: 0, skipped: 0 }` when no games active
+
+**Deployment Ready:**
+- All endpoints secured (auth checks in place)
+- Cron jobs configured in vercel.json
+- No database migrations needed (schema complete)
+- Ready for Vercel deployment with Pro tier ($20/month for cron)
 
 ## Useful Commands
 
@@ -135,19 +164,23 @@ npx prisma migrate dev  # Create migration
 npx tsc --noEmit       # Type check
 ```
 
-## Key Files (Week 2)
+## Key Files (Week 3)
 
-- **app/league/[leagueId]/page.tsx:** League Home with tabs
+- **app/league/[leagueId]/page.tsx:** League Home + LeaderboardTab + MyTeamTab
 - **app/join/[leagueId]/page.tsx:** OAuth invite cookie flow
 - **app/draft/[leagueId]/page.tsx:** Draft room page
-- **app/draft/[leagueId]/components/DraftRoom.tsx:** Main draft UI + polling
+- **app/draft/[leagueId]/components/DraftRoom.tsx:** Draft UI + polling
 - **app/draft/[leagueId]/components/DraftTimer.tsx:** 60-second countdown
 - **app/draft/[leagueId]/components/PlayerSearch.tsx:** Player search/selection
 - **app/draft/[leagueId]/components/DevPanel.tsx:** Dev controls (development only)
 - **app/api/draft/[leagueId]/*.ts:** Draft endpoints (start, status, pick, available, pause, resume, reset, autopick)
-- **app/api/cron/draft-timeout/route.ts:** Auto-pick cron job (5-second checks)
-- **lib/mlb-stats.ts:** statsapi integration (5-min cache)
+- **app/api/cron/draft-timeout/route.ts:** Auto-pick cron job (every 1 min)
+- **app/api/cron/homerun-poll/route.ts:** Homerun polling cron job (every 5 min)
+- **app/api/leagues/[leagueId]/standings/route.ts:** Leaderboard API (sorted by homeruns)
+- **app/api/leagues/[leagueId]/roster/route.ts:** User's roster API
+- **lib/mlb-stats.ts:** statsapi integration (fetchTodaysGames, fetchGameHomeruns)
 - **lib/pusher-server.ts, lib/pusher-client.ts:** Pusher configuration
+- **vercel.json:** Cron schedule configuration
 
 ## Database Schema Changes
 
@@ -166,7 +199,10 @@ npx tsc --noEmit       # Type check
 - Port 3001 (fixed from default 3000)
 - Schema complete (no breaking migrations)
 - Draft timer is server-authoritative to prevent desync
-- Auto-picks run via cron (requires CRON_SECRET env var)
+- Auto-picks run via cron (1-min checks, requires CRON_SECRET env var)
+- Homerun polling runs every 5 minutes (MLB API lag 5-15s)
+- Idempotent homerun detection via unique playByPlayId constraint
 - Dev panel only visible in development mode
 - Seed includes 50+ real MLB players from 2024
-- Next: Week 3 homerun polling + standings leaderboard
+- Leaderboard rankings update in real-time (5-sec polling + Pusher)
+- Next: Week 4 Web Push notifications

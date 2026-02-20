@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/draft-timeout",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/homerun-poll",
+      "schedule": "*/5 * * * *"
+    }
+  ]
+}
