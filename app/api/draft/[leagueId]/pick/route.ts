@@ -5,6 +5,7 @@ import { pusherServer } from "@/lib/pusher-server";
 import { submitPickSchema } from "@/lib/validation";
 import { handleError, ConflictError, AuthorizationError, ValidationError } from "@/lib/errors";
 import { createLogger } from "@/lib/logger";
+import { sendPushToUser } from "@/lib/push-service";
 
 const logger = createLogger("draft-pick");
 
@@ -178,6 +179,36 @@ export async function POST(
       position: validatedData.position,
       timestamp: Date.now(),
     });
+
+    // Send "your turn" notification to next picker (if draft not complete)
+    if (!isComplete) {
+      try {
+        const nextPickNumber = completedPicks + 2; // Next pick after this one
+        const nextPickerIndexInRound = (nextPickNumber - 1) % memberCount;
+        const nextPickerId = league.memberships[nextPickerIndexInRound].userId;
+        const nextRound = Math.ceil(nextPickNumber / memberCount);
+
+        await sendPushToUser(nextPickerId, leagueId, {
+          title: 'Your turn in the draft!',
+          body: `${pickerName} just picked ${validatedData.playerName}. It's your turn now! You have 60 seconds to make your selection.`,
+          icon: '/icon-192x192.png',
+          badge: '/badge-72x72.png',
+          tag: 'draft-turn',
+          leagueId,
+          eventType: 'turn',
+          data: {
+            round: nextRound,
+            pickNumber: nextPickNumber,
+          },
+        });
+      } catch (pushError) {
+        logger.error('Error sending draft turn push notification', {
+          leagueId,
+          error: pushError,
+        });
+        // Continue processing even if push fails
+      }
+    }
 
     // If draft is complete, broadcast completion
     if (isComplete) {

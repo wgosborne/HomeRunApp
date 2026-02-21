@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher-server";
 import { createLogger } from "@/lib/logger";
 import { fetchTodaysGames, fetchGameHomeruns } from "@/lib/mlb-stats";
+import { sendPushToUser } from "@/lib/push-service";
 
 const logger = createLogger("cron-homerun-poll");
 
@@ -107,6 +108,33 @@ export async function POST(request: NextRequest) {
                   timestamp: Date.now(),
                 });
 
+                // Send push notification to user with this player
+                try {
+                  await sendPushToUser(spot.userId, spot.leagueId, {
+                    title: `${homerun.playerName} hit a homerun!`,
+                    body: `${homerun.playerName} (${homerun.team}) hit a homerun in the ${homerun.inning}${getOrdinalSuffix(homerun.inning)} inning. You now have ${updatedSpot.homeruns} homerun${updatedSpot.homeruns === 1 ? '' : 's'}.`,
+                    icon: '/icon-192x192.png',
+                    badge: '/badge-72x72.png',
+                    tag: 'homerun-alert',
+                    leagueId: spot.leagueId,
+                    playerId: homerun.playerId,
+                    eventType: 'homerun',
+                    data: {
+                      inning: homerun.inning,
+                      team: homerun.team,
+                      totalHomeruns: updatedSpot.homeruns,
+                    },
+                  });
+                } catch (pushError) {
+                  logger.error("Error sending push notification", {
+                    userId: spot.userId,
+                    leagueId: spot.leagueId,
+                    playerName: homerun.playerName,
+                    error: pushError,
+                  });
+                  // Continue processing even if push fails
+                }
+
                 logger.info("Processed homerun event", {
                   leagueId: spot.leagueId,
                   playerName: homerun.playerName,
@@ -162,4 +190,16 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+/**
+ * Helper to convert inning number to ordinal suffix
+ */
+function getOrdinalSuffix(num: number): string {
+  const j = num % 10;
+  const k = num % 100;
+  if (j === 1 && k !== 11) return 'st';
+  if (j === 2 && k !== 12) return 'nd';
+  if (j === 3 && k !== 13) return 'rd';
+  return 'th';
 }

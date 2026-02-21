@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher-server";
 import { handleError, AuthorizationError, ConflictError } from "@/lib/errors";
 import { createLogger } from "@/lib/logger";
+import { sendPushToUser } from "@/lib/push-service";
 
 const logger = createLogger("draft-start");
 
@@ -79,6 +80,32 @@ export async function POST(
       memberCount: updatedLeague.memberships.length,
       timestamp: Date.now(),
     });
+
+    // Send "your turn" notification to first picker
+    try {
+      const firstPickerMembership = updatedLeague.memberships[0];
+      if (firstPickerMembership) {
+        await sendPushToUser(firstPickerMembership.userId, leagueId, {
+          title: 'Your turn in the draft!',
+          body: `Draft has started! You are the first picker. Make your first selection.`,
+          icon: '/icon-192x192.png',
+          badge: '/badge-72x72.png',
+          tag: 'draft-turn',
+          leagueId,
+          eventType: 'turn',
+          data: {
+            round: 1,
+            pickNumber: 1,
+          },
+        });
+      }
+    } catch (pushError) {
+      logger.error('Error sending draft start push notification', {
+        leagueId,
+        error: pushError,
+      });
+      // Continue processing even if push fails
+    }
 
     logger.info("Draft started", {
       leagueId,
