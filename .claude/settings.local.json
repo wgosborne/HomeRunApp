@@ -9,7 +9,11 @@
       "Bash(npm install:*)",
       "Bash(npm run build:*)",
       "Bash(npx prisma migrate dev:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(echo === Test Files Created ===:*)",
+      "Bash(ls -lh __tests__/*.test.ts TEST*.md TESTS.md Handoffs/05-test.md)",
+      "Bash(node scripts/generate-icons.js:*)",
+      "Bash(convert:*)"
     ]
   }
 }

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useParams } from "next/navigation";
 import { pusherClient } from "@/lib/pusher-client";
+import { NotificationBell } from "@/app/components/NotificationBell";
 
 interface League {
   id: string;
@@ -600,11 +601,16 @@ export default function LeagueHomePage() {
 
         {/* Header */}
         <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <h1 className="text-4xl font-bold text-gray-900">{league.name}</h1>
-          <div className="flex gap-4 mt-2 text-sm text-gray-600">
-            <span>{today}</span>
-            <span>•</span>
-            <span>Season starts March 27th</span>
+          <div className="flex justify-between items-start">
+            <div>
+              <h1 className="text-4xl font-bold text-gray-900">{league.name}</h1>
+              <div className="flex gap-4 mt-2 text-sm text-gray-600">
+                <span>{today}</span>
+                <span>•</span>
+                <span>Season starts March 27th</span>
+              </div>
+            </div>
+            <NotificationBell leagueId={leagueId} />
           </div>
         </div>
 

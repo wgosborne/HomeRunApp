@@ -1,16 +1,55 @@
 /**
  * Service Worker for Fantasy Homerun Tracker PWA
- * Handles push notifications and offline functionality
+ * Handles push notifications, offline caching, and network strategies
  */
 
+// Cache names with versioning
+const STATIC_CACHE = 'homerun-static-v1';
+const API_CACHE = 'homerun-api-v1';
+const OFFLINE_PAGE = '/offline';
+
+// Assets to cache on install (static resources)
+const STATIC_ASSETS = [
+  '/',
+  '/manifest.json',
+  '/icon-192x192.png',
+  '/icon-512x512.png',
+  '/badge-72x72.png',
+  '/offline',
+];
+
 // Log service worker lifecycle
-self.addEventListener('install', () => {
-  console.log('[SW] Service Worker installed');
+self.addEventListener('install', (event) => {
+  console.log('[SW] Service Worker installing');
+  event.waitUntil(
+    caches.open(STATIC_CACHE).then((cache) => {
+      console.log('[SW] Caching static assets');
+      return cache.addAll(STATIC_ASSETS).catch((err) => {
+        console.warn('[SW] Failed to cache some assets:', err);
+        // Don't fail install if some assets fail
+        return Promise.resolve();
+      });
+    })
+  );
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Service Worker activated');
+  console.log('[SW] Service Worker activating');
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          // Delete old cache versions
+          if (cacheName !== STATIC_CACHE && cacheName !== API_CACHE) {
+            console.log('[SW] Deleting old cache:', cacheName);
+            return caches.delete(cacheName);
+          }
+          return Promise.resolve();
+        })
+      );
+    })
+  );
   event.waitUntil(self.clients.claim());
 });
 
@@ -125,10 +164,97 @@ self.addEventListener('notificationclose', (event) => {
 });
 
 /**
- * Fetch event handler for offline support (optional)
- * Can be extended to cache resources and serve from cache when offline
+ * Cache strategies for different request types
+ */
+
+// Cache-first strategy: Use cache, fallback to network
+function cacheFirst(request) {
+  return caches.match(request).then((response) => {
+    if (response) {
+      return response;
+    }
+    return fetch(request)
+      .then((response) => {
+        // Cache successful responses
+        if (response && response.status === 200) {
+          const cache = caches.open(STATIC_CACHE);
+          cache.then((c) => c.put(request, response.clone()));
+        }
+        return response;
+      })
+      .catch(() => {
+        // Offline and no cache
+        if (request.destination === 'document') {
+          return caches.match(OFFLINE_PAGE);
+        }
+        return null;
+      });
+  });
+}
+
+// Network-first strategy: Try network, fallback to cache
+function networkFirst(request) {
+  return fetch(request)
+    .then((response) => {
+      // Cache successful API responses
+      if (response && response.status === 200 && request.method === 'GET') {
+        const cache = caches.open(API_CACHE);
+        cache.then((c) => c.put(request, response.clone()));
+      }
+      return response;
+    })
+    .catch(() => {
+      // Network failed, try cache
+      return caches.match(request).then((response) => {
+        if (response) {
+          console.log('[SW] Serving from cache:', request.url);
+          return response;
+        }
+        // No cache and offline
+        if (request.destination === 'document') {
+          return caches.match(OFFLINE_PAGE);
+        }
+        return null;
+      });
+    });
+}
+
+/**
+ * Fetch event handler
+ * Routes requests to appropriate caching strategy
  */
 self.addEventListener('fetch', (event) => {
-  // For now, just let requests pass through
-  // This can be enhanced later for offline PWA support (Week 5)
+  const { request } = event;
+  const url = new URL(request.url);
+
+  // Skip cross-origin requests
+  if (url.origin !== self.location.origin) {
+    return;
+  }
+
+  // API endpoints: network-first (try network, fallback to cache)
+  if (url.pathname.startsWith('/api/')) {
+    event.respondWith(networkFirst(request));
+    return;
+  }
+
+  // Static assets (CSS, JS, fonts, images): cache-first
+  if (
+    request.destination === 'style' ||
+    request.destination === 'script' ||
+    request.destination === 'font' ||
+    request.destination === 'image'
+  ) {
+    event.respondWith(cacheFirst(request));
+    return;
+  }
+
+  // HTML pages: network-first
+  if (request.destination === 'document') {
+    event.respondWith(networkFirst(request));
+    return;
+  }
+
+  // Default: network-first
+  event.respondWith(networkFirst(request));
 });

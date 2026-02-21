@@ -1,0 +1,19 @@
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <!-- Background -->
+  <rect width="192" height="192" fill="#4f46e5"/>
+
+  <!-- Baseball diamond -->
+  <g transform="translate(96, 96)">
+    <!-- Bases (white squares) -->
+    <rect x="-15.36" y="-15.36" width="30.72" height="30.72" fill="white" transform="rotate(45)"/>
+
+    <!-- Home plate -->
+    <polygon points="0,48 28.799999999999997,28.799999999999997 19.200000000000003,67.19999999999999 -19.200000000000003,67.19999999999999 -28.799999999999997,28.799999999999997" fill="white"/>
+
+    <!-- Baseball (circle with red stitches) -->
+    <circle cx="0" cy="-28.799999999999997" r="23.04" fill="white"/>
+    <path d="M -15.36,-34.56 Q 0,-23.04 15.36,-34.56" stroke="#ef4444" stroke-width="2.88" fill="none" stroke-linecap="round"/>
+    <path d="M -15.36,-23.04 Q 0,-34.56 15.36,-23.04" stroke="#ef4444" stroke-width="2.88" fill="none" stroke-linecap="round"/>
+  </g>
+</svg>

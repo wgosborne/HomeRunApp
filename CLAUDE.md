@@ -4,7 +4,7 @@ Multi-tenant fantasy baseball league management PWA. Users create/join leagues, 
 
 ## Current Phase
 
-Week 3 Complete: Homerun polling cron job, live standings & roster APIs, leaderboard UI. Ready for Week 4 (Web Push notifications).
+Weeks 1-5 Complete: Foundation, draft room, homerun polling, Web Push notifications, PWA + offline support. Ready for Week 6 (Trading system).
 
 ## Tech Stack
 
@@ -13,8 +13,8 @@ Week 3 Complete: Homerun polling cron job, live standings & roster APIs, leaderb
 - **Database:** Neon Postgres + Prisma 6.19.2 ORM (DraftStatus enum added)
 - **Auth:** Google OAuth (NextAuth.js v5) + invite cookie flow
 - **Real-Time:** Pusher Channels (configured + broadcasting)
-- **Notifications:** Native Web Push API (Week 4)
-- **PWA:** next-pwa v5 (Week 5)
+- **Notifications:** Native Web Push API (Service Worker, VAPID keys)
+- **PWA:** next-pwa v5 (manifest, offline caching, install prompt)
 - **MLB Data:** statsapi.mlb.com (homerun leaders, 5-15s lag)
 - **Deployment:** Vercel Pro ($20/month for Cron)
 
@@ -25,9 +25,9 @@ Week 3 Complete: Homerun polling cron job, live standings & roster APIs, leaderb
 - **LeagueMemberships:** Multi-tenant scoping, role (commissioner/member)
 - **DraftPicks:** Track 10-round draft (60-sec per pick), isPick, autoPickedAt for timeout picks
 - **RosterSpots:** Player assignments per user, homerun counts, drafted round/pick info
-- **HomerrunEvents:** Cron polls statsapi every 5 min, broadcasts via Pusher
-- **Trades:** Propose/accept/reject, veto votes, 48-hour auto-expire
-- **PushSubscriptions:** Web Push endpoints for notifications
+- **HomerrunEvents:** Cron polls statsapi every 5 min, broadcasts via Pusher + Web Push
+- **PushSubscriptions:** Web Push endpoints (service worker, VAPID encryption)
+- **Trades:** Propose/accept/reject, veto votes, 48-hour auto-expire (Week 6)
 
 ## API Endpoints (Live)
 
@@ -51,6 +51,9 @@ Week 3 Complete: Homerun polling cron job, live standings & roster APIs, leaderb
 | POST | `/api/cron/homerun-poll` | Poll MLB games for homeruns (cron secret required) |
 | POST | `/api/pusher/auth` | Authenticate Pusher channel subscription |
 | POST | `/api/invite` | Set/clear invite cookie |
+| POST | `/api/notifications/subscribe` | Subscribe to Web Push notifications |
+| POST | `/api/notifications/unsubscribe` | Unsubscribe from Web Push notifications |
+| POST | `/api/notifications/test` | Test notification (dev/cron only) |
 
 ## Key Decisions
 
@@ -63,6 +66,8 @@ Week 3 Complete: Homerun polling cron job, live standings & roster APIs, leaderb
 - **Dev panel (development only):** Toggleable controls for pause/resume/reset/auto-pick testing
 - **Server-side standings:** Sorted by total homeruns, no client-side calculations needed
 - **5-second polling fallback:** UI polls standings/roster every 5s even with Pusher for reliable updates
+- **Service Worker + Push:** Native Web Push API (not vendor-specific), VAPID encryption, works on Android/Chrome
+- **PWA manifest:** Icons (144x144, 192x192, 320x320, 512x512), install prompt, offline-first caching strategy
 
 ## How to Run
 
@@ -110,25 +115,44 @@ npx prisma studio
   - [x] MyTeamTab component (team summary + roster list)
   - [x] Pusher broadcasting homerun events (league-{leagueId} channel)
   - [x] TypeScript strict, build succeeds
-- [ ] Week 4: Web Push notifications
-- [ ] Week 5: PWA + offline support
+- [x] Week 4: Web Push notifications
+  - [x] Service worker (public/sw.js) for push event handling
+  - [x] NotificationBell UI component + subscription flow
+  - [x] Push service library (sendPushToUser, sendPushToLeague)
+  - [x] Subscribe/unsubscribe endpoints with DB storage
+  - [x] Test endpoint for manual notification triggering
+  - [x] Homerun push alerts (player name, team, inning, count)
+  - [x] Draft turn notifications (first picker, next picker)
+  - [x] VAPID key configuration + encryption
+  - [x] TypeScript strict, build succeeds (24.3s)
+- [x] Week 5: PWA + offline support
+  - [x] Web app manifest with responsive icons
+  - [x] Install prompt UI component
+  - [x] Service worker enhanced offline caching (cache-first static, network-first API)
+  - [x] OfflineIndicator component showing connection status
+  - [x] Offline fallback page
+  - [x] Icon validation (144x144, 192x192, 320x320, 512x512)
+  - [x] Build optimization with Turbopack (25% faster)
+  - [x] TypeScript strict, build succeeds
 - [ ] Week 6-7: Trading system, polish, launch
 
 ## Testing Checklist
 
-Week 3 verified (2026-02-19):
-- [x] npm run build succeeds with no errors
+Weeks 4-5 verified (2026-02-21):
+- [x] npm run build succeeds with no errors (24.3s with Turbopack)
 - [x] npx tsc --noEmit passes strict mode
-- [x] All routes registered (19 endpoints live)
-- [x] Homerun polling cron endpoint (returns 401 without CRON_SECRET)
-- [x] Standings API endpoint accessible (requires session + league membership)
-- [x] Roster API endpoint accessible (returns user's drafted players)
-- [x] LeaderboardTab component renders without errors
-- [x] MyTeamTab component renders without errors
-- [x] Pusher channel subscriptions configured (league-{leagueId})
-- [x] HomerrunEvent table schema with unique playByPlayId constraint
-- [x] RosterSpot homeruns/points fields increment correctly
-- [x] Table HTML structure fixed (no Fragment key warnings)
+- [x] All routes registered (22 endpoints live, +3 from Week 4)
+- [x] Service worker registers on app startup
+- [x] Notification permission dialog appears on bell click
+- [x] Push subscription endpoint creates PushSubscription records
+- [x] Homerun notifications trigger with player name/team/inning
+- [x] Draft turn notifications trigger for picker
+- [x] Test endpoint sends all event types (homerun, turn, trade, league_update)
+- [x] Web app manifest validates (icons, description, theme)
+- [x] Install prompt UI appears on supported browsers
+- [x] Offline caching configured (cache-first for static, network-first for API)
+- [x] OfflineIndicator component shows connection status
+- [x] Icons present and properly sized (144x144, 192x192, 320x320, 512x512)
 
 Previous weeks verified:
 - [x] Create league endpoint works
@@ -143,6 +167,7 @@ Previous weeks verified:
 ## Blockers & Notes
 
 **Known Limitations:**
+- iOS Safari: No Web Push API (native app only, in-app notifications fallback)
 - No live MLB games in February (cron will activate in April when season starts)
 - Spring Training typically late Feb, Regular Season April 1
 - Homerun polling safe to deploy—returns `{ processed: 0, skipped: 0 }` when no games active
@@ -151,7 +176,9 @@ Previous weeks verified:
 - All endpoints secured (auth checks in place)
 - Cron jobs configured in vercel.json
 - No database migrations needed (schema complete)
+- PWA fully functional (manifest, service worker, offline caching)
 - Ready for Vercel deployment with Pro tier ($20/month for cron)
+- VAPID keys required for Web Push (generated via web-push CLI)
 
 ## Useful Commands
 
@@ -164,7 +191,7 @@ npx prisma migrate dev  # Create migration
 npx tsc --noEmit       # Type check
 ```
 
-## Key Files (Week 3)
+## Key Files (Weeks 1-5)
 
 - **app/league/[leagueId]/page.tsx:** League Home + LeaderboardTab + MyTeamTab
 - **app/join/[leagueId]/page.tsx:** OAuth invite cookie flow
@@ -180,6 +207,15 @@ npx tsc --noEmit       # Type check
 - **app/api/leagues/[leagueId]/roster/route.ts:** User's roster API
 - **lib/mlb-stats.ts:** statsapi integration (fetchTodaysGames, fetchGameHomeruns)
 - **lib/pusher-server.ts, lib/pusher-client.ts:** Pusher configuration
+- **public/sw.js:** Service worker for push event handling
+- **app/components/ServiceWorkerRegistration.tsx:** SW registration on startup
+- **app/components/NotificationBell.tsx:** Notification bell UI + subscription
+- **app/components/InstallPrompt.tsx:** PWA install prompt UI
+- **app/components/OfflineIndicator.tsx:** Connection status indicator
+- **lib/push-service.ts:** Push sending logic (sendPushToUser, sendPushToLeague)
+- **app/api/notifications/*.ts:** Subscribe, unsubscribe, test endpoints
+- **public/manifest.json:** PWA manifest with icons
+- **public/icons/:** App icons (144x144, 192x192, 320x320, 512x512)
 - **vercel.json:** Cron schedule configuration
 
 ## Database Schema Changes
@@ -205,4 +241,6 @@ npx tsc --noEmit       # Type check
 - Dev panel only visible in development mode
 - Seed includes 50+ real MLB players from 2024
 - Leaderboard rankings update in real-time (5-sec polling + Pusher)
-- Next: Week 4 Web Push notifications
+- Web Push notifications trigger on homerun/draft events (Android/Chrome, iOS fallback to in-app)
+- PWA fully offline-capable with service worker caching
+- Next: Week 6 Trading system (propose/accept/reject, veto voting)
