@@ -36,15 +36,21 @@ export const startDraftSchema = z.object({
 export type StartDraftInput = z.infer<typeof startDraftSchema>;
 
 // Trade validation
-export const proposeTradSchema = z.object({
-  receiverId: z.string().min(1),
-  ownerPlayerId: z.string().min(1),
-  ownerPlayerName: z.string().min(1),
-  receiverPlayerId: z.string().min(1),
-  receiverPlayerName: z.string().min(1),
+export const proposeTradeSchema = z.object({
+  receiverId: z.string().min(1, "Receiver ID is required"),
+  ownerPlayerId: z.string().min(1, "Owner player ID is required"),
+  ownerPlayerName: z.string().min(1, "Owner player name is required"),
+  receiverPlayerId: z.string().min(1, "Receiver player ID is required"),
+  receiverPlayerName: z.string().min(1, "Receiver player name is required"),
 });
 
-export type ProposeTradeInput = z.infer<typeof proposeTradSchema>;
+export type ProposeTradeInput = z.infer<typeof proposeTradeSchema>;
+
+export const respondToTradeSchema = z.object({
+  // No required fields - just need trade ID from path
+});
+
+export type RespondToTradeInput = z.infer<typeof respondToTradeSchema>;
 
 // Push subscription validation
 export const pushSubscriptionSchema = z.object({

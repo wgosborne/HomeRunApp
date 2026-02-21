@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter, useParams } from "next/navigation";
 import { pusherClient } from "@/lib/pusher-client";
 import { NotificationBell } from "@/app/components/NotificationBell";
+import { TradesTab } from "./components/TradesTab";
 
 interface League {
   id: string;
@@ -23,7 +24,7 @@ interface League {
   }>;
 }
 
-type TabType = "draft" | "leaderboard" | "myteam" | "players" | "settings";
+type TabType = "draft" | "leaderboard" | "myteam" | "trades" | "players" | "settings";
 
 function ComingSoonTab({ label }: { label: string }) {
   return (
@@ -617,7 +618,7 @@ export default function LeagueHomePage() {
         {/* Tab Navigation */}
         <div className="bg-white rounded-lg shadow mb-6">
           <div className="flex border-b">
-            {(["draft", "leaderboard", "myteam", "players", "settings"] as TabType[]).map(
+            {(["draft", "leaderboard", "myteam", "trades", "players", "settings"] as TabType[]).map(
               (tab) => (
                 <button
                   key={tab}
@@ -631,6 +632,7 @@ export default function LeagueHomePage() {
                   {tab === "draft" && "Draft"}
                   {tab === "leaderboard" && "Leaderboard"}
                   {tab === "myteam" && "My Team"}
+                  {tab === "trades" && "Trades"}
                   {tab === "players" && "Players"}
                   {tab === "settings" && "Settings"}
                 </button>
@@ -653,6 +655,9 @@ export default function LeagueHomePage() {
             )}
             {activeTab === "myteam" && (
               <MyTeamTab leagueId={leagueId} />
+            )}
+            {activeTab === "trades" && (
+              <TradesTab leagueId={leagueId} />
             )}
             {activeTab === "players" && (
               <ComingSoonTab label="Players" />

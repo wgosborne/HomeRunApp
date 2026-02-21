@@ -44,6 +44,16 @@ enum DraftStatus {
 }
 
 // ============================================================================
+// Trade Status Enum
+// ============================================================================
+enum TradeStatus {
+  pending
+  accepted
+  rejected
+  expired
+}
+
+// ============================================================================
 // League: Created by commissioner
 // ============================================================================
 model League {
@@ -177,7 +187,7 @@ model HomerrunEvent {
 // Trade: User proposes to trade their roster player for another user's player
 // ============================================================================
 model Trade {
-  id                    String       @id @default(cuid())
+  id                    String        @id @default(cuid())
   leagueId              String
   ownerId               String
   receiverId            String
@@ -185,17 +195,16 @@ model Trade {
   ownerPlayerName       String
   receiverPlayerId      String
   receiverPlayerName    String
-  status                String       @default("pending")
-  vetoVotes             Int          @default(0)
+  status                TradeStatus   @default(pending)
   expiresAt             DateTime
   respondedAt           DateTime?
-  createdAt             DateTime     @default(now())
-  updatedAt             DateTime     @updatedAt
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
 
   // Relations
-  league                League       @relation(fields: [leagueId], references: [id], onDelete: Cascade)
-  owner                 User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  receiver              User         @relation("tradeReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  league                League        @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  owner                 User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  receiver              User          @relation("tradeReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
 
   @@index([leagueId, status])
   @@index([receiverId, status])
