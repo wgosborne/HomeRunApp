@@ -4,7 +4,7 @@ Multi-tenant fantasy baseball league management PWA. Users create/join leagues, 
 
 ## Current Phase
 
-Weeks 1-5 Complete: Foundation, draft room, homerun polling, Web Push notifications, PWA + offline support. Ready for Week 6 (Trading system).
+Weeks 1-6 Complete: Foundation, draft room, homerun polling, Web Push notifications, PWA + offline support, trading system. Ready for Week 7 (Polish & Launch).
 
 ## Tech Stack
 
@@ -27,7 +27,7 @@ Weeks 1-5 Complete: Foundation, draft room, homerun polling, Web Push notificati
 - **RosterSpots:** Player assignments per user, homerun counts, drafted round/pick info
 - **HomerrunEvents:** Cron polls statsapi every 5 min, broadcasts via Pusher + Web Push
 - **PushSubscriptions:** Web Push endpoints (service worker, VAPID encryption)
-- **Trades:** Propose/accept/reject, veto votes, 48-hour auto-expire (Week 6)
+- **Trades:** 1:1 player swaps, propose/accept/reject, 48-hour auto-expire, no veto voting (MVP)
 
 ## API Endpoints (Live)
 
@@ -54,6 +54,11 @@ Weeks 1-5 Complete: Foundation, draft room, homerun polling, Web Push notificati
 | POST | `/api/notifications/subscribe` | Subscribe to Web Push notifications |
 | POST | `/api/notifications/unsubscribe` | Unsubscribe from Web Push notifications |
 | POST | `/api/notifications/test` | Test notification (dev/cron only) |
+| POST | `/api/trades/[leagueId]` | Propose 1:1 player trade |
+| GET | `/api/trades/[leagueId]` | List league trades (with status filters) |
+| POST | `/api/trades/[leagueId]/[tradeId]/accept` | Accept trade (receiver only) |
+| POST | `/api/trades/[leagueId]/[tradeId]/reject` | Reject trade (receiver only) |
+| POST | `/api/cron/trade-expire` | Auto-expire trades after 48 hours (cron) |
 
 ## Key Decisions
 
@@ -68,6 +73,9 @@ Weeks 1-5 Complete: Foundation, draft room, homerun polling, Web Push notificati
 - **5-second polling fallback:** UI polls standings/roster every 5s even with Pusher for reliable updates
 - **Service Worker + Push:** Native Web Push API (not vendor-specific), VAPID encryption, works on Android/Chrome
 - **PWA manifest:** Icons (144x144, 192x192, 320x320, 512x512), install prompt, offline-first caching strategy
+- **Trading system:** 1:1 player swaps (simplified MVP), no veto voting, hard 48h expiration via cron
+- **Roster metadata preserved:** Homerun counts, drafted round/pick info maintained during trades
+- **Duplicate trade prevention:** Only one active proposal per user pair at a time
 
 ## How to Run
 
@@ -134,14 +142,26 @@ npx prisma studio
   - [x] Icon validation (144x144, 192x192, 320x320, 512x512)
   - [x] Build optimization with Turbopack (25% faster)
   - [x] TypeScript strict, build succeeds
-- [ ] Week 6-7: Trading system, polish, launch
+- [x] Week 6: Trading system (completed 2026-02-21)
+  - [x] TradeStatus enum (pending/accepted/rejected/expired)
+  - [x] 1:1 player swap API (propose, accept, reject, list)
+  - [x] TradesTab component with proposal form
+  - [x] 48-hour expiration cron job (every 5 min)
+  - [x] Pusher real-time broadcasts (trade events)
+  - [x] Web Push notifications (proposal/response)
+  - [x] Roster metadata preservation during swaps
+  - [x] Duplicate trade prevention
+  - [x] All 28+ endpoints live and tested
+  - [x] Bug fixes: roster userId parameter, draft timer, redirect path
+  - [x] TypeScript strict, build succeeds
+- [ ] Week 7: Polish & Launch (Q2 2026)
 
 ## Testing Checklist
 
-Weeks 4-5 verified (2026-02-21):
-- [x] npm run build succeeds with no errors (24.3s with Turbopack)
+Weeks 1-6 verified (2026-02-21):
+- [x] npm run build succeeds with no errors (Turbopack optimized)
 - [x] npx tsc --noEmit passes strict mode
-- [x] All routes registered (22 endpoints live, +3 from Week 4)
+- [x] All routes registered (28+ endpoints live)
 - [x] Service worker registers on app startup
 - [x] Notification permission dialog appears on bell click
 - [x] Push subscription endpoint creates PushSubscription records
@@ -153,6 +173,14 @@ Weeks 4-5 verified (2026-02-21):
 - [x] Offline caching configured (cache-first for static, network-first for API)
 - [x] OfflineIndicator component shows connection status
 - [x] Icons present and properly sized (144x144, 192x192, 320x320, 512x512)
+- [x] Trade proposal creates record and broadcasts via Pusher
+- [x] Trade acceptance swaps roster ownership correctly
+- [x] Trade rejection prevents swap, marks as rejected
+- [x] Trade expiration cron runs every 5 min, marks 48h-old trades as expired
+- [x] Duplicate trade check prevents concurrent proposals
+- [x] Roster endpoint supports userId parameter for other users' rosters
+- [x] Draft timer waits for player list load before countdown
+- [x] Draft completion redirect to /league (not /leagues)
 
 Previous weeks verified:
 - [x] Create league endpoint works
@@ -191,9 +219,9 @@ npx prisma migrate dev  # Create migration
 npx tsc --noEmit       # Type check
 ```
 
-## Key Files (Weeks 1-5)
+## Key Files (Weeks 1-6)
 
-- **app/league/[leagueId]/page.tsx:** League Home + LeaderboardTab + MyTeamTab
+- **app/league/[leagueId]/page.tsx:** League Home + 6 tabs (Draft, Leaderboard, My Team, Players, Settings, Trades)
 - **app/join/[leagueId]/page.tsx:** OAuth invite cookie flow
 - **app/draft/[leagueId]/page.tsx:** Draft room page
 - **app/draft/[leagueId]/components/DraftRoom.tsx:** Draft UI + polling
@@ -216,12 +244,19 @@ npx tsc --noEmit       # Type check
 - **app/api/notifications/*.ts:** Subscribe, unsubscribe, test endpoints
 - **public/manifest.json:** PWA manifest with icons
 - **public/icons/:** App icons (144x144, 192x192, 320x320, 512x512)
-- **vercel.json:** Cron schedule configuration
+- **vercel.json:** Cron schedule configuration (draft-timeout, homerun-poll, trade-expire)
+- **app/league/[leagueId]/components/TradesTab.tsx:** Trading UI + proposal form (Week 6)
+- **app/api/trades/[leagueId]/route.ts:** GET trades, POST proposals (Week 6)
+- **app/api/trades/[leagueId]/[tradeId]/accept/route.ts:** Accept trade (Week 6)
+- **app/api/trades/[leagueId]/[tradeId]/reject/route.ts:** Reject trade (Week 6)
+- **app/api/cron/trade-expire/route.ts:** 48-hour expiration cron (Week 6)
 
 ## Database Schema Changes
 
 - **League.draftStatus:** Enum (pending/active/paused/complete) - replaces implicit string tracking
 - **League.currentPickStartedAt:** DateTime - set when pick turn starts, reset on each pick for timer calculation
+- **Trade.status:** Enum (pending/accepted/rejected/expired) - tracks trade lifecycle (Week 6)
+- **Trade.expiresAt:** DateTime - 48-hour deadline from creation (Week 6)
 
 ## Costs
 
@@ -243,4 +278,6 @@ npx tsc --noEmit       # Type check
 - Leaderboard rankings update in real-time (5-sec polling + Pusher)
 - Web Push notifications trigger on homerun/draft events (Android/Chrome, iOS fallback to in-app)
 - PWA fully offline-capable with service worker caching
-- Next: Week 6 Trading system (propose/accept/reject, veto voting)
+- Trading system: 1:1 player swaps, no veto voting (MVP simplified), 48h expiration cron
+- Bug fixes: roster endpoint userId parameter, draft timer waits for player load, proper redirect after draft
+- Next: Week 7 Polish & Launch (landing page, feature summary, app store prep)

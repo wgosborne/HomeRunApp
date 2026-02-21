@@ -13,7 +13,8 @@
       "Bash(echo === Test Files Created ===:*)",
       "Bash(ls -lh __tests__/*.test.ts TEST*.md TESTS.md Handoffs/05-test.md)",
       "Bash(node scripts/generate-icons.js:*)",
-      "Bash(convert:*)"
+      "Bash(convert:*)",
+      "Bash(ls -lh /c/Users/wgosb/source/repos/PostGrad/codewithwags/FantasyBaseball/*.md)"
     ]
   }
 }

@@ -7,6 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "prisma db seed"
@@ -37,7 +40,9 @@
   },
   "devDependencies": {
     "@types/web-push": "^3.6.4",
-    "ts-node": "^10.9.2"
+    "@vitest/ui": "^4.0.18",
+    "ts-node": "^10.9.2",
+    "vitest": "^4.0.18"
   },
   "prisma": {
     "seed": "ts-node --project prisma/tsconfig.json prisma/seed.ts"

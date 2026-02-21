@@ -16,6 +16,7 @@ interface PlayerSearchProps {
   onPlayerSelected: (player: Player) => void;
   isCurrentPicker: boolean;
   isLoading?: boolean;
+  onLoadingComplete?: () => void;
 }
 
 export function PlayerSearch({
@@ -23,6 +24,7 @@ export function PlayerSearch({
   onPlayerSelected,
   isCurrentPicker,
   isLoading = false,
+  onLoadingComplete,
 }: PlayerSearchProps) {
   const [players, setPlayers] = useState<Player[]>([]);
   const [filteredPlayers, setFilteredPlayers] = useState<Player[]>([]);
@@ -51,11 +53,12 @@ export function PlayerSearch({
         );
       } finally {
         setLoading(false);
+        onLoadingComplete?.();
       }
     };
 
     fetchPlayers();
-  }, [leagueId]);
+  }, [leagueId, onLoadingComplete]);
 
   // Filter players based on search term
   useEffect(() => {

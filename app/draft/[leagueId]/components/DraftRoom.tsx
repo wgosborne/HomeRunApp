@@ -57,6 +57,7 @@ export function DraftRoom({ leagueId, userId }: DraftRoomProps) {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [playersLoaded, setPlayersLoaded] = useState(false);
 
   // Fetch draft status
   const fetchStatus = useCallback(async () => {
@@ -248,13 +249,21 @@ export function DraftRoom({ leagueId, userId }: DraftRoomProps) {
                 </div>
               </div>
 
-              {/* Timer */}
-              <div className="bg-white rounded-lg shadow p-6 mb-6">
-                <DraftTimer
-                  timeRemainingSeconds={status.timeRemainingSeconds}
-                  isCurrentPicker={isCurrentPicker}
-                />
-              </div>
+              {/* Timer - Only show after player list is loaded */}
+              {playersLoaded ? (
+                <div className="bg-white rounded-lg shadow p-6 mb-6">
+                  <DraftTimer
+                    timeRemainingSeconds={status.timeRemainingSeconds}
+                    isCurrentPicker={isCurrentPicker}
+                  />
+                </div>
+              ) : (
+                <div className="bg-white rounded-lg shadow p-6 mb-6">
+                  <div className="text-center text-gray-600">
+                    Loading draft timer...
+                  </div>
+                </div>
+              )}
 
               {/* Player Search */}
               {isCurrentPicker && (
@@ -264,6 +273,7 @@ export function DraftRoom({ leagueId, userId }: DraftRoomProps) {
                     onPlayerSelected={handlePlayerSelected}
                     isCurrentPicker={true}
                     isLoading={isSubmitting}
+                    onLoadingComplete={() => setPlayersLoaded(true)}
                   />
                 </div>
               )}
@@ -284,7 +294,7 @@ export function DraftRoom({ leagueId, userId }: DraftRoomProps) {
                 All {status.completedPicks} picks have been made.
               </p>
               <button
-                onClick={() => router.push(`/leagues/${leagueId}`)}
+                onClick={() => router.push(`/league/${leagueId}`)}
                 className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
               >
                 View League

@@ -16,9 +16,9 @@ export interface RosterEntry {
   draftedPickNumber: number | null;
 }
 
-// GET /api/leagues/[leagueId]/roster - Get authenticated user's roster
+// GET /api/leagues/[leagueId]/roster - Get authenticated user's roster or specified user's roster
 export async function GET(
-  _request: unknown,
+  request: Request,
   { params }: { params: Promise<{ leagueId: string }> }
 ) {
   const { leagueId } = await params;
@@ -51,11 +51,34 @@ export async function GET(
       throw new AuthorizationError("You are not a member of this league");
     }
 
-    // Fetch user's roster spots, sorted by homeruns descending
+    // Check for userId query parameter (for fetching other users' rosters)
+    const url = new URL(request.url);
+    const requestedUserId = url.searchParams.get("userId");
+    const targetUserId = requestedUserId || user.id;
+
+    // If requesting another user's roster, verify they are also a league member
+    if (requestedUserId && requestedUserId !== user.id) {
+      const otherMembership = await prisma.leagueMembership.findUnique({
+        where: {
+          userId_leagueId: {
+            userId: requestedUserId,
+            leagueId,
+          },
+        },
+      });
+
+      if (!otherMembership) {
+        throw new AuthorizationError(
+          "That user is not a member of this league"
+        );
+      }
+    }
+
+    // Fetch roster spots for target user, sorted by homeruns descending
     const rosterSpots = await prisma.rosterSpot.findMany({
       where: {
         leagueId,
-        userId: user.id,
+        userId: targetUserId,
       },
       orderBy: { homeruns: "desc" },
     });
@@ -72,7 +95,8 @@ export async function GET(
 
     logger.info("Retrieved roster", {
       leagueId,
-      userId: user.id,
+      userId: targetUserId,
+      requestedBy: user.id,
       playerCount: roster.length,
     });
 
