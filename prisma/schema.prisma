@@ -78,6 +78,7 @@ model League {
   rosterSpots           RosterSpot[]
   homeruns              HomerrunEvent[]
   trades                Trade[]
+  pushSubscriptions     PushSubscription[]
   settings              LeagueSettings?
 
   @@index([commissionerId])
@@ -228,6 +229,7 @@ model PushSubscription {
 
   // Relations
   user                  User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  league                League       @relation(fields: [leagueId], references: [id], onDelete: Cascade)
 
   @@unique([userId, leagueId, endpoint])
   @@index([leagueId])

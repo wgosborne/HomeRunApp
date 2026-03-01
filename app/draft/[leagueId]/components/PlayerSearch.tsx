@@ -32,7 +32,7 @@ export function PlayerSearch({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch available players on component mount
+  // Fetch available players when component mounts or when picker changes
   useEffect(() => {
     const fetchPlayers = async () => {
       try {
@@ -95,43 +95,43 @@ export function PlayerSearch({
 
   return (
     <div className="bg-white rounded-lg shadow overflow-hidden">
-      <div className="p-4 border-b">
+      <div className="p-3 sm:p-4 border-b">
         <input
           type="text"
           placeholder="Search player name or team..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           disabled={!isCurrentPicker}
-          className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+          className="w-full px-3 py-2 sm:py-3 border rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed min-h-[44px]"
         />
-        <div className="mt-2 text-sm text-gray-600">
+        <div className="mt-2 text-xs sm:text-sm text-gray-600">
           {filteredPlayers.length} available • {players.length} total
         </div>
       </div>
 
-      <div className="overflow-y-auto max-h-96">
+      <div className="overflow-y-auto max-h-[60vh] sm:max-h-96">
         {filteredPlayers.length === 0 ? (
-          <div className="p-4 text-center text-gray-500">No players found</div>
+          <div className="p-4 text-center text-gray-500 text-sm">No players found</div>
         ) : (
-          <div className="divide-y">
+          <div className="space-y-2 p-3 sm:p-4 divide-y sm:divide-y-0">
             {filteredPlayers.map((player) => (
               <button
                 key={player.id}
                 onClick={() => onPlayerSelected(player)}
                 disabled={!isCurrentPicker}
-                className="w-full p-4 hover:bg-blue-50 disabled:bg-gray-50 disabled:cursor-not-allowed text-left transition-colors"
+                className="w-full p-3 sm:p-4 hover:bg-blue-50 disabled:bg-gray-50 disabled:cursor-not-allowed text-left transition-colors rounded-lg sm:rounded-none border border-gray-200 sm:border-none hover:border-blue-300 sm:hover:border-transparent disabled:border-gray-200 min-h-[56px] flex items-center"
               >
-                <div className="flex justify-between items-start gap-4">
-                  <div className="flex-1">
-                    <div className="font-semibold text-gray-900">
+                <div className="flex justify-between items-start gap-3 w-full">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-gray-900 text-sm sm:text-base truncate">
                       #{player.rank || "?"} {player.name}
                     </div>
-                    <div className="text-sm text-gray-600">
+                    <div className="text-xs sm:text-sm text-gray-600">
                       {player.position} • {player.team}
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-sm font-semibold text-blue-600">
+                  <div className="flex-shrink-0 text-right">
+                    <div className="text-sm sm:text-base font-semibold text-blue-600">
                       {player.homeRuns || 0} HR
                     </div>
                   </div>

@@ -106,14 +106,21 @@ async function fetchMLBLeaders(): Promise<MLBPlayer[]> {
   }
 
   try {
+    // Set 10-second timeout for MLB API call
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+
     const response = await fetch(
       "https://statsapi.mlb.com/api/v1/stats/leaders?leaderCategories=homeRuns&season=2025&sportId=1&limit=1000",
       {
         headers: {
           "User-Agent": "FantasyBaseball/1.0",
         },
+        signal: controller.signal,
       }
     );
+
+    clearTimeout(timeout);
 
     if (!response.ok) {
       throw new Error(`MLB API error: ${response.statusText}`);
@@ -153,7 +160,12 @@ async function fetchMLBLeaders(): Promise<MLBPlayer[]> {
     return players;
   } catch (error) {
     logger.error("Failed to fetch MLB leaders", { error });
-    // Return empty array if fetch fails
+    // Return cached data if available, even if stale
+    if (cache[cacheKey]) {
+      logger.info("Returning stale cached MLB leaders due to fetch error");
+      return cache[cacheKey].data;
+    }
+    // Return empty array if no cache and fetch fails
     return [];
   }
 }
@@ -193,14 +205,21 @@ export async function fetchTodaysGames(): Promise<
   try {
     const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
 
+    // Set 10-second timeout for MLB API call
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+
     const response = await fetch(
       `https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${today}`,
       {
         headers: {
           "User-Agent": "FantasyBaseball/1.0",
         },
+        signal: controller.signal,
       }
     );
+
+    clearTimeout(timeout);
 
     if (!response.ok) {
       throw new Error(`MLB API error: ${response.statusText}`);
@@ -236,14 +255,21 @@ export async function fetchTodaysGames(): Promise<
  */
 export async function fetchGameHomeruns(gamePk: number): Promise<HomerrunPlay[]> {
   try {
+    // Set 10-second timeout for MLB API call
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+
     const response = await fetch(
       `https://statsapi.mlb.com/api/v1.1/game/${gamePk}/feed/live?fields=gameData,liveData,plays,allPlays,result,about,matchup`,
       {
         headers: {
           "User-Agent": "FantasyBaseball/1.0",
         },
+        signal: controller.signal,
       }
     );
+
+    clearTimeout(timeout);
 
     if (!response.ok) {
       throw new Error(`MLB API error: ${response.statusText}`);

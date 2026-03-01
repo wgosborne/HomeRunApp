@@ -4,7 +4,7 @@ Multi-tenant fantasy baseball league management PWA. Users create/join leagues, 
 
 ## Current Phase
 
-Weeks 1-6 Complete: Foundation, draft room, homerun polling, Web Push notifications, PWA + offline support, trading system. Ready for Week 7 (Polish & Launch).
+Week 7 - Design & Testing: Weeks 1-6 complete (foundation, draft room, homerun polling, Web Push notifications, PWA offline support, trading system). Now designing landing page, testing full user flows, and preparing for April launch.
 
 ## Tech Stack
 
@@ -154,7 +154,14 @@ npx prisma studio
   - [x] All 28+ endpoints live and tested
   - [x] Bug fixes: roster userId parameter, draft timer, redirect path
   - [x] TypeScript strict, build succeeds
-- [ ] Week 7: Polish & Launch (Q2 2026)
+- [ ] Week 7: Design & Testing (in progress)
+  - [ ] Landing page design and implementation
+  - [ ] Full user flow testing (create league → draft → track homeruns → trade → compete)
+  - [ ] Mobile responsiveness verification (iOS 16.4+, Android Chrome)
+  - [ ] Performance optimization and build size review
+  - [ ] Cross-browser testing (Safari, Chrome, Firefox)
+  - [ ] Offline mode edge case testing
+  - [ ] Pre-launch checklist completion
 
 ## Testing Checklist
 

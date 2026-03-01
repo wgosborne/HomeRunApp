@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher-server";
 import { createLogger } from "@/lib/logger";
+import { getAvailablePlayers } from "@/lib/mlb-stats";
 
 const logger = createLogger("cron-draft-timeout");
 
@@ -72,38 +73,22 @@ export async function POST(request: NextRequest) {
         const currentPickerId = league.memberships[pickerIndexInRound].userId;
         const pickerName = league.memberships[pickerIndexInRound].user?.name || "Unknown";
 
-        // Get first available player (simplified: just get players from statsapi)
-        // In production, you'd want to use a ranked list or ML model
+        // Get first available player (ranked by home runs)
         let selectedPlayer: any = null;
 
         try {
-          // For now, pick a random available player
-          // This is a simplified implementation - in production you'd want better player ranking
-          const allPlayers = await fetch(
-            "https://statsapi.mlb.com/api/v1/teams/1/roster?rosterType=active"
-          )
-            .then((r) => r.json())
-            .then((data) => {
-              if (data.roster) {
-                return data.roster.map((p: any) => ({
-                  id: p.person.id.toString(),
-                  name: p.person.fullName,
-                  position: p.position?.abbreviation || "DH",
-                }));
-              }
-              return [];
-            })
-            .catch(() => []);
+          // Get already drafted player IDs
+          const draftedPlayerIds = league.draftPicks.map((p) => p.playerId);
 
-          // Filter out already drafted players
-          const draftedPlayerIds = new Set(league.draftPicks.map((p) => p.playerId));
-          const availablePlayers = allPlayers.filter((p: any) => !draftedPlayerIds.has(p.id));
+          // Get available players (cached, with MLB stats)
+          const availablePlayers = await getAvailablePlayers(draftedPlayerIds);
 
           if (availablePlayers.length > 0) {
+            // Pick the highest-ranked available player
             selectedPlayer = availablePlayers[0];
           }
         } catch (error) {
-          logger.warn("Failed to fetch available players for autopick", { leagueId: league.id });
+          logger.warn("Failed to fetch available players for autopick", { leagueId: league.id, error });
           continue;
         }
 
