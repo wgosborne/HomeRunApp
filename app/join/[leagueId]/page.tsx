@@ -125,11 +125,76 @@ export default function JoinLeaguePage() {
 
   if (isAlreadyMember) {
     return (
-      <main className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg shadow p-8 text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Already a Member</h1>
-          <p className="text-gray-600 mb-4">You are already part of this league.</p>
-          <p className="text-sm text-gray-500">Redirecting...</p>
+      <main
+        className="min-h-screen flex flex-col items-center justify-center p-5 relative overflow-hidden"
+        style={{
+          backgroundImage: 'url(/design-inspiration/CubsFireworkField.jpg)',
+          backgroundSize: "cover",
+          backgroundPosition: "center 30%",
+          backgroundAttachment: "fixed",
+        }}
+      >
+        {/* Overlay 1: Dark gradient */}
+        <div
+          className="absolute inset-0 z-0"
+          style={{
+            background:
+              "linear-gradient(180deg, rgba(6,13,26,0.30) 0%, rgba(6,13,26,0.15) 30%, rgba(6,13,26,0.50) 65%, rgba(6,13,26,0.85) 100%)",
+          }}
+        />
+
+        {/* Overlay 2: Vignette */}
+        <div
+          className="absolute inset-0 z-0"
+          style={{
+            background:
+              "radial-gradient(ellipse at center, transparent 40%, rgba(6,13,26,0.55) 100%)",
+          }}
+        />
+
+        {/* Overlay 3: Red atmospheric glow */}
+        <div
+          className="absolute inset-0 z-0"
+          style={{
+            background:
+              "radial-gradient(ellipse at 50% 120%, rgba(200,16,46,0.10) 0%, transparent 60%)",
+          }}
+        />
+
+        <div
+          className="relative z-10 flex flex-col items-center w-full"
+          style={{
+            maxWidth: "420px",
+            paddingLeft: "20px",
+            paddingRight: "20px",
+          }}
+        >
+          <p
+            style={{
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: "15px",
+              fontWeight: 300,
+              color: "rgba(255,255,255,0.5)",
+              lineHeight: 1.6,
+              textAlign: "center",
+              marginBottom: "2rem",
+              maxWidth: "100%",
+            }}
+          >
+            You are already part of this league.
+          </p>
+          <p
+            style={{
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: "12px",
+              color: "rgba(255,255,255,0.22)",
+              marginTop: "20px",
+              textAlign: "center",
+              lineHeight: 1.5,
+            }}
+          >
+            Redirecting...
+          </p>
         </div>
       </main>
     );
@@ -137,12 +202,109 @@ export default function JoinLeaguePage() {
 
   if (!league) {
     return (
-      <main className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-white rounded-lg shadow p-8 text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">League Not Found</h1>
+      <main
+        className="min-h-screen flex flex-col items-center justify-center p-5 relative overflow-hidden"
+        style={{
+          backgroundImage: 'url(/design-inspiration/CubsFireworkField.jpg)',
+          backgroundSize: "cover",
+          backgroundPosition: "center 30%",
+          backgroundAttachment: "fixed",
+        }}
+      >
+        {/* Overlay 1: Dark gradient */}
+        <div
+          className="absolute inset-0 z-0"
+          style={{
+            background:
+              "linear-gradient(180deg, rgba(6,13,26,0.30) 0%, rgba(6,13,26,0.15) 30%, rgba(6,13,26,0.50) 65%, rgba(6,13,26,0.85) 100%)",
+          }}
+        />
+
+        {/* Overlay 2: Vignette */}
+        <div
+          className="absolute inset-0 z-0"
+          style={{
+            background:
+              "radial-gradient(ellipse at center, transparent 40%, rgba(6,13,26,0.55) 100%)",
+          }}
+        />
+
+        {/* Overlay 3: Red atmospheric glow */}
+        <div
+          className="absolute inset-0 z-0"
+          style={{
+            background:
+              "radial-gradient(ellipse at 50% 120%, rgba(200,16,46,0.10) 0%, transparent 60%)",
+          }}
+        />
+
+        <div
+          className="relative z-10 flex flex-col items-center w-full"
+          style={{
+            maxWidth: "420px",
+            paddingLeft: "20px",
+            paddingRight: "20px",
+          }}
+        >
+          <h1
+            style={{
+              fontFamily: "'Bebas Neue', sans-serif",
+              fontSize: "clamp(56px, 20vw, 96px)",
+              letterSpacing: "6px",
+              textShadow:
+                "0 0 80px rgba(255,255,255,0.15), 0 4px 2px rgba(0,0,0,0.6)",
+              lineHeight: 0.85,
+              textAlign: "center",
+              margin: 0,
+              marginBottom: "1.5rem",
+              textTransform: "uppercase",
+            }}
+          >
+            <span style={{ color: "#FFFFFF" }}>DINGER</span>
+            <span style={{ color: "#C8102E" }}>Z</span>
+          </h1>
+
+          <p
+            style={{
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: "15px",
+              fontWeight: 300,
+              color: "rgba(255,255,255,0.5)",
+              lineHeight: 1.6,
+              textAlign: "center",
+              marginBottom: "2rem",
+              maxWidth: "100%",
+            }}
+          >
+            League not found
+          </p>
+
           <button
             onClick={() => router.push("/dashboard")}
-            className="px-6 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+            className="w-full flex items-center justify-center gap-3 transition-all duration-200"
+            style={{
+              padding: "20px 28px",
+              borderRadius: "14px",
+              background: "rgba(255,255,255,0.95)",
+              color: "#111",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+              border: "none",
+              cursor: "pointer",
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: "15px",
+              fontWeight: 600,
+            }}
+            onMouseEnter={(e) => {
+              (e.target as HTMLButtonElement).style.transform =
+                "translateY(-3px) scale(1.01)";
+              (e.target as HTMLButtonElement).style.boxShadow =
+                "0 12px 40px rgba(0,0,0,0.5)";
+            }}
+            onMouseLeave={(e) => {
+              (e.target as HTMLButtonElement).style.transform = "translateY(0)";
+              (e.target as HTMLButtonElement).style.boxShadow =
+                "0 8px 32px rgba(0,0,0,0.4)";
+            }}
           >
             Back to Dashboard
           </button>
@@ -152,38 +314,183 @@ export default function JoinLeaguePage() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow p-8 max-w-md w-full">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Join League</h1>
+    <main
+      className="min-h-screen flex flex-col items-center justify-center p-5 relative overflow-hidden"
+      style={{
+        backgroundImage: 'url(/design-inspiration/CubsFireworkField.jpg)',
+        backgroundSize: "cover",
+        backgroundPosition: "center 30%",
+        backgroundAttachment: "fixed",
+      }}
+    >
+      {/* Overlay 1: Dark gradient */}
+      <div
+        className="absolute inset-0 z-0"
+        style={{
+          background:
+            "linear-gradient(180deg, rgba(6,13,26,0.30) 0%, rgba(6,13,26,0.15) 30%, rgba(6,13,26,0.50) 65%, rgba(6,13,26,0.85) 100%)",
+        }}
+      />
 
-        <div className="mb-6 p-4 bg-indigo-50 rounded">
-          <p className="text-gray-600 mb-2">You've been invited to join:</p>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">{league.name}</h2>
-          <p className="text-sm text-gray-600">Members: {league.memberships.length}</p>
-        </div>
+      {/* Overlay 2: Vignette */}
+      <div
+        className="absolute inset-0 z-0"
+        style={{
+          background:
+            "radial-gradient(ellipse at center, transparent 40%, rgba(6,13,26,0.55) 100%)",
+        }}
+      />
+
+      {/* Overlay 3: Red atmospheric glow */}
+      <div
+        className="absolute inset-0 z-0"
+        style={{
+          background:
+            "radial-gradient(ellipse at 50% 120%, rgba(200,16,46,0.10) 0%, transparent 60%)",
+        }}
+      />
+
+      <div
+        className="relative z-10 flex flex-col items-center w-full"
+        style={{
+          maxWidth: "420px",
+          paddingLeft: "20px",
+          paddingRight: "20px",
+        }}
+      >
+        <h1
+          style={{
+            fontFamily: "'Bebas Neue', sans-serif",
+            fontSize: "clamp(56px, 20vw, 96px)",
+            letterSpacing: "6px",
+            textShadow:
+              "0 0 80px rgba(255,255,255,0.15), 0 4px 2px rgba(0,0,0,0.6)",
+            lineHeight: 0.85,
+            textAlign: "center",
+            margin: 0,
+            marginBottom: "1.5rem",
+            textTransform: "uppercase",
+          }}
+        >
+          <span style={{ color: "#FFFFFF" }}>DINGER</span>
+          <span style={{ color: "#C8102E" }}>Z</span>
+        </h1>
 
         {error && (
-          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded">
-            <p className="text-red-700">{error}</p>
+          <div
+            style={{
+              padding: "12px 16px",
+              borderRadius: "8px",
+              background: "rgba(220, 38, 38, 0.2)",
+              border: "1px solid rgba(220, 38, 38, 0.5)",
+              marginBottom: "1.5rem",
+            }}
+          >
+            <p
+              style={{
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: "14px",
+                color: "#FCA5A5",
+                margin: 0,
+              }}
+            >
+              {error}
+            </p>
           </div>
         )}
 
-        <div className="flex gap-3">
-          <button
-            onClick={() => router.push("/dashboard")}
-            className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50"
+        <div
+          style={{
+            backgroundColor: "rgba(200, 16, 46, 0.35)",
+            padding: "4px 12px",
+            borderRadius: "6px",
+            marginBottom: "1.5rem",
+          }}
+        >
+          <p
+            style={{
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: "15px",
+              fontWeight: 300,
+              color: "#FFFFFF",
+              lineHeight: 1.6,
+              textAlign: "center",
+              margin: 0,
+              maxWidth: "100%",
+            }}
           >
-            Cancel
-          </button>
-          <button
-            onClick={joinLeague}
-            disabled={joining}
-            className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:bg-gray-400"
-          >
-            {joining ? "Joining..." : "Join League"}
-          </button>
+            You've been invited to join
+          </p>
         </div>
+
+        <h2
+          style={{
+            fontFamily: "'Bebas Neue', sans-serif",
+            fontSize: "clamp(24px, 6vw, 36px)",
+            letterSpacing: "3px",
+            color: "#FFFFFF",
+            textAlign: "center",
+            margin: 0,
+            marginBottom: "2rem",
+            textTransform: "uppercase",
+          }}
+        >
+          {league.name}
+        </h2>
+
+        <button
+          onClick={joinLeague}
+          disabled={joining}
+          className="w-full flex items-center justify-center gap-3 transition-all duration-200"
+          style={{
+            padding: "20px 28px",
+            borderRadius: "14px",
+            background: "rgba(255,255,255,0.95)",
+            color: "#111",
+            boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+            border: "none",
+            cursor: joining ? "not-allowed" : "pointer",
+            fontFamily: "'DM Sans', sans-serif",
+            fontSize: "15px",
+            fontWeight: 600,
+            opacity: joining ? 0.7 : 1,
+          }}
+          onMouseEnter={(e) => {
+            if (!joining) {
+              (e.target as HTMLButtonElement).style.transform =
+                "translateY(-3px) scale(1.01)";
+              (e.target as HTMLButtonElement).style.boxShadow =
+                "0 12px 40px rgba(0,0,0,0.5)";
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!joining) {
+              (e.target as HTMLButtonElement).style.transform = "translateY(0)";
+              (e.target as HTMLButtonElement).style.boxShadow =
+                "0 8px 32px rgba(0,0,0,0.4)";
+            }
+          }}
+        >
+          {joining ? "Joining..." : "Join League"}
+        </button>
+
+        <p
+          style={{
+            fontFamily: "'DM Sans', sans-serif",
+            fontSize: "12px",
+            color: "rgba(255,255,255,0.22)",
+            marginTop: "20px",
+            textAlign: "center",
+            lineHeight: 1.5,
+          }}
+        >
+          League: {league.memberships.length} member{league.memberships.length !== 1 ? "s" : ""}
+        </p>
       </div>
+
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap');
+      `}</style>
     </main>
   );
 }

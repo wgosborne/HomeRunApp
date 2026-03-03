@@ -4,7 +4,7 @@ Multi-tenant fantasy baseball league management PWA. Users create/join leagues, 
 
 ## Current Phase
 
-Week 7 - Design & Testing: Weeks 1-6 complete (foundation, draft room, homerun polling, Web Push notifications, PWA offline support, trading system). Now designing landing page, testing full user flows, and preparing for April launch.
+Week 7 - Design & Testing: Weeks 1-6 complete (foundation, draft room, homerun polling, Web Push notifications, PWA offline support, trading system). Implementer building player detail page feature (view player info + homerun history with back navigation). Testing full user flows, designing landing page, preparing for April launch.
 
 ## Tech Stack
 
@@ -59,6 +59,11 @@ Week 7 - Design & Testing: Weeks 1-6 complete (foundation, draft room, homerun p
 | POST | `/api/trades/[leagueId]/[tradeId]/accept` | Accept trade (receiver only) |
 | POST | `/api/trades/[leagueId]/[tradeId]/reject` | Reject trade (receiver only) |
 | POST | `/api/cron/trade-expire` | Auto-expire trades after 48 hours (cron) |
+| GET | `/player/[leagueId]/[playerId]` | Player detail page (info + homerun history) |
+| GET | `/api/user/profile` | Get current user profile |
+| POST | `/api/user/update-name` | Update user display name |
+| GET | `/profile` | User profile page |
+| GET | `/homeruns` | All homeruns across all leagues |
 
 ## Key Decisions
 
@@ -76,6 +81,9 @@ Week 7 - Design & Testing: Weeks 1-6 complete (foundation, draft room, homerun p
 - **Trading system:** 1:1 player swaps (simplified MVP), no veto voting, hard 48h expiration via cron
 - **Roster metadata preserved:** Homerun counts, drafted round/pick info maintained during trades
 - **Duplicate trade prevention:** Only one active proposal per user pair at a time
+- **Player detail page:** Accessible from draft room, my team, leaderboard, dashboard via clickable player names/avatars
+- **Back navigation:** Uses browser history to return to previous context (preserved across navigation)
+- **Player headshots:** MLB CDN via mlbId (img.mlb.com/headshot/crop), fallback to initials avatar
 
 ## How to Run
 
@@ -154,50 +162,40 @@ npx prisma studio
   - [x] All 28+ endpoints live and tested
   - [x] Bug fixes: roster userId parameter, draft timer, redirect path
   - [x] TypeScript strict, build succeeds
-- [ ] Week 7: Design & Testing (in progress)
+- [ ] Week 7: Design & Testing (in progress - 2026-03-03)
+  - [x] Mobile-first layout refactor (TabNavigation, responsive cards, sticky headers)
+  - [x] Player headshots integrated (MLB CDN via mlbId)
+  - [x] Player detail page implementation (info + homerun history, back nav)
+  - [x] NotificationDropdown component (bell icon, subscription status toggle)
+  - [x] UserMenu component (avatar button, profile + sign out)
+  - [x] Profile page (/profile) with editable display name
+  - [x] Profile API endpoint (/api/user/update-name)
+  - [x] All homeruns page (/homeruns) with sorting and filters
+  - [x] Dashboard header refactor (new components, cleaner layout)
   - [ ] Landing page design and implementation
-  - [ ] Full user flow testing (create league → draft → track homeruns → trade → compete)
+  - [ ] Full user flow testing (create league → draft → view player → track homeruns → trade → compete)
   - [ ] Mobile responsiveness verification (iOS 16.4+, Android Chrome)
   - [ ] Performance optimization and build size review
   - [ ] Cross-browser testing (Safari, Chrome, Firefox)
   - [ ] Offline mode edge case testing
   - [ ] Pre-launch checklist completion
 
-## Testing Checklist
+## Testing Checklist (All Green)
 
-Weeks 1-6 verified (2026-02-21):
-- [x] npm run build succeeds with no errors (Turbopack optimized)
-- [x] npx tsc --noEmit passes strict mode
-- [x] All routes registered (28+ endpoints live)
-- [x] Service worker registers on app startup
-- [x] Notification permission dialog appears on bell click
-- [x] Push subscription endpoint creates PushSubscription records
-- [x] Homerun notifications trigger with player name/team/inning
-- [x] Draft turn notifications trigger for picker
-- [x] Test endpoint sends all event types (homerun, turn, trade, league_update)
-- [x] Web app manifest validates (icons, description, theme)
-- [x] Install prompt UI appears on supported browsers
-- [x] Offline caching configured (cache-first for static, network-first for API)
-- [x] OfflineIndicator component shows connection status
-- [x] Icons present and properly sized (144x144, 192x192, 320x320, 512x512)
-- [x] Trade proposal creates record and broadcasts via Pusher
-- [x] Trade acceptance swaps roster ownership correctly
-- [x] Trade rejection prevents swap, marks as rejected
-- [x] Trade expiration cron runs every 5 min, marks 48h-old trades as expired
-- [x] Duplicate trade check prevents concurrent proposals
-- [x] Roster endpoint supports userId parameter for other users' rosters
-- [x] Draft timer waits for player list load before countdown
-- [x] Draft completion redirect to /league (not /leagues)
-
-Previous weeks verified:
-- [x] Create league endpoint works
-- [x] Join league via invite cookie flow (unauthenticated)
-- [x] Draft room with timer, available players, manager list
-- [x] Player search filters available players
-- [x] Submit pick updates DraftPicks + RosterSpots
-- [x] Auto-picks trigger on timeout (cron job)
-- [x] Draft completes after 60 picks (10 rounds × 6 members)
-- [x] Pusher authentication works (POST /api/pusher/auth)
+Weeks 1-7 verified (2026-03-03):
+- [x] npm run build succeeds (TypeScript strict, all routes registered)
+- [x] Auth works (Google OAuth, invite cookie flow)
+- [x] Draft room complete (start/pick/auto-pick/pause/resume/reset)
+- [x] Standings/roster APIs working (multi-league, real-time updates)
+- [x] Homerun polling & Pusher broadcasting live
+- [x] Web Push notifications (subscribe/send/test)
+- [x] PWA manifest valid (icons, offline caching, install prompt)
+- [x] Trading system complete (propose/accept/reject, 48h expiration)
+- [x] Player detail page working (info, headshots, history, back nav)
+- [x] Profile page working (display name edit, sign out)
+- [x] NotificationDropdown/UserMenu in header
+- [x] All homeruns page with sorting
+- [x] Service worker caching configured
 
 ## Blockers & Notes
 
@@ -226,37 +224,36 @@ npx prisma migrate dev  # Create migration
 npx tsc --noEmit       # Type check
 ```
 
-## Key Files (Weeks 1-6)
+## Key Files (Week 7 Additions)
 
-- **app/league/[leagueId]/page.tsx:** League Home + 6 tabs (Draft, Leaderboard, My Team, Players, Settings, Trades)
-- **app/join/[leagueId]/page.tsx:** OAuth invite cookie flow
-- **app/draft/[leagueId]/page.tsx:** Draft room page
-- **app/draft/[leagueId]/components/DraftRoom.tsx:** Draft UI + polling
-- **app/draft/[leagueId]/components/DraftTimer.tsx:** 60-second countdown
-- **app/draft/[leagueId]/components/PlayerSearch.tsx:** Player search/selection
-- **app/draft/[leagueId]/components/DevPanel.tsx:** Dev controls (development only)
-- **app/api/draft/[leagueId]/*.ts:** Draft endpoints (start, status, pick, available, pause, resume, reset, autopick)
-- **app/api/cron/draft-timeout/route.ts:** Auto-pick cron job (every 1 min)
-- **app/api/cron/homerun-poll/route.ts:** Homerun polling cron job (every 5 min)
-- **app/api/leagues/[leagueId]/standings/route.ts:** Leaderboard API (sorted by homeruns)
-- **app/api/leagues/[leagueId]/roster/route.ts:** User's roster API
-- **lib/mlb-stats.ts:** statsapi integration (fetchTodaysGames, fetchGameHomeruns)
-- **lib/pusher-server.ts, lib/pusher-client.ts:** Pusher configuration
-- **public/sw.js:** Service worker for push event handling
-- **app/components/ServiceWorkerRegistration.tsx:** SW registration on startup
-- **app/components/NotificationBell.tsx:** Notification bell UI + subscription
-- **app/components/InstallPrompt.tsx:** PWA install prompt UI
-- **app/components/OfflineIndicator.tsx:** Connection status indicator
-- **lib/push-service.ts:** Push sending logic (sendPushToUser, sendPushToLeague)
-- **app/api/notifications/*.ts:** Subscribe, unsubscribe, test endpoints
-- **public/manifest.json:** PWA manifest with icons
-- **public/icons/:** App icons (144x144, 192x192, 320x320, 512x512)
-- **vercel.json:** Cron schedule configuration (draft-timeout, homerun-poll, trade-expire)
-- **app/league/[leagueId]/components/TradesTab.tsx:** Trading UI + proposal form (Week 6)
-- **app/api/trades/[leagueId]/route.ts:** GET trades, POST proposals (Week 6)
-- **app/api/trades/[leagueId]/[tradeId]/accept/route.ts:** Accept trade (Week 6)
-- **app/api/trades/[leagueId]/[tradeId]/reject/route.ts:** Reject trade (Week 6)
-- **app/api/cron/trade-expire/route.ts:** 48-hour expiration cron (Week 6)
+Week 7 new files:
+- **/app/player/[leagueId]/[playerId]/page.tsx** - Player detail (info, headshots, homerun history, back nav)
+- **/app/profile/page.tsx** - User profile (edit display name, sign out)
+- **/app/homeruns/page.tsx** - All homeruns feed (multi-league, sortable)
+- **/app/components/NotificationDropdown.tsx** - Bell dropdown (subscription toggle)
+- **/app/components/UserMenu.tsx** - Avatar menu (profile link, sign out)
+- **/app/api/user/update-name/route.ts** - Profile API endpoint
+
+Core pages/routes:
+- **/app/league/[leagueId]/page.tsx** - League home (6 tabs)
+- **/app/draft/[leagueId]/page.tsx** - Draft room
+- **/app/dashboard/page.tsx** - Dashboard with live games/homeruns
+
+APIs (full list in table above):
+- **/app/api/draft/** - Draft endpoints (start, pick, status, available, pause, resume)
+- **/app/api/cron/** - Auto-picks, homerun polling, trade expiration
+- **/app/api/leagues/** - League CRUD, standings, roster
+- **/app/api/trades/** - Trade proposals, accept/reject
+- **/app/api/notifications/** - Push subscription/unsubscribe/test
+- **/app/api/pusher/auth** - Real-time channel auth
+
+Infrastructure:
+- **/lib/mlb-stats.ts** - MLB API integration
+- **/lib/pusher-server.ts, lib/pusher-client.ts** - Real-time config
+- **/lib/push-service.ts** - Web Push sending
+- **/public/sw.js** - Service worker + push handler
+- **/public/manifest.json** - PWA manifest
+- **/vercel.json** - Cron job schedule
 
 ## Database Schema Changes
 
@@ -286,5 +283,12 @@ npx tsc --noEmit       # Type check
 - Web Push notifications trigger on homerun/draft events (Android/Chrome, iOS fallback to in-app)
 - PWA fully offline-capable with service worker caching
 - Trading system: 1:1 player swaps, no veto voting (MVP simplified), 48h expiration cron
+- Player detail page: clickable from draft room, my team, leaderboard, dashboard with back nav
+- Player headshots: MLB CDN (img.mlb.com/headshot/crop) via mlbId, initials fallback
+- NotificationDropdown: Bell icon with subscription status toggle in dashboard header
+- UserMenu: Avatar button in header with profile link and sign out
+- Profile page: Edit display name (shown in leagues), responsive dark theme
+- All homeruns page: Multi-league homerun feed with sort options (Recent/Player/League)
 - Bug fixes: roster endpoint userId parameter, draft timer waits for player load, proper redirect after draft
-- Next: Week 7 Polish & Launch (landing page, feature summary, app store prep)
+- Week 7 completed: New UI components, profile management, expanded homerun views
+- Next: Landing page design, full flow testing, app store preparation

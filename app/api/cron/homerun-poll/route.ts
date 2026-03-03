@@ -75,6 +75,7 @@ export async function POST(request: NextRequest) {
                     leagueId: spot.leagueId,
                     playerId: homerun.playerId,
                     playerName: homerun.playerName,
+                    mlbId: homerun.mlbId,
                     playByPlayId: homerun.playByPlayId,
                     gameId: homerun.gameId,
                     gameDate: homerun.gameDate,

@@ -10,6 +10,7 @@ export interface RosterEntry {
   playerId: string;
   playerName: string;
   position: string | null;
+  mlbId: number | null;
   homeruns: number;
   points: number;
   draftedRound: number | null;
@@ -87,6 +88,7 @@ export async function GET(
       playerId: spot.playerId,
       playerName: spot.playerName,
       position: spot.position,
+      mlbId: spot.mlbId,
       homeruns: spot.homeruns,
       points: spot.points,
       draftedRound: spot.draftedRound,

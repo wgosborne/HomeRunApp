@@ -41,6 +41,8 @@
   "devDependencies": {
     "@types/web-push": "^3.6.4",
     "@vitest/ui": "^4.0.18",
+    "canvas": "^3.2.1",
+    "to-ico": "^1.1.5",
     "ts-node": "^10.9.2",
     "vitest": "^4.0.18"
   },

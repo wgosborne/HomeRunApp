@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { PlayerAvatar } from "@/app/components/PlayerAvatar";
 
 interface Player {
   id: string;
+  mlbId: number;
   name: string;
   position: string;
   team: string;
@@ -79,64 +82,220 @@ export function PlayerSearch({
 
   if (loading || isLoading) {
     return (
-      <div className="bg-white rounded-lg shadow p-4">
-        <div className="text-center text-gray-500">Loading available players...</div>
+      <div
+        style={{
+          borderRadius: "20px",
+          padding: "20px",
+          backgroundColor: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(255,255,255,0.07)",
+          textAlign: "center",
+        }}
+      >
+        <div
+          style={{
+            fontFamily: "'DM Sans', sans-serif",
+            fontSize: "14px",
+            color: "rgba(255,255,255,0.4)",
+          }}
+        >
+          Loading available players...
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-        <div className="text-red-700">Error: {error}</div>
+      <div
+        style={{
+          borderRadius: "20px",
+          padding: "20px",
+          backgroundColor: "rgba(204,52,51,0.1)",
+          border: "1px solid rgba(204,52,51,0.3)",
+        }}
+      >
+        <div
+          style={{
+            fontFamily: "'DM Sans', sans-serif",
+            fontSize: "14px",
+            color: "#fca5a5",
+          }}
+        >
+          Error: {error}
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-lg shadow overflow-hidden">
-      <div className="p-3 sm:p-4 border-b">
+    <div
+      style={{
+        borderRadius: "20px",
+        overflow: "hidden",
+        backgroundColor: "rgba(255,255,255,0.04)",
+        border: "1px solid rgba(255,255,255,0.07)",
+        boxShadow:
+          "0 4px 12px rgba(0,0,0,0.35), 0 8px 24px rgba(0,0,0,0.2), 0 1px 0 rgba(255,255,255,0.06) inset",
+      }}
+    >
+      <div
+        style={{
+          padding: "16px",
+          borderBottom: "1px solid rgba(255,255,255,0.07)",
+        }}
+      >
         <input
           type="text"
           placeholder="Search player name or team..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           disabled={!isCurrentPicker}
-          className="w-full px-3 py-2 sm:py-3 border rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed min-h-[44px]"
+          style={{
+            width: "100%",
+            padding: "12px",
+            backgroundColor: "rgba(0,0,0,0.3)",
+            border: "1px solid rgba(255,255,255,0.1)",
+            borderRadius: "8px",
+            fontSize: "16px",
+            fontFamily: "'DM Sans', sans-serif",
+            color: "white",
+            minHeight: "44px",
+            transition: "all 0.2s",
+          }}
+          onFocus={(e) => {
+            e.currentTarget.style.borderColor = "rgba(204,52,51,0.5)";
+            e.currentTarget.style.backgroundColor = "rgba(0,0,0,0.5)";
+          }}
+          onBlur={(e) => {
+            e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)";
+            e.currentTarget.style.backgroundColor = "rgba(0,0,0,0.3)";
+          }}
         />
-        <div className="mt-2 text-xs sm:text-sm text-gray-600">
+        <div
+          style={{
+            marginTop: "8px",
+            fontSize: "12px",
+            color: "rgba(255,255,255,0.3)",
+            fontFamily: "'DM Sans', sans-serif",
+          }}
+        >
           {filteredPlayers.length} available • {players.length} total
         </div>
       </div>
 
-      <div className="overflow-y-auto max-h-[60vh] sm:max-h-96">
+      <div
+        style={{
+          overflowY: "auto",
+          maxHeight: "60vh",
+        }}
+      >
         {filteredPlayers.length === 0 ? (
-          <div className="p-4 text-center text-gray-500 text-sm">No players found</div>
+          <div
+            style={{
+              padding: "16px",
+              textAlign: "center",
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: "14px",
+              color: "rgba(255,255,255,0.3)",
+            }}
+          >
+            No players found
+          </div>
         ) : (
-          <div className="space-y-2 p-3 sm:p-4 divide-y sm:divide-y-0">
+          <div
+            style={{
+              padding: "12px",
+            }}
+          >
             {filteredPlayers.map((player) => (
-              <button
-                key={player.id}
-                onClick={() => onPlayerSelected(player)}
-                disabled={!isCurrentPicker}
-                className="w-full p-3 sm:p-4 hover:bg-blue-50 disabled:bg-gray-50 disabled:cursor-not-allowed text-left transition-colors rounded-lg sm:rounded-none border border-gray-200 sm:border-none hover:border-blue-300 sm:hover:border-transparent disabled:border-gray-200 min-h-[56px] flex items-center"
-              >
-                <div className="flex justify-between items-start gap-3 w-full">
-                  <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-gray-900 text-sm sm:text-base truncate">
-                      #{player.rank || "?"} {player.name}
+              <div key={player.id} style={{ marginBottom: "8px" }}>
+                <button
+                  onClick={() => onPlayerSelected(player)}
+                  disabled={!isCurrentPicker}
+                  style={{
+                    width: "100%",
+                    padding: "16px",
+                    backgroundColor: isCurrentPicker ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.2)",
+                    border: "1px solid rgba(255,255,255,0.07)",
+                    borderRadius: "12px",
+                    textAlign: "left",
+                    transition: "all 0.2s",
+                    cursor: isCurrentPicker ? "pointer" : "not-allowed",
+                    minHeight: "56px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "12px",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (isCurrentPicker) {
+                      (e.currentTarget as HTMLButtonElement).style.backgroundColor =
+                        "rgba(204,52,51,0.1)";
+                      (e.currentTarget as HTMLButtonElement).style.borderColor =
+                        "rgba(204,52,51,0.3)";
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (isCurrentPicker) {
+                      (e.currentTarget as HTMLButtonElement).style.backgroundColor =
+                        "rgba(255,255,255,0.04)";
+                      (e.currentTarget as HTMLButtonElement).style.borderColor =
+                        "rgba(255,255,255,0.07)";
+                    }
+                  }}
+                >
+                  <PlayerAvatar mlbId={player.mlbId} playerName={player.name} size="sm" lazy={true} />
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "flex-start",
+                      gap: "12px",
+                      width: "100%",
+                      flex: 1,
+                      minWidth: 0,
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div
+                        style={{
+                          fontFamily: "'Exo 2', sans-serif",
+                          fontWeight: 700,
+                          fontSize: "14px",
+                          color: "white",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        #{player.rank || "?"} {player.name}
+                      </div>
+                      <div
+                        style={{
+                          fontFamily: "'DM Sans', sans-serif",
+                          fontSize: "12px",
+                          color: "rgba(255,255,255,0.4)",
+                        }}
+                      >
+                        {player.position} • {player.team}
+                      </div>
                     </div>
-                    <div className="text-xs sm:text-sm text-gray-600">
-                      {player.position} • {player.team}
+                    <div style={{ flexShrink: 0, textAlign: "right" }}>
+                      <div
+                        style={{
+                          fontFamily: "'Exo 2', sans-serif",
+                          fontSize: "14px",
+                          fontWeight: 700,
+                          color: "#6BAED6",
+                        }}
+                      >
+                        {player.homeRuns || 0} HR
+                      </div>
                     </div>
                   </div>
-                  <div className="flex-shrink-0 text-right">
-                    <div className="text-sm sm:text-base font-semibold text-blue-600">
-                      {player.homeRuns || 0} HR
-                    </div>
-                  </div>
-                </div>
-              </button>
+                </button>
+                {/* Hidden link to player detail page (accessible via right-click context menu) */}
+                <Link href={`/player/${player.mlbId}`} className="hidden" />
+              </div>
             ))}
           </div>
         )}

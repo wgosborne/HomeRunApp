@@ -3,14 +3,19 @@
 import React, { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { pusherClient } from "@/lib/pusher-client";
+import { PlayerAvatar } from "@/app/components/PlayerAvatar";
 
 interface Trade {
   id: string;
   leagueId: string;
   ownerId: string;
   receiverId: string;
+  ownerPlayerId: string;
   ownerPlayerName: string;
+  ownerPlayerMlbId?: number | null;
+  receiverPlayerId: string;
   receiverPlayerName: string;
+  receiverPlayerMlbId?: number | null;
   status: "pending" | "accepted" | "rejected" | "expired";
   expiresAt: string;
   respondedAt?: string;
@@ -39,11 +44,10 @@ export function TradesTab({ leagueId }: { leagueId: string }) {
 
   useEffect(() => {
     fetchTrades();
-    const interval = setInterval(fetchTrades, 5000);
+    const interval = setInterval(fetchTrades, 20000);
     return () => clearInterval(interval);
   }, [leagueId]);
 
-  // Subscribe to trade events via Pusher
   useEffect(() => {
     const channel = pusherClient.subscribe(`league-${leagueId}`);
 
@@ -88,7 +92,6 @@ export function TradesTab({ leagueId }: { leagueId: string }) {
 
       if (res.ok) {
         setError("");
-        // Trades will update via Pusher
       } else {
         const data = await res.json();
         setError(data.error || "Failed to accept trade");
@@ -106,7 +109,6 @@ export function TradesTab({ leagueId }: { leagueId: string }) {
 
       if (res.ok) {
         setError("");
-        // Trades will update via Pusher
       } else {
         const data = await res.json();
         setError(data.error || "Failed to reject trade");
@@ -138,30 +140,15 @@ export function TradesTab({ leagueId }: { leagueId: string }) {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "accepted":
-        return "bg-green-50 border-green-200";
+        return { bg: "rgba(127, 191, 107, 0.1)", border: "1px solid rgba(127, 191, 107, 0.3)", text: "#7FBF6B" };
       case "rejected":
-        return "bg-red-50 border-red-200";
+        return { bg: "rgba(200, 16, 46, 0.1)", border: "1px solid rgba(200, 16, 46, 0.3)", text: "#C8102E" };
       case "expired":
-        return "bg-gray-50 border-gray-200";
+        return { bg: "rgba(245, 230, 200, 0.05)", border: "1px solid rgba(245, 230, 200, 0.15)", text: "rgba(245, 230, 200, 0.6)" };
       case "pending":
-        return "bg-blue-50 border-blue-200";
+        return { bg: "rgba(245, 230, 200, 0.05)", border: "1px solid rgba(245, 230, 200, 0.15)", text: "#F5E6C8" };
       default:
-        return "bg-white border-gray-200";
-    }
-  };
-
-  const getStatusBadgeColor = (status: string) => {
-    switch (status) {
-      case "accepted":
-        return "bg-green-100 text-green-800";
-      case "rejected":
-        return "bg-red-100 text-red-800";
-      case "expired":
-        return "bg-gray-100 text-gray-800";
-      case "pending":
-        return "bg-blue-100 text-blue-800";
-      default:
-        return "bg-gray-100 text-gray-800";
+        return { bg: "rgba(245, 230, 200, 0.05)", border: "1px solid rgba(255, 255, 255, 0.15)", text: "#F5E6C8" };
     }
   };
 
@@ -184,24 +171,37 @@ export function TradesTab({ leagueId }: { leagueId: string }) {
   };
 
   if (loading) {
-    return <div className="p-8 text-center text-gray-600">Loading trades...</div>;
+    return <div className="py-8 text-center" style={{ color: "rgba(245, 230, 200, 0.7)" }}>Loading trades...</div>;
   }
 
   return (
     <div className="space-y-6">
       {/* Error Message */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+        <div
+          style={{
+            backgroundColor: "rgba(200, 16, 46, 0.1)",
+            borderLeft: "3px solid #C8102E",
+            color: "#C8102E",
+          }}
+          className="p-4 rounded text-sm"
+        >
           {error}
         </div>
       )}
 
       {/* Header with Action */}
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-900">Trades</h2>
+        <h2 className="text-2xl font-bold" style={{ color: "#F5E6C8" }}>
+          Trades
+        </h2>
         <button
           onClick={() => setShowProposalForm(!showProposalForm)}
-          className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-sm font-medium"
+          className="px-4 py-2 rounded font-semibold text-sm transition"
+          style={{
+            backgroundColor: showProposalForm ? "rgba(200, 16, 46, 0.3)" : "#C8102E",
+            color: showProposalForm ? "#F5E6C8" : "#0D1F3C",
+          }}
         >
           {showProposalForm ? "Cancel" : "Propose Trade"}
         </button>
@@ -221,54 +221,53 @@ export function TradesTab({ leagueId }: { leagueId: string }) {
 
       {/* Filter Buttons */}
       <div className="flex gap-2">
-        <button
-          onClick={() => setFilter("all")}
-          className={`px-4 py-2 rounded text-sm font-medium transition ${
-            filter === "all"
-              ? "bg-indigo-600 text-white"
-              : "bg-gray-200 text-gray-800 hover:bg-gray-300"
-          }`}
-        >
-          All ({trades.length})
-        </button>
-        <button
-          onClick={() => setFilter("pending")}
-          className={`px-4 py-2 rounded text-sm font-medium transition ${
-            filter === "pending"
-              ? "bg-indigo-600 text-white"
-              : "bg-gray-200 text-gray-800 hover:bg-gray-300"
-          }`}
-        >
-          Pending ({pendingTrades.length})
-        </button>
-        <button
-          onClick={() => setFilter("completed")}
-          className={`px-4 py-2 rounded text-sm font-medium transition ${
-            filter === "completed"
-              ? "bg-indigo-600 text-white"
-              : "bg-gray-200 text-gray-800 hover:bg-gray-300"
-          }`}
-        >
-          Completed (
-          {trades.length -
-            pendingTrades.length})
-        </button>
+        {(["all", "pending", "completed"] as TradeFilter[]).map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className="px-4 py-2 rounded text-sm font-medium transition"
+            style={{
+              backgroundColor: filter === f ? "#C8102E" : "#162749",
+              color: filter === f ? "#0D1F3C" : "#F5E6C8",
+              border: filter === f ? "none" : "1px solid rgba(255, 255, 255, 0.15)",
+            }}
+          >
+            {f === "all" ? "All" : f === "pending" ? "Pending" : "Completed"} (
+            {f === "all"
+              ? trades.length
+              : f === "pending"
+                ? pendingTrades.length
+                : trades.length - pendingTrades.length}
+            )
+          </button>
+        ))}
       </div>
 
-      {/* Pending Trades Awaiting My Response */}
+      {/* Pending Trades Alert */}
       {myPendingTrades.length > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <p className="text-blue-900 font-semibold">
-            You have {myPendingTrades.length} trade proposal
-            {myPendingTrades.length === 1 ? "" : "s"} awaiting your response
+        <div
+          style={{
+            backgroundColor: "rgba(200, 16, 46, 0.1)",
+            borderLeft: "3px solid #C8102E",
+          }}
+          className="p-4 rounded"
+        >
+          <p style={{ color: "#F5E6C8" }} className="font-semibold text-sm">
+            You have {myPendingTrades.length} trade proposal{myPendingTrades.length === 1 ? "" : "s"} awaiting your response
           </p>
         </div>
       )}
 
       {/* Trades List */}
       {filteredTrades.length === 0 ? (
-        <div className="bg-white rounded-lg shadow p-8 text-center">
-          <p className="text-gray-600">
+        <div
+          style={{
+            backgroundColor: "#162749",
+            borderLeft: "4px solid rgba(200, 16, 46, 0.3)",
+          }}
+          className="p-8 rounded text-center"
+        >
+          <p style={{ color: "rgba(245, 230, 200, 0.7)" }}>
             {filter === "pending"
               ? "No pending trades"
               : filter === "completed"
@@ -278,97 +277,111 @@ export function TradesTab({ leagueId }: { leagueId: string }) {
         </div>
       ) : (
         <div className="space-y-4">
-          {filteredTrades.map((trade) => (
-            <div
-              key={trade.id}
-              className={`border rounded-lg p-6 transition ${getStatusColor(
-                trade.status
-              )}`}
-            >
-              {/* Trade Status */}
-              <div className="flex justify-between items-start mb-4">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    {trade.owner.name} vs {trade.receiver.name}
-                  </h3>
-                  <span
-                    className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadgeColor(
-                      trade.status
-                    )}`}
-                  >
-                    {trade.status.charAt(0).toUpperCase() + trade.status.slice(1)}
-                  </span>
-                </div>
-                <div className="text-sm text-gray-600">
-                  {trade.status === "pending" && (
-                    <span className="text-orange-600 font-medium">
-                      {formatTimeRemaining(trade.expiresAt)}
+          {filteredTrades.map((trade) => {
+            const statusColor = getStatusColor(trade.status);
+            return (
+              <div
+                key={trade.id}
+                style={{
+                  backgroundColor: "#162749",
+                  border: statusColor.border,
+                  borderLeft: "4px solid #C8102E",
+                }}
+                className="p-6 rounded"
+              >
+                {/* Trade Header */}
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <p className="font-bold text-sm" style={{ color: "#F5E6C8" }}>
+                      {trade.owner.name} vs {trade.receiver.name}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="px-3 py-1 rounded text-xs font-semibold"
+                      style={{ backgroundColor: statusColor.text ? statusColor.text : "#C8102E", color: "#0D1F3C" }}
+                    >
+                      {trade.status.charAt(0).toUpperCase() + trade.status.slice(1)}
                     </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Trade Details */}
-              <div className="grid grid-cols-3 gap-4 mb-4">
-                {/* Owner's Offer */}
-                <div>
-                  <p className="text-xs text-gray-600 font-semibold mb-2">
-                    {trade.owner.name} offers
-                  </p>
-                  <div className="bg-white bg-opacity-50 rounded p-3">
-                    <p className="font-semibold text-gray-900">
-                      {trade.ownerPlayerName}
-                    </p>
+                    {trade.status === "pending" && (
+                      <p style={{ color: "#C8102E" }} className="text-xs font-medium">
+                        {formatTimeRemaining(trade.expiresAt)}
+                      </p>
+                    )}
                   </div>
                 </div>
 
-                {/* Arrow */}
-                <div className="flex items-center justify-center">
-                  <div className="text-2xl text-gray-400">↔</div>
-                </div>
-
-                {/* Receiver's Offer */}
-                <div>
-                  <p className="text-xs text-gray-600 font-semibold mb-2">
-                    {trade.receiver.name} offers
-                  </p>
-                  <div className="bg-white bg-opacity-50 rounded p-3">
-                    <p className="font-semibold text-gray-900">
-                      {trade.receiverPlayerName}
+                {/* Trade Details */}
+                <div className="grid grid-cols-3 gap-4 mb-4">
+                  {/* Owner's Offer */}
+                  <div>
+                    <p className="text-xs font-semibold mb-2" style={{ color: "rgba(245, 230, 200, 0.6)" }}>
+                      {trade.owner.name} offers
                     </p>
+                    <div style={{ backgroundColor: "rgba(245, 230, 200, 0.05)", border: "1px solid rgba(255, 255, 255, 0.15)" }} className="p-3 rounded flex items-center gap-2">
+                      <PlayerAvatar mlbId={trade.ownerPlayerMlbId} playerName={trade.ownerPlayerName} size="md" isYourPlayer={trade.ownerId === session?.user?.id} />
+                      <p className="font-semibold text-sm" style={{ color: "#F5E6C8" }}>
+                        {trade.ownerPlayerName}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Arrow */}
+                  <div className="flex items-center justify-center">
+                    <div style={{ color: "rgba(245, 230, 200, 0.4)" }}>↔</div>
+                  </div>
+
+                  {/* Receiver's Offer */}
+                  <div>
+                    <p className="text-xs font-semibold mb-2" style={{ color: "rgba(245, 230, 200, 0.6)" }}>
+                      {trade.receiver.name} offers
+                    </p>
+                    <div style={{ backgroundColor: "rgba(245, 230, 200, 0.05)", border: "1px solid rgba(255, 255, 255, 0.15)" }} className="p-3 rounded flex items-center gap-2">
+                      <PlayerAvatar mlbId={trade.receiverPlayerMlbId} playerName={trade.receiverPlayerName} size="md" isYourPlayer={trade.receiverId === session?.user?.id} />
+                      <p className="font-semibold text-sm" style={{ color: "#F5E6C8" }}>
+                        {trade.receiverPlayerName}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Action Buttons */}
-              {trade.status === "pending" &&
-                trade.receiverId === session?.user?.id && (
+                {/* Action Buttons */}
+                {trade.status === "pending" && trade.receiverId === session?.user?.id && (
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleAccept(trade.id)}
-                      className="flex-1 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-medium text-sm"
+                      className="flex-1 px-4 py-2 rounded font-semibold text-sm transition"
+                      style={{
+                        backgroundColor: "#7FBF6B",
+                        color: "#0D1F3C",
+                      }}
                     >
                       Accept
                     </button>
                     <button
                       onClick={() => handleReject(trade.id)}
-                      className="flex-1 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 font-medium text-sm"
+                      className="flex-1 px-4 py-2 rounded font-semibold text-sm transition"
+                      style={{
+                        backgroundColor: "#C8102E",
+                        color: "#0D1F3C",
+                      }}
                     >
                       Reject
                     </button>
                   </div>
                 )}
 
-              {/* Timestamp */}
-              <div className="mt-4 pt-4 border-t border-gray-200 border-opacity-50">
-                <p className="text-xs text-gray-600">
-                  Proposed on{" "}
-                  {new Date(trade.createdAt).toLocaleDateString()} at{" "}
+                {/* Timestamp */}
+                <div
+                  className="mt-4 pt-4 text-xs"
+                  style={{ borderTop: "1px solid rgba(255, 255, 255, 0.15)", color: "rgba(245, 230, 200, 0.5)" }}
+                >
+                  Proposed on {new Date(trade.createdAt).toLocaleDateString()} at{" "}
                   {new Date(trade.createdAt).toLocaleTimeString()}
-                </p>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
@@ -396,8 +409,10 @@ function TradeProposalForm({
     receiverId: "",
     ownerPlayerId: "",
     ownerPlayerName: "",
+    ownerPlayerMlbId: null as number | null,
     receiverPlayerId: "",
     receiverPlayerName: "",
+    receiverPlayerMlbId: null as number | null,
   });
 
   useEffect(() => {
@@ -457,8 +472,10 @@ function TradeProposalForm({
           receiverId: formData.receiverId,
           ownerPlayerId: formData.ownerPlayerId,
           ownerPlayerName: formData.ownerPlayerName,
+          ownerPlayerMlbId: formData.ownerPlayerMlbId,
           receiverPlayerId: formData.receiverPlayerId,
           receiverPlayerName: formData.receiverPlayerName,
+          receiverPlayerMlbId: formData.receiverPlayerMlbId,
         }),
       });
 
@@ -476,13 +493,21 @@ function TradeProposalForm({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow p-6 border-2 border-indigo-200">
-      <h3 className="text-lg font-bold text-gray-900 mb-4">Propose a Trade</h3>
+    <div
+      style={{
+        backgroundColor: "#162749",
+        borderLeft: "4px solid #C8102E",
+      }}
+      className="p-6 rounded-lg"
+    >
+      <h3 className="text-lg font-bold mb-4" style={{ color: "#F5E6C8" }}>
+        Propose a Trade
+      </h3>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Select Receiver */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium mb-1" style={{ color: "rgba(245, 230, 200, 0.7)" }}>
             Trade with
           </label>
           <select
@@ -490,7 +515,12 @@ function TradeProposalForm({
             onChange={(e) =>
               setFormData({ ...formData, receiverId: e.target.value })
             }
-            className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-indigo-500"
+            className="w-full px-4 py-2 rounded text-sm"
+            style={{
+              backgroundColor: "#0D1F3C",
+              color: "#F5E6C8",
+              border: "1px solid rgba(255, 255, 255, 0.15)",
+            }}
             required
           >
             <option value="">Select a team member</option>
@@ -504,7 +534,7 @@ function TradeProposalForm({
 
         {/* Your Player */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium mb-1" style={{ color: "rgba(245, 230, 200, 0.7)" }}>
             Your Player
           </label>
           <select
@@ -515,9 +545,15 @@ function TradeProposalForm({
                 ...formData,
                 ownerPlayerId: e.target.value,
                 ownerPlayerName: player?.playerName || "",
+                ownerPlayerMlbId: player?.mlbId || null,
               });
             }}
-            className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-indigo-500"
+            className="w-full px-4 py-2 rounded text-sm"
+            style={{
+              backgroundColor: "#0D1F3C",
+              color: "#F5E6C8",
+              border: "1px solid rgba(255, 255, 255, 0.15)",
+            }}
             required
           >
             <option value="">Select a player to trade</option>
@@ -531,7 +567,7 @@ function TradeProposalForm({
 
         {/* Receiver's Player */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium mb-1" style={{ color: "rgba(245, 230, 200, 0.7)" }}>
             {formData.receiverId
               ? leagueMembers.find((m) => m.userId === formData.receiverId)
                   ?.user?.name + "'s Player"
@@ -547,9 +583,15 @@ function TradeProposalForm({
                 ...formData,
                 receiverPlayerId: e.target.value,
                 receiverPlayerName: player?.playerName || "",
+                receiverPlayerMlbId: player?.mlbId || null,
               });
             }}
-            className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-indigo-500"
+            className="w-full px-4 py-2 rounded text-sm"
+            style={{
+              backgroundColor: "#0D1F3C",
+              color: "#F5E6C8",
+              border: "1px solid rgba(255, 255, 255, 0.15)",
+            }}
             required
             disabled={!formData.receiverId}
           >
@@ -571,7 +613,12 @@ function TradeProposalForm({
           <button
             type="submit"
             disabled={loading}
-            className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:bg-gray-400 font-medium"
+            className="flex-1 px-4 py-2 rounded font-semibold text-sm transition"
+            style={{
+              backgroundColor: loading ? "rgba(200, 16, 46, 0.3)" : "#C8102E",
+              color: "#0D1F3C",
+              opacity: loading ? 0.5 : 1,
+            }}
           >
             {loading ? "Proposing..." : "Propose Trade"}
           </button>

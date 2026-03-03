@@ -17,13 +17,13 @@ interface TabNavigationProps {
 }
 
 /**
- * Mobile-first responsive tab navigation component
+ * Premium pill-style tab navigation component
  * Features:
+ * - Pill-shaped tabs with glass-morphism (inactive) and red glow (active)
  * - Scrolls horizontally on mobile (<640px)
- * - Sticky positioning at top
  * - 44px+ touch targets for accessibility
- * - Clear active tab indicator with smooth transitions
- * - Adapts layout for tablet and desktop
+ * - Smooth transitions and premium shadow system
+ * - Matches dashboard design system exactly
  */
 export function TabNavigation({
   tabs,
@@ -31,17 +31,13 @@ export function TabNavigation({
   onTabChange,
   className = "",
 }: TabNavigationProps) {
-  const [containerRef, setContainerRef] = React.useState<HTMLDivElement | null>(
-    null
-  );
   const [activeTabRef, setActiveTabRef] = React.useState<HTMLButtonElement | null>(
     null
   );
 
   // Scroll active tab into view on mobile
   React.useEffect(() => {
-    if (containerRef && activeTabRef) {
-      // Small delay to ensure layout is ready
+    if (activeTabRef) {
       setTimeout(() => {
         activeTabRef.scrollIntoView({
           behavior: "smooth",
@@ -50,56 +46,62 @@ export function TabNavigation({
         });
       }, 0);
     }
-  }, [activeTab, containerRef, activeTabRef]);
-
-  const baseStyles = "bg-white rounded-lg shadow";
-  const borderColor = "border-b-2";
-  const activeColor = "text-indigo-600 border-indigo-600";
-  const inactiveColor = "text-gray-600 hover:text-gray-900";
+  }, [activeTab, activeTabRef]);
 
   return (
-    <div className={`${baseStyles} mb-6 sticky top-0 z-40 ${className}`}>
-      {/* Scrollable container for mobile */}
-      <div
-        ref={setContainerRef}
-        className="flex overflow-x-auto scrollbar-hide sm:overflow-x-visible"
-      >
-        {tabs.map((tab, index) => (
-          <button
-            key={tab.id}
-            ref={activeTab === tab.id ? setActiveTabRef : null}
-            onClick={() => onTabChange(tab.id)}
-            className={`
-              px-4 sm:px-6 py-4 font-medium text-sm transition-all whitespace-nowrap
-              min-h-[44px] flex items-center justify-center gap-2
-              ${borderColor} border-transparent
-              ${activeTab === tab.id ? activeColor : inactiveColor}
-              ${index !== tabs.length - 1 ? "" : ""}
-            `}
-            aria-selected={activeTab === tab.id}
-            role="tab"
-          >
-            {tab.icon && <span className="flex-shrink-0">{tab.icon}</span>}
-            <span>{tab.label}</span>
-          </button>
-        ))}
-      </div>
+    <div
+      className={`mb-6 ${className}`}
+      style={{
+        display: "flex",
+        gap: "8px",
+        padding: "12px 16px",
+        overflowX: "auto",
+        WebkitOverflowScrolling: "touch",
+        scrollBehavior: "smooth",
+      }}
+    >
+      {tabs.map((tab) => (
+        <button
+          key={tab.id}
+          ref={activeTab === tab.id ? setActiveTabRef : null}
+          onClick={() => onTabChange(tab.id)}
+          className="transition-all whitespace-nowrap min-h-[44px] flex items-center justify-center gap-2"
+          style={{
+            padding: "7px 18px",
+            borderRadius: "100px",
+            fontFamily: "'DM Sans', sans-serif",
+            fontSize: "13px",
+            fontWeight: 600,
+            border: "1px solid rgba(255, 255, 255, 0.08)",
+            background:
+              activeTab === tab.id
+                ? "#CC3433"
+                : "rgba(255, 255, 255, 0.05)",
+            color:
+              activeTab === tab.id
+                ? "white"
+                : "rgba(255, 255, 255, 0.4)",
+            boxShadow:
+              activeTab === tab.id
+                ? "0 4px 14px rgba(204, 52, 51, 0.45), 0 1px 0 rgba(255, 255, 255, 0.15) inset"
+                : "0 2px 8px rgba(0, 0, 0, 0.2)",
+            cursor: "pointer",
+          }}
+          aria-selected={activeTab === tab.id}
+          role="tab"
+        >
+          {tab.icon && <span className="flex-shrink-0">{tab.icon}</span>}
+          <span>{tab.label}</span>
+        </button>
+      ))}
 
-      {/* CSS for hiding scrollbar on mobile while keeping functionality */}
       <style jsx>{`
-        .scrollbar-hide {
+        div {
           -ms-overflow-style: none;
           scrollbar-width: none;
         }
-        .scrollbar-hide::-webkit-scrollbar {
+        div::-webkit-scrollbar {
           display: none;
-        }
-
-        /* Smooth scrolling behavior */
-        @media (max-width: 640px) {
-          .scrollbar-hide {
-            scroll-behavior: smooth;
-          }
         }
       `}</style>
     </div>

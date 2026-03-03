@@ -115,6 +115,7 @@ model DraftPick {
   playerId              String
   playerName            String
   position              String?
+  mlbId                 Int?         // MLB player ID for headshot URL
   round                 Int
   pickNumber            Int
   isPick                Boolean      @default(false)
@@ -141,6 +142,7 @@ model RosterSpot {
   playerId              String
   playerName            String
   position              String?
+  mlbId                 Int?         // MLB player ID for headshot URL
   homeruns              Int          @default(0)
   points                Int          @default(0)
   draftedRound          Int?
@@ -166,6 +168,7 @@ model HomerrunEvent {
   leagueId              String
   playerId              String
   playerName            String
+  mlbId                 Int?         // MLB player ID for headshot URL
   playByPlayId          String       @unique
   gameId                String
   gameDate              DateTime
@@ -194,8 +197,10 @@ model Trade {
   receiverId            String
   ownerPlayerId         String
   ownerPlayerName       String
+  ownerPlayerMlbId      Int?
   receiverPlayerId      String
   receiverPlayerName    String
+  receiverPlayerMlbId   Int?
   status                TradeStatus   @default(pending)
   expiresAt             DateTime
   respondedAt           DateTime?
@@ -250,6 +255,28 @@ model LeagueSettings {
 
   // Relations
   league                League       @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+}
+
+// ============================================================================
+// Game: Live MLB games synced daily
+// ============================================================================
+model Game {
+  id                    String       @id          // gamePk as string
+  homeTeam              String
+  awayTeam              String
+  homeTeamId            Int
+  awayTeamId            Int
+  homeScore             Int          @default(0)
+  awayScore             Int          @default(0)
+  status                String       // "Preview" | "Live" | "Final"
+  inning                Int?         // only set if live
+  inningHalf            String?      // only set if live
+  gameDate              DateTime
+  startTime             String?      // formatted as "H:MM AM/PM"
+  lastUpdated           DateTime     @updatedAt
+
+  @@index([gameDate])
+  @@index([status])
 }
 
 // ============================================================================

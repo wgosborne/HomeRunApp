@@ -1,58 +1,70 @@
 {
-  "name": "Fantasy Homerun Tracker",
-  "short_name": "Homerun Tracker",
-  "description": "Track homeruns, manage your fantasy baseball league, and compete on leaderboards",
+  "name": "Dingerz",
+  "short_name": "Dingerz",
+  "description": "Home run tracking fantasy league",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "orientation": "portrait-primary",
-  "background_color": "#ffffff",
-  "theme_color": "#4f46e5",
+  "orientation": "portrait",
+  "background_color": "#0f1923",
+  "theme_color": "#0E3386",
   "categories": ["sports", "games"],
   "screenshots": [
     {
-      "src": "/icon-320x320.png",
-      "sizes": "320x320",
-      "type": "image/png",
-      "form_factor": "narrow"
-    },
-    {
-      "src": "/icon-512x512.png",
+      "src": "/icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "form_factor": "wide"
+      "form_factor": "narrow"
     }
   ],
   "icons": [
     {
-      "src": "/icon-144x144.png",
+      "src": "/icons/icon-72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-144.png",
       "sizes": "144x144",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon-192x192.png",
-      "sizes": "192x192",
+      "src": "/icons/icon-152.png",
+      "sizes": "152x152",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon-192x192.png",
+      "src": "/icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "maskable"
+      "purpose": "any maskable"
     },
     {
-      "src": "/icon-512x512.png",
-      "sizes": "512x512",
+      "src": "/icons/icon-384.png",
+      "sizes": "384x384",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon-512x512.png",
+      "src": "/icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "maskable"
+      "purpose": "any maskable"
     }
   ],
   "shortcuts": [
@@ -60,10 +72,10 @@
       "name": "My Leagues",
       "short_name": "Leagues",
       "description": "View and manage your leagues",
-      "url": "/leagues?utm_source=shortcut",
+      "url": "/dashboard?utm_source=shortcut",
       "icons": [
         {
-          "src": "/icon-192x192.png",
+          "src": "/icons/icon-192.png",
           "sizes": "192x192",
           "type": "image/png",
           "purpose": "any"
@@ -74,10 +86,10 @@
       "name": "Create League",
       "short_name": "Create",
       "description": "Start a new fantasy league",
-      "url": "/create?utm_source=shortcut",
+      "url": "/leagues?create=1&utm_source=shortcut",
       "icons": [
         {
-          "src": "/icon-192x192.png",
+          "src": "/icons/icon-192.png",
           "sizes": "192x192",
           "type": "image/png",
           "purpose": "any"

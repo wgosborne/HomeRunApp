@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Exo+2:wght@700;800&family=DM+Sans:wght@300;400;500;600&display=swap');
 @import "tailwindcss";
 
 html,
@@ -84,6 +85,30 @@ body {
   }
 }
 
+/* Dashboard animations */
+@keyframes pulseRed {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.animate-pulse-red {
+  animation: pulseRed 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Card hover animations */
+@keyframes cardLift {
+  from {
+    transform: translateY(0px);
+  }
+  to {
+    transform: translateY(-4px);
+  }
+}
+
 .scoreboard-title {
   animation: scoreboardFlicker 3s ease-in-out infinite;
   text-rendering: optimizeSpeed;
@@ -101,4 +126,191 @@ body {
 
 .button-press {
   animation: buttonPress 2s ease-in-out infinite;
+}
+
+/* Dingerz Dashboard Animations */
+
+/* Noise texture background */
+@keyframes noiseAnimation {
+  0%, 100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.42;
+  }
+}
+
+.noise-texture {
+  background-image:
+    url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="4" result="noise"/></filter><rect width="100" height="100" fill="white" filter="url(%23noise)" opacity="0.04"/></svg>');
+  background-size: 100px 100px;
+  background-repeat: repeat;
+}
+
+/* Pulsing white dot for LIVE indicator */
+@keyframes pulseLive {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.pulse-live {
+  animation: pulseLive 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Bell icon animation */
+@keyframes bellRing {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  10% {
+    transform: rotate(-10deg);
+  }
+  20% {
+    transform: rotate(10deg);
+  }
+  30% {
+    transform: rotate(-10deg);
+  }
+  40% {
+    transform: rotate(10deg);
+  }
+  50% {
+    transform: rotate(0deg);
+  }
+}
+
+.bell-ring {
+  animation: bellRing 0.6s ease-in-out;
+}
+
+/* Card lift on hover (subtle) */
+@keyframes subtleCardLift {
+  from {
+    transform: translateY(0px);
+  }
+  to {
+    transform: translateY(-2px);
+  }
+}
+
+/* Dashboard Responsive Layout */
+
+/* Max-width centered container */
+.dashboard-content {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Carousel → grid for homerun cards */
+.homerun-grid {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+@media (min-width: 768px) {
+  .homerun-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    overflow-x: visible;
+  }
+}
+
+@media (min-width: 1024px) {
+  .homerun-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
+/* Individual homerun card responsive sizing */
+.homerun-card {
+  min-width: 118px;
+}
+
+@media (min-width: 768px) {
+  .homerun-card {
+    min-width: unset;
+  }
+}
+
+/* Carousel → grid for small game cards */
+.games-grid {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+@media (min-width: 768px) {
+  .games-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    overflow-x: visible;
+  }
+}
+
+/* League cards grid on desktop */
+.leagues-grid {
+  /* Mobile: single column (default) */
+}
+
+@media (min-width: 768px) {
+  .leagues-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  .leagues-grid > button {
+    margin-bottom: 0 !important;
+  }
+}
+
+/* Featured game — side-by-side with small games on desktop */
+@media (min-width: 1024px) {
+  .games-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+}
+
+/* Small game cards — more detail visible on desktop */
+@media (min-width: 768px) {
+  .small-game-card {
+    min-width: unset;
+    padding: 16px;
+  }
+}
+
+/* Score display on desktop for small game cards */
+.score-desktop {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .score-desktop {
+    display: block;
+  }
+}
+
+/* League card extra info (members, status) */
+.league-extra {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .league-extra {
+    display: block;
+  }
 }

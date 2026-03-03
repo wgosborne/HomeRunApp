@@ -1,15 +1,17 @@
-# Implementation: Mobile-First Layout Improvements (Week 7)
+# Implementation: Mobile-First Layout + Player Detail Page (Week 7)
 
 ## Setup Complete
 - [x] TabNavigation component created (reusable)
 - [x] Leaderboard refactored to card-based layout
 - [x] Draft Room mobile responsiveness improved
 - [x] Remaining tabs updated for responsive design
+- [x] PlayerAvatar component with MLB headshots (mlbId-based)
+- [x] Player detail page with homerun history
 - [x] Build validation (npm run build passes)
 - [x] TypeScript strict checks pass
 
 ## Current Phase
-All implementation phases complete. System ready for testing across viewports.
+Mobile-first layout complete. Player detail page feature in progress - allows users to view player information (name, team, headshot, homerun history) with back navigation.
 
 ## Completed
 
@@ -242,12 +244,76 @@ All implementation phases complete. System ready for testing across viewports.
    - Responsive max-height (60vh mobile, 384px desktop)
    - Improved touch targets (min-h-[56px])
 
+## Phase 5: Player Detail Page (Completed 2026-03-03)
+
+**File:** `/app/player/[leagueId]/[playerId]/page.tsx` (NEW)
+
+**Features:**
+- Dynamic route: `/player/[leagueId]/[playerId]` for accessing specific player detail
+- Display player information (name, team, MLB ID, position)
+- Show player headshot via PlayerAvatar component (lg size)
+- Homerun history: chronological list of recent homeruns
+- Back button for navigation to previous page (draft room, my team, dashboard, standings, etc.)
+- Mobile-first responsive design (matches existing layout)
+- Real-time updates via Pusher `league-{leagueId}` channel for homerun feeds
+
+**API Integration:**
+- Queries RosterSpot for player info (name, team, homeruns count, mlbId)
+- Queries HomerrunEvent table filtered by leagueId + playerId
+- Fetches in descending chronological order (most recent first)
+- Includes game context (gameDate, inning, gameId, homeTeam, awayTeam)
+
+**Back Navigation:**
+- Uses browser history via `router.back()` button
+- Maintains user's previous context (which tab they came from)
+- Fallback: if history unavailable, links to `/league/[leagueId]`
+
+**Components:**
+- PlayerAvatar: lg size (64px) with mlbId-based MLB CDN headshot
+- HomerrunEventCard: displays date, inning, opponent team, details
+- LoadingState: skeleton or spinner while data loads
+- EmptyState: "No homerun history" message for players without events
+
+**Mobile Responsiveness:**
+- Full-width layout (px-4 sm:px-6)
+- Header: sticky with back button + player name
+- Player info card: responsive padding
+- Homerun list: scrollable, each item full-width card
+- Tailwind responsive breakpoints: sm, md, lg
+
+**Data Flow:**
+1. User clicks player name/avatar anywhere (draft room, my team, leaderboard, dashboard)
+2. Navigates to `/player/[leagueId]/[playerId]`
+3. Page SSR fetches RosterSpot + HomerrunEvent data
+4. Client-side Pusher subscription to `league-{leagueId}` channel
+5. Real-time homerun updates append to history
+6. Back button returns to previous page
+
+**TypeScript:**
+- PlayerDetail interface: { playerId, playerName, mlbId, team, position, homeruns }
+- HomerrunRecord interface: { playerId, playerName, inning, gameDate, homeTeam, awayTeam, gameId }
+- All API responses typed
+- Error handling for non-existent players (404)
+
+**Security:**
+- Route guard: verify user is member of leagueId (via session + middleware)
+- 403 if user not in league
+- 404 if player not found in league context
+- No cross-league data access
+
+**Known Limitations:**
+- Homerun history limited to current league context
+- Cannot view all-time homerun stats across leagues (MVP scope)
+- Player headshots require mlbId (may be null for historical imports)
+- Fallback to initials if headshot missing
+
 ## Stats
 
-- New components: 1 (TabNavigation)
-- Files modified: 3
-- Total lines changed: ~300+ (responsive improvements)
-- No new dependencies (uses existing Tailwind)
+- New components: 2 (TabNavigation, Player Detail Page)
+- Files modified: 3 (mobile layout) + 1 new (player detail)
+- Total lines changed: ~300+ (responsive) + ~200 (player detail)
+- New API integration: RosterSpot + HomerrunEvent queries
+- No new dependencies (uses existing Tailwind + Pusher)
 - Build time: ~18s (optimized with Turbopack)
 - No breaking API changes
 
@@ -369,13 +435,95 @@ npm run build
 - Color scheme unchanged (indigo/blue/gray)
 - No new dependencies required
 
+## Testing for Player Detail Page (Week 7)
+
+**Unit Tests:**
+- Player detail page SSR data fetch
+- Authorization check: user in league (403 if not)
+- 404 handling: player not found
+- PlayerAvatar renders with mlbId
+- Back button navigation
+
+**Integration Tests:**
+- Click player name from draft room → detail page → back to draft room
+- Click player from my team tab → detail page with correct roster context
+- Click player from leaderboard → detail page → back to standings
+- Click player avatar from dashboard recent homeruns → detail page
+- Real-time homerun appears in list after Pusher broadcast
+
+**Mobile Responsiveness:**
+- Header stays sticky while scrolling
+- Back button 44px+ touch target
+- Full-width cards on 375px viewport
+- Text readable at all sizes
+- No horizontal scrolling (except overflow if needed)
+
+**Edge Cases:**
+- Player with no homerun history shows "No homeruns yet"
+- Player with mlbId=null shows initials avatar (no headshot)
+- User not in league gets 403 Forbidden
+- Stale data refresh on Pusher update
+
+## Phase 6: User Profile & Header Components (Completed 2026-03-03)
+
+**Files Created:**
+1. `/app/components/NotificationDropdown.tsx` - Bell icon dropdown
+   - Displays notification subscription status
+   - Toggle to enable/disable Web Push (default ON)
+   - Blue indicator dot when subscribed
+
+2. `/app/components/UserMenu.tsx` - Avatar dropdown menu
+   - User avatar button (44x44px, responsive)
+   - Profile link to /profile page
+   - Sign out button
+   - Menu positioned below avatar
+
+3. `/app/profile/page.tsx` - User profile page
+   - Display current user email (read-only)
+   - Editable display name (shown in leagues)
+   - Save/cancel functionality with form validation
+   - Sign out button at bottom
+   - Responsive mobile-first layout
+
+4. `/app/api/user/update-name/route.ts` - Profile API endpoint
+   - POST endpoint to update user displayName in database
+   - Validates displayName (2-50 chars, trim whitespace)
+   - Returns updated user object
+   - Auth guard: requires valid session
+
+5. `/app/homeruns/page.tsx` - All homeruns feed page
+   - Lists all homeruns across all user's leagues
+   - Sortable by Recent (default), Player name, or League
+   - Separates "Your Players" from "League Opponents" sections
+   - Clickable player names link to detail pages
+   - Shows homerun count, date, league, owner
+   - Empty state for users with no homeruns
+   - Responsive grid layout (mobile/tablet/desktop)
+
+**Files Modified:**
+1. `/app/dashboard/page.tsx`
+   - Replaced old notification bell with NotificationDropdown component
+   - Replaced old user button with UserMenu component
+   - Cleaner header layout with consistent spacing
+   - Import new header components at top
+
+**Features:**
+- NotificationDropdown auto-loads subscription status on mount
+- UserMenu includes sign out via next-auth signOut()
+- Profile page form validation with error messages
+- All homeruns page implements client-side sorting
+- Responsive design matches existing dashboard theme
+- All components follow dark navy/red color scheme
+- Touch targets 44px+ for mobile accessibility
+
 ## Next Steps (Week 7+ Polish)
 
-- Landing page mobile improvements (handled separately)
-- Settings tab responsive improvements (large form)
-- Trades tab additional mobile tweaks if needed
+- Landing page mobile improvements
+- Settings tab responsive improvements if needed
+- Full end-to-end testing: create league → draft → click player → view history → back
 - App store preparation
 - Feature summary documentation
+- Testing all header components and profile flows
 
 ## Responsive Breakpoints Used
 

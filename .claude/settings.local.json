@@ -18,7 +18,12 @@
       "Bash(lsof -i :3001)",
       "Bash(xargs -r kill -9)",
       "Bash(netstat:*)",
-      "Bash(cd:*)"
+      "Bash(cd:*)",
+      "Bash(curl:*)",
+      "Bash(wc:*)",
+      "Bash(grep:*)",
+      "Bash(ls:*)",
+      "Bash(npx prisma:*)"
     ]
   }
 }

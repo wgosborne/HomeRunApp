@@ -129,7 +129,7 @@ export function NotificationBell({ leagueId, className = '' }: NotificationBellP
       setErrorMessage(null);
 
       // Show confirmation
-      new Notification('Fantasy Homerun Tracker', {
+      new Notification('Dingerz', {
         body: 'You are now subscribed to notifications for this league!',
         icon: '/icon-192x192.png',
         badge: '/badge-72x72.png',

@@ -8,6 +8,9 @@ const STATIC_CACHE = 'homerun-static-v1';
 const API_CACHE = 'homerun-api-v1';
 const OFFLINE_PAGE = '/offline';
 
+// Track which leagues user is actively drafting in (suppress draft notifications)
+const activeDraftingLeagues = new Set();
+
 // Assets to cache on install (static resources)
 const STATIC_ASSETS = [
   '/',
@@ -54,8 +57,25 @@ self.addEventListener('activate', (event) => {
 });
 
 /**
+ * Handle messages from client about active drafting
+ * Suppresses draft notifications when user is actively in the draft room
+ */
+self.addEventListener('message', (event) => {
+  const { type, leagueId } = event.data || {};
+
+  if (type === 'DRAFTING_ACTIVE') {
+    console.log('[SW] User is actively drafting in league:', leagueId);
+    activeDraftingLeagues.add(leagueId);
+  } else if (type === 'DRAFTING_INACTIVE') {
+    console.log('[SW] User left draft room for league:', leagueId);
+    activeDraftingLeagues.delete(leagueId);
+  }
+});
+
+/**
  * Handle incoming push notifications
  * Displays notification with title, body, icon, and badge
+ * Suppresses draft turn notifications if user is actively drafting
  */
 self.addEventListener('push', (event) => {
   if (!event.data) {
@@ -75,6 +95,15 @@ self.addEventListener('push', (event) => {
       playerId,
       eventType,
     } = data;
+
+    // Suppress draft turn notifications if user is actively drafting
+    if (eventType === 'turn' && activeDraftingLeagues.has(leagueId)) {
+      console.log('[SW] Suppressed draft turn notification (user is actively drafting)', {
+        leagueId,
+        eventType,
+      });
+      return;
+    }
 
     const options = {
       body,

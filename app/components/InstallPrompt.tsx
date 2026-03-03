@@ -93,7 +93,7 @@ export function InstallPrompt() {
         <div className="flex-1">
           <h3 className="font-semibold text-sm mb-1">Install App</h3>
           <p className="text-xs text-indigo-100">
-            Add Fantasy Homerun Tracker to your home screen for quick access
+            Add Dingerz to your home screen for quick access
           </p>
         </div>
         <button

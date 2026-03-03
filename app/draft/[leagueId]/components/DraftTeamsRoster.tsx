@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { PlayerAvatar } from "@/app/components/PlayerAvatar";
 
 interface RosterEntry {
   playerId: string;
   playerName: string;
   position: string | null;
+  mlbId: number | null;
   homeruns: number;
   points: number;
   draftedRound: number | null;
@@ -102,23 +105,72 @@ export function DraftTeamsRoster({
   }, [currentPickerId]);
 
   return (
-    <div className="bg-white rounded-lg shadow overflow-hidden">
-      <div className="p-4 border-b bg-gray-50">
-        <h3 className="font-semibold text-gray-900">Team Rosters</h3>
+    <div
+      style={{
+        borderRadius: "20px",
+        overflow: "hidden",
+        backgroundColor: "rgba(255,255,255,0.04)",
+        border: "1px solid rgba(255,255,255,0.07)",
+        boxShadow:
+          "0 4px 12px rgba(0,0,0,0.35), 0 8px 24px rgba(0,0,0,0.2), 0 1px 0 rgba(255,255,255,0.06) inset",
+      }}
+    >
+      <div
+        style={{
+          padding: "16px",
+          borderBottom: "1px solid rgba(255,255,255,0.07)",
+          backgroundColor: "rgba(0,0,0,0.2)",
+        }}
+      >
+        <h3
+          style={{
+            fontFamily: "'Exo 2', sans-serif",
+            fontSize: "11px",
+            fontWeight: 700,
+            letterSpacing: "3px",
+            textTransform: "uppercase",
+            color: "rgba(255,255,255,0.28)",
+            textShadow: "0 0 16px rgba(204,52,51,0.35), 0 0 32px rgba(204,52,51,0.15)",
+            margin: 0,
+          }}
+        >
+          Team Rosters
+        </h3>
       </div>
 
-      <div className="divide-y max-h-96 overflow-y-auto">
+      <div
+        style={{
+          maxHeight: "96",
+          overflowY: "auto",
+        }}
+      >
         {loading ? (
-          <div className="p-4 text-center text-gray-500 text-sm">
+          <div
+            style={{
+              padding: "16px",
+              textAlign: "center",
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: "14px",
+              color: "rgba(255,255,255,0.3)",
+            }}
+          >
             Loading rosters...
           </div>
         ) : teams.length === 0 ? (
-          <div className="p-4 text-center text-gray-500 text-sm">
+          <div
+            style={{
+              padding: "16px",
+              textAlign: "center",
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: "14px",
+              color: "rgba(255,255,255,0.3)",
+            }}
+          >
             No teams yet
           </div>
         ) : (
           teams.map((team) => (
-            <div key={team.userId} className="border-b last:border-b-0">
+            <div key={team.userId} style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
               {/* Team Header - Accordion Toggle */}
               <button
                 onClick={() =>
@@ -126,21 +178,74 @@ export function DraftTeamsRoster({
                     expandedTeam === team.userId ? null : team.userId
                   )
                 }
-                className={`w-full p-4 text-left hover:bg-gray-50 transition-colors ${
-                  expandedTeam === team.userId ? "bg-blue-50" : ""
-                } ${team.userId === currentPickerId ? "bg-blue-100" : ""}`}
+                style={{
+                  width: "100%",
+                  padding: "16px",
+                  textAlign: "left",
+                  background:
+                    team.userId === currentPickerId
+                      ? "linear-gradient(145deg, rgba(204,52,51,0.2), rgba(204,52,51,0.1))"
+                      : expandedTeam === team.userId
+                        ? "rgba(204,52,51,0.1)"
+                        : "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  transition: "background 0.2s",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "12px",
+                }}
+                onMouseEnter={(e) => {
+                  if (team.userId !== currentPickerId && expandedTeam !== team.userId) {
+                    (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.04)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (team.userId !== currentPickerId && expandedTeam !== team.userId) {
+                    (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+                  }
+                }}
               >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="font-semibold text-gray-900">
-                      {team.userName}
-                    </div>
-                    <div className="text-xs text-gray-600">{team.teamName}</div>
+                <div>
+                  <div
+                    style={{
+                      fontFamily: "'Exo 2', sans-serif",
+                      fontWeight: 700,
+                      fontSize: "14px",
+                      color: team.userId === currentPickerId ? "#CC3433" : "white",
+                      marginBottom: "4px",
+                    }}
+                  >
+                    {team.userName}
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-semibold text-blue-600">
-                      {team.roster.length} players
-                    </span>
+                  <div
+                    style={{
+                      fontFamily: "'DM Sans', sans-serif",
+                      fontSize: "12px",
+                      color: "rgba(255,255,255,0.4)",
+                    }}
+                  >
+                    {team.teamName}
+                  </div>
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "12px",
+                  }}
+                >
+                  <span
+                    style={{
+                      fontFamily: "'Exo 2', sans-serif",
+                      fontSize: "14px",
+                      fontWeight: 700,
+                      color: "#6BAED6",
+                    }}
+                  >
+                    {team.roster.length} players
+                  </span>
                     <span
                       className={`transform transition-transform ${
                         expandedTeam === team.userId ? "rotate-180" : ""
@@ -148,11 +253,19 @@ export function DraftTeamsRoster({
                     >
                       ▼
                     </span>
-                  </div>
                 </div>
                 {team.userId === currentPickerId && (
-                  <div className="text-xs font-semibold text-blue-600 mt-1">
-                    Currently picking
+                  <div
+                    style={{
+                      fontFamily: "'Exo 2', sans-serif",
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      color: "#CC3433",
+                      marginTop: "8px",
+                      textShadow: "0 0 8px rgba(204,52,51,0.4)",
+                    }}
+                  >
+                    🎯 PICKING NOW
                   </div>
                 )}
               </button>
@@ -170,20 +283,34 @@ export function DraftTeamsRoster({
                     </div>
                   ) : (
                     team.roster.map((player) => (
-                      <div key={player.playerId} className="p-3 text-sm">
-                        <div className="font-medium text-gray-900">
-                          {player.playerName}
-                        </div>
-                        <div className="text-xs text-gray-600">
-                          {player.position} • R{player.draftedRound}P
-                          {player.draftedPickNumber}
-                        </div>
-                        {player.homeruns > 0 && (
-                          <div className="text-xs font-semibold text-blue-600 mt-1">
-                            {player.homeruns} HR
+                      <Link
+                        key={player.playerId}
+                        href={player.mlbId ? `/player/${player.mlbId}?leagueId=${leagueId}` : "#"}
+                        className={player.mlbId ? "block hover:bg-white transition-colors" : "pointer-events-none"}
+                      >
+                        <div className="p-3 text-sm flex items-start gap-2">
+                          <PlayerAvatar
+                            mlbId={player.mlbId}
+                            playerName={player.playerName}
+                            size="sm"
+                            className="flex-shrink-0 mt-0.5"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-gray-900">
+                              {player.playerName}
+                            </div>
+                            <div className="text-xs text-gray-600">
+                              {player.position} • R{player.draftedRound}P
+                              {player.draftedPickNumber}
+                            </div>
+                            {player.homeruns > 0 && (
+                              <div className="text-xs font-semibold text-blue-600 mt-1">
+                                {player.homeruns} HR
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
+                        </div>
+                      </Link>
                     ))
                   )}
                 </div>

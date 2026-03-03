@@ -47,7 +47,14 @@ export default async function DraftPage({
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 py-8">
+    <div
+      className="min-h-screen noise-texture"
+      style={{
+        background: "linear-gradient(170deg, #0f1923 0%, #141d2e 35%, #181428 70%, #1a1226 100%)",
+        overflowX: "hidden",
+        position: "relative",
+      }}
+    >
       <DraftRoom leagueId={leagueId} userId={user.id} />
     </div>
   );

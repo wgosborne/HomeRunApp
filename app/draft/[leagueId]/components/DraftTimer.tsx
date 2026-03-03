@@ -29,22 +29,61 @@ export function DraftTimer({
   }, [timeRemainingSeconds]);
 
   // Color changes based on time remaining
-  let colorClass = "text-green-500";
+  let timerColor = "#6BAED6";
+  let pulseClass = "";
   if (displayTime <= 10) {
-    colorClass = "text-red-500";
+    timerColor = "#CC3433";
+    pulseClass = "pulse-live";
   } else if (displayTime <= 20) {
-    colorClass = "text-yellow-500";
+    timerColor = "#FBBF24";
   }
 
   return (
-    <div className="flex flex-col items-center gap-2">
-      <div className="text-sm font-semibold text-gray-600">Time Remaining</div>
-      <div className={`text-5xl font-bold ${colorClass} font-mono`}>
-        {displayTime}s
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: "8px",
+      }}
+    >
+      <div
+        style={{
+          fontFamily: "'Exo 2', sans-serif",
+          fontSize: "11px",
+          fontWeight: 700,
+          letterSpacing: "3px",
+          textTransform: "uppercase",
+          color: "rgba(255,255,255,0.28)",
+          textShadow: "0 0 16px rgba(204,52,51,0.35), 0 0 32px rgba(204,52,51,0.15)",
+        }}
+      >
+        Time Remaining
       </div>
-      {!isCurrentPicker && (
-        <div className="text-xs text-gray-500 italic">Waiting for other picker...</div>
-      )}
+      <div
+        className={pulseClass}
+        style={{
+          fontFamily: "'Courier Prime', monospace",
+          fontSize: "72px",
+          fontWeight: 800,
+          color: timerColor,
+          lineHeight: "1",
+          textShadow: `0 0 12px ${timerColor}40`,
+          letterSpacing: "2px",
+        }}
+      >
+        {displayTime}
+      </div>
+      <div
+        style={{
+          fontFamily: "'DM Sans', sans-serif",
+          fontSize: "12px",
+          color: "rgba(255,255,255,0.3)",
+          fontStyle: "italic",
+        }}
+      >
+        {!isCurrentPicker ? "Waiting for other picker..." : isCurrentPicker && displayTime <= 10 ? "⏰ Hurry!" : ""}
+      </div>
     </div>
   );
 }

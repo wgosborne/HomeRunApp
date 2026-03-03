@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher-server";
 import { handleError, ConflictError, ValidationError } from "@/lib/errors";
 import { createLogger } from "@/lib/logger";
+import { sendPushToUser } from "@/lib/push-service";
+import { getAvailablePlayers } from "@/lib/mlb-stats";
 
 const logger = createLogger("draft-autopick");
 
@@ -62,45 +64,28 @@ export async function POST(
     const currentPickerId = league.memberships[pickerIndexInRound].userId;
     const pickerName = league.memberships[pickerIndexInRound].user?.name || "Unknown";
 
-    // Get all available MLB players from statsapi
-    let availablePlayers: any[] = [];
+    // Get available players using cached data
+    let selectedPlayer: any = null;
     try {
-      const response = await fetch("https://statsapi.mlb.com/api/v1/teams");
-      const data = await response.json();
+      // Get already drafted player IDs
+      const draftedPlayerIds = league.draftPicks.map((p) => p.playerId);
 
-      // Fetch players for each team (this is a simplified approach)
-      // In production, you'd want to cache this or use a better data source
-      const players: any[] = [];
-      for (const team of data.teams) {
-        const rosterRes = await fetch(`https://statsapi.mlb.com/api/v1/teams/${team.id}/roster?rosterType=active`);
-        const rosterData = await rosterRes.json();
+      // Get available players (cached, with MLB stats)
+      const availablePlayers = await getAvailablePlayers(draftedPlayerIds);
 
-        if (rosterData.roster) {
-          rosterData.roster.forEach((player: any) => {
-            players.push({
-              id: player.person.id.toString(),
-              name: player.person.fullName,
-              position: player.position?.abbreviation || "DH",
-              team: team.teamName,
-            });
-          });
-        }
+      if (availablePlayers.length === 0) {
+        throw new ConflictError("No available players for autopick");
       }
 
-      // Filter out already drafted players
-      const draftedPlayerIds = new Set(league.draftPicks.map((p) => p.playerId));
-      availablePlayers = players.filter((p) => !draftedPlayerIds.has(p.id)).slice(0, 100);
+      // Pick the highest-ranked available player
+      selectedPlayer = availablePlayers[0];
     } catch (error) {
+      if (error instanceof ConflictError) {
+        throw error;
+      }
       logger.error("Failed to fetch available players", { error });
       throw new ValidationError("Failed to fetch available players for autopick");
     }
-
-    if (availablePlayers.length === 0) {
-      throw new ConflictError("No available players for autopick");
-    }
-
-    // Pick the first available player (highest rank by default)
-    const selectedPlayer = availablePlayers[0];
 
     // Create the draft pick
     const draftPick = await prisma.draftPick.create({
@@ -110,6 +95,7 @@ export async function POST(
         playerId: selectedPlayer.id,
         playerName: selectedPlayer.name,
         position: selectedPlayer.position,
+        mlbId: selectedPlayer.mlbId,
         round: currentRound,
         pickNumber: nextPickNumber,
         isPick: true,
@@ -126,6 +112,7 @@ export async function POST(
         playerId: selectedPlayer.id,
         playerName: selectedPlayer.name,
         position: selectedPlayer.position,
+        mlbId: selectedPlayer.mlbId,
         draftedRound: currentRound,
         draftedPickNumber: nextPickNumber,
       },
@@ -165,6 +152,36 @@ export async function POST(
       isAutoPick: true,
       timestamp: Date.now(),
     });
+
+    // Send "your turn" notification to next picker (if draft not complete)
+    if (!isComplete) {
+      try {
+        const nextPickNumber = completedPicks + 2; // Next pick after this one
+        const nextPickerIndexInRound = (nextPickNumber - 1) % memberCount;
+        const nextPickerId = league.memberships[nextPickerIndexInRound].userId;
+        const nextRound = Math.ceil(nextPickNumber / memberCount);
+
+        await sendPushToUser(nextPickerId, leagueId, {
+          title: 'Your turn in the draft!',
+          body: `${pickerName} just auto-picked ${selectedPlayer.name}. It's your turn now! You have 60 seconds to make your selection.`,
+          icon: '/icon-192x192.png',
+          badge: '/badge-72x72.png',
+          tag: 'draft-turn',
+          leagueId,
+          eventType: 'turn',
+          data: {
+            round: nextRound,
+            pickNumber: nextPickNumber,
+          },
+        });
+      } catch (pushError) {
+        logger.error('Error sending draft turn push notification', {
+          leagueId,
+          error: pushError,
+        });
+        // Continue processing even if push fails
+      }
+    }
 
     // If draft is complete, broadcast completion
     if (isComplete) {

@@ -25,6 +25,7 @@ export const submitPickSchema = z.object({
   playerId: z.string().min(1),
   playerName: z.string().min(1),
   position: z.string().optional(),
+  mlbId: z.number().optional(),
 });
 
 export type SubmitPickInput = z.infer<typeof submitPickSchema>;
@@ -40,8 +41,10 @@ export const proposeTradeSchema = z.object({
   receiverId: z.string().min(1, "Receiver ID is required"),
   ownerPlayerId: z.string().min(1, "Owner player ID is required"),
   ownerPlayerName: z.string().min(1, "Owner player name is required"),
+  ownerPlayerMlbId: z.number().optional().nullable(),
   receiverPlayerId: z.string().min(1, "Receiver player ID is required"),
   receiverPlayerName: z.string().min(1, "Receiver player name is required"),
+  receiverPlayerMlbId: z.number().optional().nullable(),
 });
 
 export type ProposeTradeInput = z.infer<typeof proposeTradeSchema>;

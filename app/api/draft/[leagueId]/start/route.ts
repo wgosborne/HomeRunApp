@@ -81,26 +81,31 @@ export async function POST(
       timestamp: Date.now(),
     });
 
-    // Send "your turn" notification to first picker
+    // Send "draft started" notification to all league members
+    // First picker gets "your turn" message, others get "draft started" message
     try {
-      const firstPickerMembership = updatedLeague.memberships[0];
-      if (firstPickerMembership) {
-        await sendPushToUser(firstPickerMembership.userId, leagueId, {
-          title: 'Your turn in the draft!',
-          body: `Draft has started! You are the first picker. Make your first selection.`,
+      for (let i = 0; i < updatedLeague.memberships.length; i++) {
+        const membership = updatedLeague.memberships[i];
+        const isFirstPicker = i === 0;
+
+        await sendPushToUser(membership.userId, leagueId, {
+          title: isFirstPicker ? 'Your turn in the draft!' : 'Draft has started!',
+          body: isFirstPicker
+            ? 'You are the first picker. Make your first selection.'
+            : 'The draft has started. Wait for your turn to pick.',
           icon: '/icon-192x192.png',
           badge: '/badge-72x72.png',
-          tag: 'draft-turn',
+          tag: 'draft-start',
           leagueId,
           eventType: 'turn',
           data: {
             round: 1,
-            pickNumber: 1,
+            pickNumber: isFirstPicker ? 1 : 0,
           },
         });
       }
     } catch (pushError) {
-      logger.error('Error sending draft start push notification', {
+      logger.error('Error sending draft start push notifications', {
         leagueId,
         error: pushError,
       });

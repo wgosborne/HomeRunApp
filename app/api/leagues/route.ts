@@ -37,10 +37,71 @@ export async function GET() {
       );
     }
 
+    // Get all memberships for each league
+    const allMemberships = await prisma.leagueMembership.findMany({
+      where: {
+        leagueId: {
+          in: user.leagueMemberships.map((m) => m.leagueId),
+        },
+      },
+      select: {
+        leagueId: true,
+        userId: true,
+        role: true,
+      },
+    });
+
+    // Build membership count map
+    const membershipsByLeague = new Map<string, typeof allMemberships>();
+    for (const membership of allMemberships) {
+      if (!membershipsByLeague.has(membership.leagueId)) {
+        membershipsByLeague.set(membership.leagueId, []);
+      }
+      membershipsByLeague.get(membership.leagueId)!.push(membership);
+    }
+
+    // Get all roster stats in one query for efficiency
+    const rosterStats = await prisma.rosterSpot.findMany({
+      where: {
+        leagueId: {
+          in: user.leagueMemberships.map((m) => m.leagueId),
+        },
+      },
+      select: {
+        leagueId: true,
+        userId: true,
+        homeruns: true,
+      },
+    });
+
+    // Build league-specific rank map
+    const leagueRankMap = new Map<string, Map<string, number>>();
+
+    for (const stat of rosterStats) {
+      if (!leagueRankMap.has(stat.leagueId)) {
+        leagueRankMap.set(stat.leagueId, new Map());
+      }
+      const leagueMap = leagueRankMap.get(stat.leagueId)!;
+      const current = leagueMap.get(stat.userId) || 0;
+      leagueMap.set(stat.userId, current + stat.homeruns);
+    }
+
+    // Calculate ranks for each league
+    const leagueUserRanks = new Map<string, number>();
+    for (const [leagueId, userHomers] of leagueRankMap.entries()) {
+      const sorted = Array.from(userHomers.entries()).sort((a, b) => {
+        return b[1] - a[1];
+      });
+      const userIndex = sorted.findIndex(([uid]) => uid === user.id);
+      leagueUserRanks.set(leagueId, userIndex === -1 ? 0 : userIndex + 1);
+    }
+
     const leagues = user.leagueMemberships.map((m) => ({
       ...m.league,
       userRole: m.role,
       teamName: m.teamName,
+      userRank: leagueUserRanks.get(m.leagueId) || 0,
+      memberships: membershipsByLeague.get(m.leagueId) || [],
     }));
 
     logger.info("Listed leagues", { userId: user.id, count: leagues.length });
