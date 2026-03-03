@@ -27,7 +27,6 @@ export default function JoinLeaguePage() {
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState("");
-  const [isAlreadyMember, setIsAlreadyMember] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -78,7 +77,6 @@ export default function JoinLeaguePage() {
       );
 
       if (isMember) {
-        setIsAlreadyMember(true);
         // Auto-redirect if already a member
         setTimeout(() => {
           router.push(`/league/${leagueId}`);
@@ -99,6 +97,7 @@ export default function JoinLeaguePage() {
       const res = await fetch(`/api/leagues/${leagueId}/join`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
       });
 
       if (res.ok) {
@@ -121,83 +120,6 @@ export default function JoinLeaguePage() {
 
   if (status === "loading" || loading) {
     return <div className="p-8 text-center">Loading...</div>;
-  }
-
-  if (isAlreadyMember) {
-    return (
-      <main
-        className="min-h-screen flex flex-col items-center justify-center p-5 relative overflow-hidden"
-        style={{
-          backgroundImage: 'url(/design-inspiration/CubsFireworkField.jpg)',
-          backgroundSize: "cover",
-          backgroundPosition: "center 30%",
-          backgroundAttachment: "fixed",
-        }}
-      >
-        {/* Overlay 1: Dark gradient */}
-        <div
-          className="absolute inset-0 z-0"
-          style={{
-            background:
-              "linear-gradient(180deg, rgba(6,13,26,0.30) 0%, rgba(6,13,26,0.15) 30%, rgba(6,13,26,0.50) 65%, rgba(6,13,26,0.85) 100%)",
-          }}
-        />
-
-        {/* Overlay 2: Vignette */}
-        <div
-          className="absolute inset-0 z-0"
-          style={{
-            background:
-              "radial-gradient(ellipse at center, transparent 40%, rgba(6,13,26,0.55) 100%)",
-          }}
-        />
-
-        {/* Overlay 3: Red atmospheric glow */}
-        <div
-          className="absolute inset-0 z-0"
-          style={{
-            background:
-              "radial-gradient(ellipse at 50% 120%, rgba(200,16,46,0.10) 0%, transparent 60%)",
-          }}
-        />
-
-        <div
-          className="relative z-10 flex flex-col items-center w-full"
-          style={{
-            maxWidth: "420px",
-            paddingLeft: "20px",
-            paddingRight: "20px",
-          }}
-        >
-          <p
-            style={{
-              fontFamily: "'DM Sans', sans-serif",
-              fontSize: "15px",
-              fontWeight: 300,
-              color: "rgba(255,255,255,0.5)",
-              lineHeight: 1.6,
-              textAlign: "center",
-              marginBottom: "2rem",
-              maxWidth: "100%",
-            }}
-          >
-            You are already part of this league.
-          </p>
-          <p
-            style={{
-              fontFamily: "'DM Sans', sans-serif",
-              fontSize: "12px",
-              color: "rgba(255,255,255,0.22)",
-              marginTop: "20px",
-              textAlign: "center",
-              lineHeight: 1.5,
-            }}
-          >
-            Redirecting...
-          </p>
-        </div>
-      </main>
-    );
   }
 
   if (!league) {

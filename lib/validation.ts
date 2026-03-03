@@ -26,6 +26,7 @@ export const submitPickSchema = z.object({
   playerName: z.string().min(1),
   position: z.string().optional(),
   mlbId: z.number().optional(),
+  mlbTeam: z.string().optional(),
 });
 
 export type SubmitPickInput = z.infer<typeof submitPickSchema>;

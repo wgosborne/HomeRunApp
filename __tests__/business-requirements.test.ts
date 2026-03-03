@@ -155,11 +155,16 @@ describe('Research Area 2: Database & Multi-Tenant Architecture', () => {
     const userId2 = 'user-002';
     const leagueId1 = 'league-001';
     const leagueId2 = 'league-002';
+    const leagueId3 = 'league-003';
 
     it('should prevent users from viewing leagues they are not members of', async () => {
       // Simulate database access control
+      const userMemberships = {
+        [userId1]: [leagueId1, leagueId2],
+        [userId2]: [leagueId3],
+      };
       const getUserLeagues = async (userId: string, requestedLeagueId: string) => {
-        const userLeagues = [leagueId1, leagueId2]; // user-001's leagues
+        const userLeagues = userMemberships[userId] || [];
         if (!userLeagues.includes(requestedLeagueId)) {
           throw new Error('Unauthorized');
         }
@@ -414,10 +419,10 @@ describe('Research Area 3: Real-Time Draft Room (Pusher)', () => {
 
     it('should run auto-pick cron job every minute during draft', async () => {
       const cronIntervalMs = 60 * 1000; // 1 minute
-      const checkInterval = cronIntervalMs; // Run every minute
+      const sixHoursMs = 6 * 60 * 60 * 1000; // 6 hours in ms
 
-      // Draft with 6 members, 10 rounds = 60 picks total
-      const expectedRunsSixHours = (6 * 60 * 1000) / checkInterval; // 360 runs in 6 hours
+      // Cron runs every 1 minute, so in 6 hours: 360 minutes = 360 runs
+      const expectedRunsSixHours = sixHoursMs / cronIntervalMs;
 
       expect(expectedRunsSixHours).toBe(360);
     });
@@ -587,11 +592,20 @@ describe('Research Area 4: Push Notifications (Web Push API)', () => {
       ): Promise<{ success: boolean }> => {
         for (let i = 0; i < maxRetries; i++) {
           attemptCount++;
-          if (attemptCount === 3) {
-            return { success: true };
+          try {
+            if (attemptCount === 3) {
+              return { success: true };
+            }
+            // Simulate rate limit on first 2 attempts
+            throw new Error('429 Too Many Requests');
+          } catch (error) {
+            if (i < maxRetries - 1) {
+              // Exponential backoff: 1ms, 2ms, etc.
+              await new Promise((resolve) => setTimeout(resolve, Math.pow(2, i)));
+              continue;
+            }
+            throw error;
           }
-          // Simulate rate limit on first 2 attempts
-          throw new Error('429 Too Many Requests');
         }
         throw new Error('Max retries exceeded');
       };

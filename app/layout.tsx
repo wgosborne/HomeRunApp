@@ -1,15 +1,18 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { SessionProvider } from "next-auth/react";
 import { ServiceWorkerRegistration } from "@/app/components/ServiceWorkerRegistration";
 import { InstallPrompt } from "@/app/components/InstallPrompt";
 import { OfflineIndicator } from "@/app/components/OfflineIndicator";
 import "@/app/globals.css";
 
+export const viewport: Viewport = {
+  themeColor: "#0E3386",
+};
+
 export const metadata: Metadata = {
   title: "Dingerz",
   description: "Home run tracking fantasy league",
   manifest: "/manifest.json",
-  themeColor: "#0E3386",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",

@@ -17,6 +17,7 @@ export interface ApiGame {
   inning: number | null;
   inningHalf: string | null;
   startTime: string | null;
+  gameType: string;
   userPlayerCount: number;
 }
 
@@ -100,6 +101,7 @@ export async function GET() {
         inning: game.inning,
         inningHalf: game.inningHalf,
         startTime: game.startTime,
+        gameType: game.gameType,
         userPlayerCount,
       };
     });

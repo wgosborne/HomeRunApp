@@ -272,13 +272,33 @@ export function DraftTeamsRoster({
 
               {/* Team Roster - Expanded Content */}
               {expandedTeam === team.userId && (
-                <div className="bg-gray-50 divide-y">
+                <div
+                  style={{
+                    backgroundColor: "rgba(0,0,0,0.15)",
+                  }}
+                >
                   {team.isLoading ? (
-                    <div className="p-3 text-center text-gray-500 text-sm">
+                    <div
+                      style={{
+                        padding: "16px",
+                        textAlign: "center",
+                        fontFamily: "'DM Sans', sans-serif",
+                        fontSize: "14px",
+                        color: "rgba(255,255,255,0.3)",
+                      }}
+                    >
                       Loading roster...
                     </div>
                   ) : team.roster.length === 0 ? (
-                    <div className="p-3 text-center text-gray-500 text-sm">
+                    <div
+                      style={{
+                        padding: "16px",
+                        textAlign: "center",
+                        fontFamily: "'DM Sans', sans-serif",
+                        fontSize: "14px",
+                        color: "rgba(255,255,255,0.3)",
+                      }}
+                    >
                       No players drafted yet
                     </div>
                   ) : (
@@ -286,25 +306,71 @@ export function DraftTeamsRoster({
                       <Link
                         key={player.playerId}
                         href={player.mlbId ? `/player/${player.mlbId}?leagueId=${leagueId}` : "#"}
-                        className={player.mlbId ? "block hover:bg-white transition-colors" : "pointer-events-none"}
+                        style={{
+                          display: player.mlbId ? "block" : "pointer-events-none",
+                          textDecoration: "none",
+                          color: "inherit",
+                        }}
                       >
-                        <div className="p-3 text-sm flex items-start gap-2">
+                        <div
+                          style={{
+                            padding: "12px 16px",
+                            borderBottom: "1px solid rgba(255,255,255,0.07)",
+                            display: "flex",
+                            alignItems: "flex-start",
+                            gap: "12px",
+                            fontSize: "14px",
+                            backgroundColor: "transparent",
+                            transition: "background 0.2s",
+                            cursor: player.mlbId ? "pointer" : "default",
+                          }}
+                          onMouseEnter={(e) => {
+                            if (player.mlbId) {
+                              (e.currentTarget as HTMLDivElement).style.background =
+                                "rgba(107,174,214,0.1)";
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            (e.currentTarget as HTMLDivElement).style.background = "transparent";
+                          }}
+                        >
                           <PlayerAvatar
                             mlbId={player.mlbId}
                             playerName={player.playerName}
                             size="sm"
                             className="flex-shrink-0 mt-0.5"
                           />
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium text-gray-900">
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div
+                              style={{
+                                fontFamily: "'Exo 2', sans-serif",
+                                fontWeight: 600,
+                                color: "white",
+                                marginBottom: "4px",
+                              }}
+                            >
                               {player.playerName}
                             </div>
-                            <div className="text-xs text-gray-600">
+                            <div
+                              style={{
+                                fontFamily: "'DM Sans', sans-serif",
+                                fontSize: "12px",
+                                color: "rgba(255,255,255,0.4)",
+                              }}
+                            >
                               {player.position} • R{player.draftedRound}P
                               {player.draftedPickNumber}
                             </div>
                             {player.homeruns > 0 && (
-                              <div className="text-xs font-semibold text-blue-600 mt-1">
+                              <div
+                                style={{
+                                  fontFamily: "'DM Sans', sans-serif",
+                                  fontSize: "12px",
+                                  fontWeight: 600,
+                                  color: "#6BAED6",
+                                  marginTop: "4px",
+                                }}
+                              >
                                 {player.homeruns} HR
                               </div>
                             )}

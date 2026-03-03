@@ -288,7 +288,7 @@ describe('Flow 2: Draft - 6 members draft 10 rounds, 60 picks total, auto-picks 
       currentPickNumber: number,
       memberIds: string[]
     ) => {
-      const pickInRound = currentPickNumber % memberIds.length;
+      const pickInRound = (currentPickNumber - 1) % memberIds.length;
       const round = Math.floor((currentPickNumber - 1) / memberIds.length);
       const isReverse = round % 2 === 1;
 
@@ -607,10 +607,19 @@ describe('Flow 3: Homerun Detection - Cron polls MLB, detects homerun, updates r
     const fetchWithRetry = async (maxRetries = 3) => {
       for (let i = 0; i < maxRetries; i++) {
         attemptCount++;
-        if (attemptCount === 3) {
-          return { status: 'success', homeruns: [] };
+        try {
+          if (attemptCount === 3) {
+            return { status: 'success', homeruns: [] };
+          }
+          throw new Error('API unavailable');
+        } catch (error) {
+          if (i < maxRetries - 1) {
+            // Retry with exponential backoff
+            await new Promise((resolve) => setTimeout(resolve, Math.pow(2, i)));
+            continue;
+          }
+          throw error;
         }
-        throw new Error('API unavailable');
       }
     };
 

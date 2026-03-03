@@ -89,9 +89,22 @@ describe('GET /api/games/today', () => {
         { homeTeam: 'NYY', startTime: '10:35 AM' },
       ];
 
-      // Sort by startTime
+      // Helper function to convert time string to minutes since midnight
+      const parseTime = (timeStr: string): number => {
+        const [time, meridiem] = timeStr.split(' ');
+        const [hours, minutes] = time.split(':').map(Number);
+        let hour24 = hours;
+        if (meridiem === 'PM' && hours !== 12) {
+          hour24 = hours + 12;
+        } else if (meridiem === 'AM' && hours === 12) {
+          hour24 = 0;
+        }
+        return hour24 * 60 + minutes;
+      };
+
+      // Sort by startTime properly
       const sorted = [...mockGames].sort((a, b) =>
-        a.startTime.localeCompare(b.startTime, 'en-US', { numeric: true })
+        parseTime(a.startTime) - parseTime(b.startTime)
       );
 
       expect(sorted[0].startTime).toBe('10:35 AM');
@@ -1224,14 +1237,22 @@ describe('Error Handling: API Failures', () => {
     let timedOut = false;
     try {
       const controller = new AbortController();
-      setTimeout(() => controller.abort(), 15000);
+      const timeoutHandle = setTimeout(() => controller.abort(), 100); // 100ms timeout
 
-      // Would make real fetch here
-      if (controller.signal.aborted) {
-        throw new Error('Timeout');
+      // Simulate a fetch that takes longer than timeout
+      await new Promise((_, reject) => {
+        setTimeout(() => {
+          if (controller.signal.aborted) {
+            reject(new Error('Timeout'));
+          }
+        }, 200); // Takes 200ms, but timeout is 100ms
+      });
+
+      clearTimeout(timeoutHandle);
+    } catch (error) {
+      if ((error as Error).message === 'Timeout') {
+        timedOut = true;
       }
-    } catch {
-      timedOut = true;
     }
 
     expect(timedOut).toBe(true);

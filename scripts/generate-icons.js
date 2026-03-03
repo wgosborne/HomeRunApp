@@ -177,6 +177,7 @@ const iconSizes = [
 
 // Splash screen sizes
 const splashSizes = [
+  { width: 1280, height: 720, name: 'splash-1280x720.png' }, // Desktop wide screenshot for PWA install UI
   { width: 2048, height: 2732, name: 'splash-2048x2732.png' },
   { width: 1668, height: 2388, name: 'splash-1668x2388.png' },
   { width: 1290, height: 2796, name: 'splash-1290x2796.png' },

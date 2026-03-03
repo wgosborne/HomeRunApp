@@ -23,7 +23,9 @@
       "Bash(wc:*)",
       "Bash(grep:*)",
       "Bash(ls:*)",
-      "Bash(npx prisma:*)"
+      "Bash(npx prisma:*)",
+      "Bash(git diff:*)",
+      "Bash(node:*)"
     ]
   }
 }

@@ -113,6 +113,7 @@ export async function POST(
         playerName: selectedPlayer.name,
         position: selectedPlayer.position,
         mlbId: selectedPlayer.mlbId,
+        mlbTeam: selectedPlayer.team,
         draftedRound: currentRound,
         draftedPickNumber: nextPickNumber,
       },

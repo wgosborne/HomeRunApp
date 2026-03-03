@@ -139,6 +139,11 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = createLeagueSchema.parse(body);
 
+    // Use provided teamName or default
+    const teamName = body.teamName && body.teamName.trim()
+      ? body.teamName.trim()
+      : `${user.name}'s Team`;
+
     const league = await prisma.league.create({
       data: {
         name: validatedData.name,
@@ -150,7 +155,7 @@ export async function POST(request: NextRequest) {
           create: {
             userId: user.id,
             role: "commissioner",
-            teamName: `${user.name}'s Team`,
+            teamName: teamName,
           },
         },
         settings: {

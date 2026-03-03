@@ -143,6 +143,7 @@ model RosterSpot {
   playerName            String
   position              String?
   mlbId                 Int?         // MLB player ID for headshot URL
+  mlbTeam               String?      // MLB team abbreviation (NYY, LAD, etc.)
   homeruns              Int          @default(0)
   points                Int          @default(0)
   draftedRound          Int?
@@ -273,10 +274,12 @@ model Game {
   inningHalf            String?      // only set if live
   gameDate              DateTime
   startTime             String?      // formatted as "H:MM AM/PM"
+  gameType              String       @default("R")  // R=Regular, S=Spring Training, F=Fall, W=Playoff
   lastUpdated           DateTime     @updatedAt
 
   @@index([gameDate])
   @@index([status])
+  @@index([gameType])
 }
 
 // ============================================================================

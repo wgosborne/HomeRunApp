@@ -20,6 +20,7 @@ export interface StandingsEntry {
     playerName: string;
     position: string | null;
     mlbId: number | null;
+    mlbTeam: string | null;
     homeruns: number;
     points: number;
   }>;
@@ -101,6 +102,7 @@ export async function GET(
           playerName: string;
           position: string | null;
           mlbId: number | null;
+          mlbTeam: string | null;
           homeruns: number;
           points: number;
         }>;
@@ -127,6 +129,7 @@ export async function GET(
         playerName: spot.playerName,
         position: spot.position,
         mlbId: spot.mlbId,
+        mlbTeam: spot.mlbTeam,
         homeruns: spot.homeruns,
         points: spot.points,
       });

@@ -19,6 +19,7 @@ export default function CreateLeaguePage() {
   const [error, setError] = useState<string | null>(null);
   const [leagueName, setLeagueName] = useState("");
   const [draftDate, setDraftDate] = useState("");
+  const [teamName, setTeamName] = useState("");
 
   if (status === "unauthenticated") {
     router.push("/auth/signin");
@@ -74,6 +75,10 @@ export default function CreateLeaguePage() {
 
       if (draftDate) {
         payload.draftDate = new Date(draftDate).toISOString();
+      }
+
+      if (teamName.trim()) {
+        payload.teamName = teamName.trim();
       }
 
       const response = await fetch("/api/leagues", {
@@ -226,6 +231,50 @@ export default function CreateLeaguePage() {
                   value={leagueName}
                   onChange={(e) => setLeagueName(e.target.value)}
                   placeholder="e.g., Summer Sluggers"
+                  style={{
+                    width: "100%",
+                    padding: "12px 16px",
+                    borderRadius: "8px",
+                    backgroundColor: "rgba(255,255,255,0.08)",
+                    border: "1px solid rgba(255,255,255,0.15)",
+                    color: "white",
+                    fontFamily: "'DM Sans', sans-serif",
+                    fontSize: "14px",
+                    boxSizing: "border-box",
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.backgroundColor = "rgba(255,255,255,0.12)";
+                    e.target.style.borderColor = "rgba(255,255,255,0.25)";
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.backgroundColor = "rgba(255,255,255,0.08)";
+                    e.target.style.borderColor = "rgba(255,255,255,0.15)";
+                  }}
+                />
+              </div>
+
+              {/* Team Name Field */}
+              <div style={{ marginBottom: "24px" }}>
+                <label
+                  style={{
+                    fontFamily: "'DM Sans', sans-serif",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    color: "rgba(255,255,255,0.6)",
+                    textTransform: "uppercase",
+                    letterSpacing: "1px",
+                    display: "block",
+                    marginBottom: "8px",
+                  }}
+                >
+                  Your Team Name (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={teamName}
+                  onChange={(e) => setTeamName(e.target.value)}
+                  placeholder="e.g., The Sluggers"
+                  maxLength={100}
                   style={{
                     width: "100%",
                     padding: "12px 16px",

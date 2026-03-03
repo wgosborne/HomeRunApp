@@ -142,6 +142,7 @@ export async function POST(
         playerName: validatedData.playerName,
         position: validatedData.position,
         mlbId: validatedData.mlbId,
+        mlbTeam: validatedData.mlbTeam,
         draftedRound: currentRound,
         draftedPickNumber: nextPickNumber,
       },

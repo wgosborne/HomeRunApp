@@ -28,6 +28,7 @@ interface LiveGame {
   status: string;
   inning: number | null;
   inningHalf: string | null;
+  gameType: string;
   userPlayerCount: number;
 }
 
@@ -418,12 +419,13 @@ const FeaturedGameCard = ({ game }: { game: LiveGame }) => {
 };
 
 // Small game card component
-const SmallGameCard = ({ game }: { game: LiveGame }) => {
+const SmallGameCard = ({ game, onSelect }: { game: LiveGame; onSelect?: (gameId: string) => void }) => {
   const isLive = game.status === "Live";
 
   return (
     <div
       className="small-game-card"
+      onClick={() => isLive && onSelect?.(game.id)}
       style={{
         minWidth: "120px",
         backgroundColor: "rgba(255,255,255,0.04)",
@@ -432,6 +434,21 @@ const SmallGameCard = ({ game }: { game: LiveGame }) => {
         padding: "12px",
         boxShadow:
           "0 4px 12px rgba(0,0,0,0.35), 0 8px 24px rgba(0,0,0,0.2), 0 1px 0 rgba(255,255,255,0.06) inset",
+        cursor: isLive ? "pointer" : "default",
+        opacity: isLive ? 1 : 0.6,
+        transition: isLive ? "all 0.2s" : "none",
+      }}
+      onMouseEnter={(e) => {
+        if (isLive) {
+          (e.currentTarget as HTMLDivElement).style.backgroundColor = "rgba(255,255,255,0.08)";
+          (e.currentTarget as HTMLDivElement).style.transform = "scale(1.05)";
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (isLive) {
+          (e.currentTarget as HTMLDivElement).style.backgroundColor = "rgba(255,255,255,0.04)";
+          (e.currentTarget as HTMLDivElement).style.transform = "scale(1)";
+        }
       }}
     >
       <div
@@ -739,6 +756,7 @@ export default function DashboardPage() {
   const [games, setGames] = useState<LiveGame[]>([]);
   const [homeruns, setHomeruns] = useState<HomerunEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [featuredGameId, setFeaturedGameId] = useState<string | null>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -778,8 +796,23 @@ export default function DashboardPage() {
   };
 
   const fetchGames = async () => {
-    // TODO: Remove once MLB season is active (April 2026)
-    // During off-season, always show placeholder data
+    try {
+      const res = await fetch("/api/games/today");
+      if (!res.ok) {
+        throw new Error("Failed to fetch games");
+      }
+      const games = await res.json();
+
+      // If we got real games, use them
+      if (games && games.length > 0) {
+        setGames(games);
+        return;
+      }
+    } catch (error) {
+      console.error("Error fetching live games:", error);
+    }
+
+    // Fallback to placeholder data during off-season
     setGames([
       {
         id: "game-1",
@@ -790,6 +823,7 @@ export default function DashboardPage() {
         status: "Live",
         inning: 7,
         inningHalf: "Top",
+        gameType: "S",
         userPlayerCount: 3,
       },
       {
@@ -801,6 +835,7 @@ export default function DashboardPage() {
         status: "Upcoming",
         inning: null,
         inningHalf: null,
+        gameType: "S",
         userPlayerCount: 1,
       },
       {
@@ -812,14 +847,30 @@ export default function DashboardPage() {
         status: "Upcoming",
         inning: null,
         inningHalf: null,
+        gameType: "S",
         userPlayerCount: 0,
       },
     ]);
   };
 
   const fetchHomeruns = async () => {
-    // TODO: Remove once MLB season is active (April 2026)
-    // During off-season, always show placeholder data
+    try {
+      const res = await fetch("/api/homeruns/recent");
+      if (!res.ok) {
+        throw new Error("Failed to fetch homeruns");
+      }
+      const homeruns = await res.json();
+
+      // If we got real homeruns, use them
+      if (homeruns && homeruns.length > 0) {
+        setHomeruns(homeruns);
+        return;
+      }
+    } catch (error) {
+      console.error("Error fetching live homeruns:", error);
+    }
+
+    // Fallback to placeholder data during off-season
     setHomeruns([
       {
         playerName: "Kyle Schwarber",
@@ -895,9 +946,27 @@ export default function DashboardPage() {
     );
   }
 
-  // Find featured game (first live game, or first game)
-  const featuredGame = games.find((g) => g.status === "Live") || games[0];
-  const smallGames = games.slice(1);
+  // Sort games by closest to now (live first, then upcoming)
+  const sortedGames = [...games].sort((a, b) => {
+    // Live games first
+    if (a.status === "Live" && b.status !== "Live") return -1;
+    if (a.status !== "Live" && b.status === "Live") return 1;
+    // Both live or both upcoming - keep original order (API already orders by time)
+    return 0;
+  }).slice(0, 9);
+
+  // Find featured game (use selected game if valid, otherwise first live game or first game)
+  let featuredGame = sortedGames[0];
+  if (featuredGameId) {
+    const selected = sortedGames.find((g) => g.id === featuredGameId);
+    if (selected) {
+      featuredGame = selected;
+    }
+  } else {
+    // Default to first live game, or first game if none are live
+    featuredGame = sortedGames.find((g) => g.status === "Live") || sortedGames[0];
+  }
+  const smallGames = sortedGames.filter((g) => g.id !== featuredGame?.id);
 
   return (
     <main
@@ -944,7 +1013,11 @@ export default function DashboardPage() {
               {smallGames.length > 0 && (
                 <div className="games-grid" style={{ marginTop: "24px" }}>
                   {smallGames.map((game) => (
-                    <SmallGameCard key={game.id} game={game} />
+                    <SmallGameCard
+                      key={game.id}
+                      game={game}
+                      onSelect={(gameId) => setFeaturedGameId(gameId)}
+                    />
                   ))}
                 </div>
               )}

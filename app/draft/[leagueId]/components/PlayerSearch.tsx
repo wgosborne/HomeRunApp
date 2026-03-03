@@ -267,7 +267,7 @@ export function PlayerSearch({
                           whiteSpace: "nowrap",
                         }}
                       >
-                        #{player.rank || "?"} {player.name}
+                        Rank: {player.rank || "?"} • {player.name}
                       </div>
                       <div
                         style={{

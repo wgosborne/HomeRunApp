@@ -15,6 +15,7 @@ interface League {
   name: string;
   commissionerId: string;
   draftStatus: string;
+  draftDate?: string;
   draftStartedAt?: string;
   memberships: Array<{
     id: string;
@@ -44,6 +45,7 @@ interface StandingsEntry {
     playerName: string;
     position: string | null;
     mlbId: number | null;
+    mlbTeam: string | null;
     homeruns: number;
     points: number;
   }>;
@@ -66,7 +68,6 @@ interface DraftPick {
   pickNumber: number;
   playerName: string;
   mlbId: number | null;
-  mlbTeam: string;
   owner: {
     name: string;
   };
@@ -680,6 +681,7 @@ function MyTeamTab({ roster, loading, standings, leagueId }: { roster: RosterEnt
 // Players Tab
 function PlayersTab({ standings, loading }: { standings: StandingsEntry[]; loading: boolean }) {
   const [expandedTeamId, setExpandedTeamId] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
   if (loading) {
     return <div className="py-8 text-center" style={{ color: "rgba(255,255,255,0.5)" }}>Loading players...</div>;
@@ -707,10 +709,90 @@ function PlayersTab({ standings, loading }: { standings: StandingsEntry[]; loadi
     );
   }
 
+  // Filter players and teams based on search term (team name, player name, or MLB team)
+  const searchLower = searchTerm.toLowerCase();
+  const filteredStandings = searchTerm.trim() ? standings.map((team) => {
+    const teamMatchesSearch = team.teamName.toLowerCase().includes(searchLower) || team.userName.toLowerCase().includes(searchLower);
+    const matchingPlayers = team.players.filter((player) =>
+      player.playerName.toLowerCase().includes(searchLower) ||
+      player.mlbTeam?.toLowerCase().includes(searchLower)
+    );
+    return {
+      ...team,
+      players: teamMatchesSearch ? team.players : matchingPlayers,
+    };
+  }).filter((team) => team.players.length > 0) : standings;
+
+  // Auto-expand first team when search results appear, clear when search is empty
+  useEffect(() => {
+    if (searchTerm.trim() && filteredStandings.length > 0) {
+      setExpandedTeamId(filteredStandings[0].userId);
+    } else if (!searchTerm.trim()) {
+      setExpandedTeamId(null);
+    }
+  }, [searchTerm, filteredStandings]);
+
   return (
     <div style={{ paddingLeft: "16px", paddingRight: "16px", paddingBottom: "24px" }}>
-      <div className="space-y-3">
-        {standings.map((team) => (
+      {/* Search Box */}
+      <input
+        type="text"
+        placeholder="Search player, team, or MLB team..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        style={{
+          width: "100%",
+          padding: "12px 16px",
+          backgroundColor: "rgba(255,255,255,0.4)",
+          border: "none",
+          borderRadius: "10px",
+          fontSize: "16px",
+          fontFamily: "'DM Sans', sans-serif",
+          color: "white",
+          minHeight: "44px",
+          marginBottom: "16px",
+          transition: "background 0.2s, box-shadow 0.2s",
+          boxShadow: "0 0 16px rgba(255,255,255,0.2)",
+        }}
+        onFocus={(e) => {
+          e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.48)";
+          e.currentTarget.style.boxShadow = "0 0 24px rgba(255,255,255,0.3)";
+        }}
+        onBlur={(e) => {
+          e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.4)";
+          e.currentTarget.style.boxShadow = "0 0 16px rgba(255,255,255,0.2)";
+        }}
+      />
+      <style>{`
+        input::placeholder {
+          color: rgba(255,255,255,0.7);
+        }
+      `}</style>
+
+      {/* Teams List */}
+      {filteredStandings.length === 0 && searchTerm.trim() ? (
+        <div
+          style={{
+            borderRadius: "14px",
+            padding: "24px",
+            textAlign: "center",
+            backgroundColor: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.07)",
+          }}
+        >
+          <p
+            style={{
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: "14px",
+              color: "rgba(255,255,255,0.4)",
+            }}
+          >
+            No players match "{searchTerm}"
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filteredStandings.map((team) => (
           <div
             key={team.userId}
             style={{
@@ -844,7 +926,7 @@ function PlayersTab({ standings, loading }: { standings: StandingsEntry[]; loadi
                               color: "rgba(255,255,255,0.4)",
                             }}
                           >
-                            {player.position || "—"} • {player.homeruns} HRs
+                            {player.position || "—"} • {player.mlbTeam || "—"} • {player.homeruns} HRs
                           </div>
                         </div>
                       </Link>
@@ -855,7 +937,8 @@ function PlayersTab({ standings, loading }: { standings: StandingsEntry[]; loadi
             )}
           </div>
         ))}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -891,23 +974,12 @@ function DraftTab({
   const fetchDraftPicks = async () => {
     setLoadingPicks(true);
     try {
-      const mockPicks: DraftPick[] = [];
-      for (let round = 1; round <= 10; round++) {
-        for (let pick = 1; pick <= league.memberships.length; pick++) {
-          mockPicks.push({
-            id: `${round}-${pick}`,
-            roundNumber: round,
-            pickNumber: (round - 1) * league.memberships.length + pick,
-            playerName: ["Aaron Judge", "Juan Soto", "Kyle Schwarber", "Mookie Betts", "George Springer", "Kyle Arozarena"][
-              (round * pick) % 6
-            ],
-            mlbId: null,
-            mlbTeam: ["NYY", "NYM", "PHI", "LAD", "TOR", "TB"][(round * pick) % 6],
-            owner: league.memberships[(pick - 1) % league.memberships.length].user || { name: "Unknown" },
-          });
-        }
+      const response = await fetch(`/api/draft/${leagueId}/picks`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch draft picks");
       }
-      setDraftPicks(mockPicks);
+      const picks = await response.json();
+      setDraftPicks(picks);
     } catch (error) {
       console.error("Failed to fetch draft picks:", error);
     } finally {
@@ -1168,7 +1240,7 @@ function DraftTab({
                           color: "rgba(255,255,255,0.35)",
                           marginTop: "4px",
                         }}>
-                          {pick.owner.name} • {pick.mlbTeam}
+                          {pick.owner.name}
                         </p>
                       </div>
                     </div>
@@ -1208,6 +1280,15 @@ function SettingsTab({
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [draftDate, setDraftDate] = useState(league.draftDate ? new Date(league.draftDate).toISOString().slice(0, 16) : "");
+  const [savingDraftDate, setSavingDraftDate] = useState(false);
+  const [draftDateError, setDraftDateError] = useState<string | null>(null);
+
+  // Team name state
+  const currentMembership = league.memberships.find(m => m.userId === session?.user?.id);
+  const [teamName, setTeamName] = useState(currentMembership?.teamName || "");
+  const [savingTeamName, setSavingTeamName] = useState(false);
+  const [teamNameError, setTeamNameError] = useState<string | null>(null);
 
   useEffect(() => {
     setInviteLink(`${window.location.origin}/join/${leagueId}`);
@@ -1217,6 +1298,73 @@ function SettingsTab({
     navigator.clipboard.writeText(inviteLink);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleSaveDraftDate = async () => {
+    if (!isCommissioner) return;
+
+    setSavingDraftDate(true);
+    setDraftDateError(null);
+
+    try {
+      const payload: any = {};
+      if (draftDate) {
+        payload.draftDate = new Date(draftDate).toISOString();
+      } else {
+        payload.draftDate = null;
+      }
+
+      const response = await fetch(`/api/leagues/${leagueId}/draft-date`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to update draft date");
+      }
+
+      // Refresh the page to show updated date
+      window.location.reload();
+    } catch (err) {
+      setDraftDateError(err instanceof Error ? err.message : "Failed to update draft date");
+    } finally {
+      setSavingDraftDate(false);
+    }
+  };
+
+  const handleSaveTeamName = async () => {
+    setSavingTeamName(true);
+    setTeamNameError(null);
+
+    try {
+      if (!teamName.trim()) {
+        throw new Error("Team name cannot be empty");
+      }
+
+      const response = await fetch(`/api/leagues/${leagueId}/team-name`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ teamName: teamName.trim() }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to update team name");
+      }
+
+      // Refresh the page to show updated team name
+      window.location.reload();
+    } catch (err) {
+      setTeamNameError(err instanceof Error ? err.message : "Failed to update team name");
+    } finally {
+      setSavingTeamName(false);
+    }
   };
 
   const handleDeleteLeague = async () => {
@@ -1274,6 +1422,109 @@ function SettingsTab({
   return (
     <div style={{ paddingLeft: "16px", paddingRight: "16px" }}>
       <div className="space-y-6">
+        {/* Team Name Section */}
+        <div style={{
+          borderRadius: "14px",
+          backgroundColor: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(255,255,255,0.07)",
+          padding: "20px",
+        }}>
+          <h3 style={{
+            fontFamily: "'Exo 2', sans-serif",
+            fontSize: "16px",
+            fontWeight: 800,
+            color: "white",
+            marginBottom: "16px",
+          }}>
+            Your Team Name
+          </h3>
+          <div style={{ marginBottom: "16px" }}>
+            <label style={{
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: "12px",
+              fontWeight: 600,
+              color: "rgba(255,255,255,0.6)",
+              textTransform: "uppercase",
+              letterSpacing: "1px",
+              display: "block",
+              marginBottom: "8px",
+            }}>
+              Team Name
+            </label>
+            <input
+              type="text"
+              value={teamName}
+              onChange={(e) => setTeamName(e.target.value)}
+              maxLength={100}
+              style={{
+                width: "100%",
+                padding: "12px 16px",
+                borderRadius: "8px",
+                backgroundColor: "rgba(255,255,255,0.08)",
+                border: "1px solid rgba(255,255,255,0.15)",
+                color: "white",
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: "14px",
+                boxSizing: "border-box",
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.12)";
+                e.currentTarget.style.borderColor = "rgba(255,255,255,0.25)";
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.08)";
+                e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)";
+              }}
+            />
+            <p style={{
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: "11px",
+              color: "rgba(255,255,255,0.4)",
+              marginTop: "8px",
+              marginBottom: "0",
+            }}>
+              Your team name will be displayed in the leaderboard. Must be unique within this league (1-100 characters).
+            </p>
+          </div>
+
+          {teamNameError && (
+            <div style={{
+              marginBottom: "12px",
+              padding: "12px 16px",
+              borderRadius: "8px",
+              backgroundColor: "rgba(204,52,51,0.2)",
+              border: "1px solid rgba(204,52,51,0.5)",
+              color: "#FF6B6B",
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: "13px",
+            }}>
+              {teamNameError}
+            </div>
+          )}
+
+          <button
+            onClick={handleSaveTeamName}
+            disabled={savingTeamName}
+            style={{
+              padding: "10px 16px",
+              borderRadius: "10px",
+              fontFamily: "'Exo 2', sans-serif",
+              fontSize: "12px",
+              fontWeight: 700,
+              backgroundColor: "#CC3433",
+              color: "white",
+              border: "none",
+              cursor: savingTeamName ? "not-allowed" : "pointer",
+              opacity: savingTeamName ? 0.6 : 1,
+              minHeight: "44px",
+              boxShadow: "0 4px 14px rgba(204, 52, 51, 0.45), 0 1px 0 rgba(255, 255, 255, 0.15) inset",
+            }}
+          >
+            {savingTeamName ? "Saving..." : "Save Team Name"}
+          </button>
+        </div>
+
+        {/* Invite Members Section */}
         <div style={{
           borderRadius: "14px",
           backgroundColor: "rgba(255,255,255,0.04)",
@@ -1325,6 +1576,108 @@ function SettingsTab({
             </button>
           </div>
         </div>
+
+        {isCommissioner && (
+          <div style={{
+            borderRadius: "14px",
+            backgroundColor: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.07)",
+            padding: "20px",
+          }}>
+            <h3 style={{
+              fontFamily: "'Exo 2', sans-serif",
+              fontSize: "16px",
+              fontWeight: 800,
+              color: "white",
+              marginBottom: "16px",
+            }}>
+              Draft Date
+            </h3>
+            <div style={{ marginBottom: "16px" }}>
+              <label style={{
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: "12px",
+                fontWeight: 600,
+                color: "rgba(255,255,255,0.6)",
+                textTransform: "uppercase",
+                letterSpacing: "1px",
+                display: "block",
+                marginBottom: "8px",
+              }}>
+                Scheduled Draft Date (Optional)
+              </label>
+              <input
+                type="datetime-local"
+                value={draftDate}
+                onChange={(e) => setDraftDate(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "12px 16px",
+                  borderRadius: "8px",
+                  backgroundColor: "rgba(255,255,255,0.08)",
+                  border: "1px solid rgba(255,255,255,0.15)",
+                  color: "white",
+                  fontFamily: "'DM Sans', sans-serif",
+                  fontSize: "14px",
+                  boxSizing: "border-box",
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.12)";
+                  e.currentTarget.style.borderColor = "rgba(255,255,255,0.25)";
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.08)";
+                  e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)";
+                }}
+              />
+              <p style={{
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: "11px",
+                color: "rgba(255,255,255,0.4)",
+                marginTop: "8px",
+                marginBottom: "0",
+              }}>
+                This date is for reference only. The draft will <strong>not</strong> automatically start at this time. You'll need to manually click "Start Draft" in the Draft tab whenever you're ready. Members will receive a notification when you start the draft.
+              </p>
+            </div>
+
+            {draftDateError && (
+              <div style={{
+                marginBottom: "12px",
+                padding: "12px 16px",
+                borderRadius: "8px",
+                backgroundColor: "rgba(204,52,51,0.2)",
+                border: "1px solid rgba(204,52,51,0.5)",
+                color: "#FF6B6B",
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: "13px",
+              }}>
+                {draftDateError}
+              </div>
+            )}
+
+            <button
+              onClick={handleSaveDraftDate}
+              disabled={savingDraftDate}
+              style={{
+                padding: "10px 16px",
+                borderRadius: "10px",
+                fontFamily: "'Exo 2', sans-serif",
+                fontSize: "12px",
+                fontWeight: 700,
+                backgroundColor: "#CC3433",
+                color: "white",
+                border: "none",
+                cursor: savingDraftDate ? "not-allowed" : "pointer",
+                opacity: savingDraftDate ? 0.6 : 1,
+                minHeight: "44px",
+                boxShadow: "0 4px 14px rgba(204, 52, 51, 0.45), 0 1px 0 rgba(255, 255, 255, 0.15) inset",
+              }}
+            >
+              {savingDraftDate ? "Saving..." : "Save Draft Date"}
+            </button>
+          </div>
+        )}
 
         <div style={{
           borderRadius: "14px",
@@ -1505,6 +1858,13 @@ export default function LeagueHomePage() {
   const [isCommissioner, setIsCommissioner] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>("leaderboard");
 
+  // Team name modal state
+  const [showTeamNameModal, setShowTeamNameModal] = useState(false);
+  const [modalTeamName, setModalTeamName] = useState("");
+  const [savingModalTeamName, setSavingModalTeamName] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
+  const [teamNameModalShown, setTeamNameModalShown] = useState(false);
+
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/");
@@ -1576,6 +1936,25 @@ export default function LeagueHomePage() {
         const data = await res.json();
         setLeague(data);
         setIsCommissioner(data.commissionerId === session?.user?.id);
+
+        // Check if user just joined (within the last 60 seconds)
+        // and hasn't customized their team name yet
+        // But NOT if they are the commissioner (league creator)
+        // And NOT if the modal has already been shown once in this session
+        const isCommissioner = data.commissionerId === session?.user?.id;
+        const userMembership = data.memberships.find((m: any) => m.userId === session?.user?.id);
+        if (!teamNameModalShown && !isCommissioner && userMembership && userMembership.teamName && userMembership.teamName.endsWith("'s Team")) {
+          const joinedAt = new Date(userMembership.joinedAt).getTime();
+          const now = Date.now();
+          const secondsAgo = (now - joinedAt) / 1000;
+
+          // Only show modal if joined within last 60 seconds
+          if (secondsAgo < 60) {
+            setModalTeamName(userMembership.teamName);
+            setShowTeamNameModal(true);
+            setTeamNameModalShown(true);
+          }
+        }
       }
     } catch (error) {
       console.error("Failed to fetch league:", error);
@@ -1659,6 +2038,39 @@ export default function LeagueHomePage() {
     );
   }
 
+  const handleSaveModalTeamName = async () => {
+    setSavingModalTeamName(true);
+    setModalError(null);
+
+    try {
+      if (!modalTeamName.trim()) {
+        throw new Error("Team name cannot be empty");
+      }
+
+      const response = await fetch(`/api/leagues/${leagueId}/team-name`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ teamName: modalTeamName.trim() }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to update team name");
+      }
+
+      // Close modal and refresh league data (don't reload page)
+      setShowTeamNameModal(false);
+      // Force refresh of league data to show updated team name
+      await fetchLeague();
+    } catch (err) {
+      setModalError(err instanceof Error ? err.message : "Failed to update team name");
+    } finally {
+      setSavingModalTeamName(false);
+    }
+  };
+
   return (
     <main
       style={{
@@ -1722,6 +2134,18 @@ export default function LeagueHomePage() {
             {isCommissioner && " • You are commissioner"}
           </p>
 
+          {/* Draft Date Display */}
+          {league.draftDate && (
+            <p style={{
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: "12px",
+              color: "#CC3433",
+              marginTop: "8px",
+            }}>
+              Draft scheduled: {new Date(league.draftDate).toLocaleDateString()} at {new Date(league.draftDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </p>
+          )}
+
           {/* Decorative line */}
           <div
             style={{
@@ -1777,6 +2201,152 @@ export default function LeagueHomePage() {
           )}
         </div>
       </div>
+
+      {/* Team Name Modal */}
+      {showTeamNameModal && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: "rgba(0, 0, 0, 0.7)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 1000,
+          backdropFilter: "blur(4px)",
+        }}>
+          <div style={{
+            backgroundColor: "#0f1923",
+            borderRadius: "20px",
+            padding: "32px 24px",
+            maxWidth: "420px",
+            width: "90%",
+            border: "1px solid rgba(255,255,255,0.07)",
+            boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
+          }}>
+            <h2 style={{
+              fontFamily: "'Exo 2', sans-serif",
+              fontSize: "22px",
+              fontWeight: 800,
+              color: "white",
+              margin: "0 0 12px 0",
+            }}>
+              Pick Your Team Name
+            </h2>
+            <p style={{
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: "14px",
+              color: "rgba(255,255,255,0.6)",
+              margin: "0 0 24px 0",
+              lineHeight: 1.5,
+            }}>
+              Give your team a custom name to show in the leaderboard. You can always change it later in settings.
+            </p>
+
+            <label style={{
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: "12px",
+              fontWeight: 600,
+              color: "rgba(255,255,255,0.6)",
+              textTransform: "uppercase",
+              letterSpacing: "1px",
+              display: "block",
+              marginBottom: "8px",
+            }}>
+              Team Name
+            </label>
+            <input
+              type="text"
+              value={modalTeamName}
+              onChange={(e) => setModalTeamName(e.target.value)}
+              maxLength={100}
+              style={{
+                width: "100%",
+                padding: "12px 16px",
+                borderRadius: "8px",
+                backgroundColor: "rgba(255,255,255,0.08)",
+                border: "1px solid rgba(255,255,255,0.15)",
+                color: "white",
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: "14px",
+                boxSizing: "border-box",
+                marginBottom: "12px",
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.12)";
+                e.currentTarget.style.borderColor = "rgba(255,255,255,0.25)";
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.08)";
+                e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)";
+              }}
+            />
+
+            {modalError && (
+              <div style={{
+                padding: "12px",
+                borderRadius: "8px",
+                backgroundColor: "rgba(204,52,51,0.2)",
+                border: "1px solid rgba(204,52,51,0.5)",
+                color: "#FF6B6B",
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: "12px",
+                marginBottom: "16px",
+              }}>
+                {modalError}
+              </div>
+            )}
+
+            <div style={{ display: "flex", gap: "12px" }}>
+              <button
+                onClick={() => setShowTeamNameModal(false)}
+                disabled={savingModalTeamName}
+                style={{
+                  flex: 1,
+                  padding: "12px 16px",
+                  borderRadius: "8px",
+                  border: "1px solid rgba(255,255,255,0.2)",
+                  backgroundColor: "transparent",
+                  color: "rgba(255,255,255,0.7)",
+                  fontFamily: "'DM Sans', sans-serif",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  cursor: savingModalTeamName ? "not-allowed" : "pointer",
+                  opacity: savingModalTeamName ? 0.5 : 1,
+                  textTransform: "uppercase",
+                  letterSpacing: "1px",
+                }}
+              >
+                Skip for Now
+              </button>
+              <button
+                onClick={handleSaveModalTeamName}
+                disabled={savingModalTeamName}
+                style={{
+                  flex: 1,
+                  padding: "12px 16px",
+                  borderRadius: "8px",
+                  border: "none",
+                  backgroundColor: "#CC3433",
+                  color: "white",
+                  fontFamily: "'DM Sans', sans-serif",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  cursor: savingModalTeamName ? "not-allowed" : "pointer",
+                  opacity: savingModalTeamName ? 0.6 : 1,
+                  textTransform: "uppercase",
+                  letterSpacing: "1px",
+                  boxShadow: "0 4px 14px rgba(204, 52, 51, 0.45)",
+                }}
+              >
+                {savingModalTeamName ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

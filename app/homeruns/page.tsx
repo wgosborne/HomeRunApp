@@ -152,9 +152,9 @@ export default function HomerunsPage() {
               transition: "all 0.2s",
             }}
           >
-            {sort === "recent" && "🕐 Recent"}
-            {sort === "player" && "👤 Player"}
-            {sort === "league" && "🏆 League"}
+            {sort === "recent" && "Recent"}
+            {sort === "player" && "Player"}
+            {sort === "league" && "League"}
           </button>
         ))}
       </div>

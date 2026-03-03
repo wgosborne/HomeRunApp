@@ -206,8 +206,8 @@ function cacheFirst(request) {
       .then((response) => {
         // Cache successful responses
         if (response && response.status === 200) {
-          const cache = caches.open(STATIC_CACHE);
-          cache.then((c) => c.put(request, response.clone()));
+          const responseClone = response.clone();
+          caches.open(STATIC_CACHE).then((c) => c.put(request, responseClone));
         }
         return response;
       })
@@ -227,8 +227,8 @@ function networkFirst(request) {
     .then((response) => {
       // Cache successful API responses
       if (response && response.status === 200 && request.method === 'GET') {
-        const cache = caches.open(API_CACHE);
-        cache.then((c) => c.put(request, response.clone()));
+        const responseClone = response.clone();
+        caches.open(API_CACHE).then((c) => c.put(request, responseClone));
       }
       return response;
     })

@@ -1,63 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createLogger } from "@/lib/logger";
 
-const logger = createLogger("cron-sync-live-games");
-
-// Season bounds for 2026: Spring Training Feb 20 - Sept 27 (includes all preseason + regular season)
-const SEASON_START = new Date("2026-02-20");
-const SEASON_END = new Date("2026-09-28"); // Up to but not including this date
-
-// Map team IDs to MLB abbreviations (includes WBC teams for spring training)
-const TEAM_ABBREV_MAP: Record<number, string> = {
-  // MLB Teams
-  108: "LAA", // Los Angeles Angels
-  109: "ARI", // Arizona Diamondbacks
-  110: "BAL", // Baltimore Orioles
-  111: "BOS", // Boston Red Sox
-  112: "CHC", // Chicago Cubs
-  113: "CIN", // Cincinnati Reds
-  114: "CLE", // Cleveland Guardians
-  115: "COL", // Colorado Rockies
-  116: "DET", // Detroit Tigers
-  117: "HOU", // Houston Astros
-  118: "KC",  // Kansas City Royals
-  119: "LAD", // Los Angeles Dodgers
-  120: "WSH", // Washington Nationals
-  121: "NYM", // New York Mets
-  133: "OAK", // Oakland Athletics
-  134: "PIT", // Pittsburgh Pirates
-  135: "SD",  // San Diego Padres
-  136: "SEA", // Seattle Mariners
-  137: "SF",  // San Francisco Giants
-  138: "STL", // St. Louis Cardinals
-  139: "TB",  // Tampa Bay Rays
-  140: "TEX", // Texas Rangers
-  141: "TOR", // Toronto Blue Jays
-  142: "MIN", // Minnesota Twins
-  143: "PHI", // Philadelphia Phillies
-  144: "ATL", // Atlanta Braves
-  145: "CWS", // Chicago White Sox
-  146: "MIA", // Miami Marlins
-  147: "NYY", // New York Yankees
-  158: "MIL", // Milwaukee Brewers
-  // World Baseball Classic Teams (Spring Training)
-  776: "BRA", // Brazil
-  784: "CAN", // Canada
-  792: "COL", // Colombia
-  798: "CUB", // Cuba
-  805: "DOM", // Dominican Republic
-  821: "GBR", // Great Britain
-  840: "ISR", // Israel
-  841: "ITA", // Italy
-  867: "MEX", // Mexico
-  878: "NED", // Netherlands
-  881: "NIC", // Nicaragua
-  890: "PAN", // Panama
-  897: "PUR", // Puerto Rico
-  940: "USA", // United States
-  944: "VEN", // Venezuela
-};
+const logger = createLogger("dev-sync-games-now");
 
 interface MLBScheduleResponse {
   dates: Array<{
@@ -97,46 +42,25 @@ interface MLBScheduleResponse {
 }
 
 /**
- * POST /api/cron/sync-live-games
- * Sync today's MLB games into the Game table
- *
- * Called via Vercel cron job every 2 minutes
- * Requires CRON_SECRET header
+ * POST /api/dev/sync-games-now
+ * Manually sync today's games (dev only)
  */
-export async function POST(request: NextRequest) {
+export async function POST() {
+  // Only allow in development
+  if (process.env.NODE_ENV !== "development") {
+    return NextResponse.json({ error: "Dev endpoint only" }, { status: 403 });
+  }
+
   try {
-    // Verify cron secret
-    const cronSecret = request.headers.get("x-vercel-cron-secret");
-    if (cronSecret !== process.env.CRON_SECRET) {
-      logger.warn("Unauthorized cron request", {
-        provided: !!cronSecret,
-        expected: !!process.env.CRON_SECRET,
-      });
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const now = new Date();
-
-    // Season gate: return early if outside 2026-03-26 to 2026-09-27
-    if (now < SEASON_START || now >= SEASON_END) {
-      logger.info("Outside season bounds, skipping", {
-        date: now.toISOString(),
-        start: SEASON_START.toISOString(),
-        end: SEASON_END.toISOString(),
-      });
-      return NextResponse.json({
-        message: "Outside season bounds, skipping.",
-        synced: 0,
-      });
-    }
-
-    // Fetch today's games from MLB API
     const mmddyyyy = `${(now.getMonth() + 1)
       .toString()
       .padStart(2, "0")}/${now
       .getDate()
       .toString()
       .padStart(2, "0")}/${now.getFullYear()}`;
+
+    logger.info("Fetching games from MLB API", { date: mmddyyyy });
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
@@ -160,14 +84,14 @@ export async function POST(request: NextRequest) {
     const data = (await response.json()) as MLBScheduleResponse;
 
     let syncedCount = 0;
+    const errors: string[] = [];
 
     // Process each game
     for (const dateGroup of data.dates || []) {
       for (const game of dateGroup.games || []) {
         try {
-          // Get team abbreviation from map, or use team ID as fallback
-          const homeTeamAbbrev = TEAM_ABBREV_MAP[game.teams.home.team.id] || `T${game.teams.home.team.id}`;
-          const awayTeamAbbrev = TEAM_ABBREV_MAP[game.teams.away.team.id] || `T${game.teams.away.team.id}`;
+          const homeTeamAbbrev = game.teams.home?.team?.abbreviation || `T${game.teams.home.team.id}`;
+          const awayTeamAbbrev = game.teams.away?.team?.abbreviation || `T${game.teams.away.team.id}`;
 
           const homeTeamId = game.teams.home.team.id;
           const awayTeamId = game.teams.away.team.id;
@@ -216,10 +140,12 @@ export async function POST(request: NextRequest) {
 
           syncedCount++;
         } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : String(error);
           logger.error("Error syncing game", {
             gamePk: game.gamePk,
-            error,
+            error: errorMsg,
           });
+          errors.push(`Game ${game.gamePk}: ${errorMsg}`);
         }
       }
     }
@@ -227,15 +153,25 @@ export async function POST(request: NextRequest) {
     logger.info("Game sync completed", { synced: syncedCount });
 
     return NextResponse.json({
+      message: "Games sync completed",
       synced: syncedCount,
+      total: data.dates?.reduce((acc, d) => acc + (d.games?.length || 0), 0) || 0,
+      errors: errors.length > 0 ? errors : undefined,
+      games: data.dates?.[0]?.games?.map((g) => ({
+        gameType: g.gameType,
+        home: g.teams.home.team.abbreviation,
+        away: g.teams.away.team.abbreviation,
+        status: g.status.abstractGameState,
+      })) || [],
     });
   } catch (error) {
-    logger.error("Error in game sync cron", {
+    logger.error("Error syncing games", {
       error: error instanceof Error ? error.message : String(error),
     });
-
     return NextResponse.json(
-      { error: "Internal server error" },
+      {
+        error: error instanceof Error ? error.message : "Internal server error",
+      },
       { status: 500 }
     );
   }

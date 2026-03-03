@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { handleError, ConflictError, NotFoundError } from "@/lib/errors";
@@ -8,7 +8,7 @@ const logger = createLogger("leagues.[leagueId].join");
 
 // POST /api/leagues/[leagueId]/join - Auto-join league via invite link
 export async function POST(
-  _request: unknown,
+  request: NextRequest,
   { params }: { params: Promise<{ leagueId: string }> }
 ) {
   const { leagueId } = await params;
@@ -55,13 +55,24 @@ export async function POST(
       throw new ConflictError("You are already a member of this league");
     }
 
+    // Get optional team name from request body
+    let teamName = `${user.name}'s Team`;
+    try {
+      const body = await request.json();
+      if (body.teamName && body.teamName.trim().length > 0) {
+        teamName = body.teamName.trim();
+      }
+    } catch {
+      // No body or invalid JSON, use default
+    }
+
     // Add user to league
     const membership = await prisma.leagueMembership.create({
       data: {
         userId: user.id,
         leagueId: leagueId,
         role: "member",
-        teamName: `${user.name}'s Team`,
+        teamName: teamName,
       },
       include: {
         league: true,

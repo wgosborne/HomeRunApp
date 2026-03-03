@@ -183,6 +183,8 @@ export function DraftRoom({ leagueId, userId }: DraftRoomProps) {
           playerId: player.id,
           playerName: player.name,
           position: player.position,
+          mlbId: player.mlbId,
+          mlbTeam: player.team,
         }),
       });
 
@@ -628,30 +630,105 @@ export function DraftRoom({ leagueId, userId }: DraftRoomProps) {
 
             {/* Members List */}
             {status && (
-              <div className="bg-white rounded-lg shadow overflow-hidden">
-                <div className="p-3 sm:p-4 border-b bg-gray-50">
-                  <h3 className="font-semibold text-gray-900 text-sm sm:text-base">
+              <div
+                style={{
+                  borderRadius: "20px",
+                  overflow: "hidden",
+                  backgroundColor: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(255,255,255,0.07)",
+                  boxShadow:
+                    "0 4px 12px rgba(0,0,0,0.35), 0 8px 24px rgba(0,0,0,0.2), 0 1px 0 rgba(255,255,255,0.06) inset",
+                }}
+              >
+                <div
+                  style={{
+                    padding: "16px",
+                    borderBottom: "1px solid rgba(255,255,255,0.07)",
+                    backgroundColor: "rgba(0,0,0,0.2)",
+                  }}
+                >
+                  <h3
+                    style={{
+                      fontFamily: "'Exo 2', sans-serif",
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      letterSpacing: "3px",
+                      textTransform: "uppercase",
+                      color: "rgba(255,255,255,0.28)",
+                      textShadow: "0 0 16px rgba(204,52,51,0.35), 0 0 32px rgba(204,52,51,0.15)",
+                      margin: 0,
+                    }}
+                  >
                     Managers ({status.members.length})
                   </h3>
                 </div>
 
-                <div className="divide-y max-h-96 overflow-y-auto">
+                <div
+                  style={{
+                    maxHeight: "384px",
+                    overflowY: "auto",
+                  }}
+                >
                   {status.members.map((member) => (
                     <div
                       key={member.userId}
-                      className={`p-3 sm:p-4 ${
-                        member.userId === status.currentPickerId
-                          ? "bg-blue-50 border-l-4 border-blue-500"
-                          : ""
-                      }`}
+                      style={{
+                        padding: "16px",
+                        borderBottom: "1px solid rgba(255,255,255,0.07)",
+                        background:
+                          member.userId === status.currentPickerId
+                            ? "linear-gradient(145deg, rgba(204,52,51,0.2), rgba(204,52,51,0.1))"
+                            : "transparent",
+                        transition: "background 0.2s",
+                        cursor: "default",
+                      }}
+                      onMouseEnter={(e) => {
+                        if (member.userId !== status.currentPickerId) {
+                          (e.currentTarget as HTMLDivElement).style.background =
+                            "rgba(255,255,255,0.04)";
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (member.userId !== status.currentPickerId) {
+                          (e.currentTarget as HTMLDivElement).style.background = "transparent";
+                        }
+                      }}
                     >
-                      <div className="font-semibold text-gray-900 text-sm">
+                      <div
+                        style={{
+                          fontFamily: "'Exo 2', sans-serif",
+                          fontWeight: 700,
+                          fontSize: "14px",
+                          color:
+                            member.userId === status.currentPickerId
+                              ? "#CC3433"
+                              : "white",
+                          marginBottom: "4px",
+                        }}
+                      >
                         {member.userName}
                       </div>
-                      <div className="text-xs text-gray-600">{member.teamName}</div>
+                      <div
+                        style={{
+                          fontFamily: "'DM Sans', sans-serif",
+                          fontSize: "12px",
+                          color: "rgba(255,255,255,0.4)",
+                          marginBottom: "8px",
+                        }}
+                      >
+                        {member.teamName}
+                      </div>
                       {member.userId === status.currentPickerId && (
-                        <div className="text-xs font-semibold text-blue-600 mt-1">
-                          Currently picking
+                        <div
+                          style={{
+                            fontFamily: "'Exo 2', sans-serif",
+                            fontSize: "11px",
+                            fontWeight: 700,
+                            color: "#CC3433",
+                            textShadow: "0 0 8px rgba(204,52,51,0.4)",
+                          }}
+                        >
+                          🎯 Currently picking
                         </div>
                       )}
                     </div>
