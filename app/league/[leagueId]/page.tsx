@@ -1873,25 +1873,56 @@ export default function LeagueHomePage() {
 
   useEffect(() => {
     if (status === "authenticated") {
-      fetchLeague();
-      const interval = setInterval(fetchLeague, 20000);
-      return () => clearInterval(interval);
+      try {
+        fetchLeague();
+        const interval = setInterval(() => {
+          try {
+            fetchLeague();
+          } catch (error) {
+            console.error("Error in periodic fetchLeague:", error);
+          }
+        }, 20000);
+        return () => clearInterval(interval);
+      } catch (error) {
+        console.error("Error initializing league data:", error);
+        setLoading(false);
+      }
     }
   }, [status, leagueId]);
 
   useEffect(() => {
     if (activeTab === "leaderboard") {
-      fetchStandings();
-      const interval = setInterval(fetchStandings, 20000);
-      return () => clearInterval(interval);
+      try {
+        fetchStandings();
+        const interval = setInterval(() => {
+          try {
+            fetchStandings();
+          } catch (error) {
+            console.error("Error in periodic fetchStandings:", error);
+          }
+        }, 20000);
+        return () => clearInterval(interval);
+      } catch (error) {
+        console.error("Error initializing standings:", error);
+      }
     }
   }, [activeTab, leagueId]);
 
   useEffect(() => {
     if (activeTab === "myteam" || activeTab === "players") {
-      fetchRoster();
-      const interval = setInterval(fetchRoster, 20000);
-      return () => clearInterval(interval);
+      try {
+        fetchRoster();
+        const interval = setInterval(() => {
+          try {
+            fetchRoster();
+          } catch (error) {
+            console.error("Error in periodic fetchRoster:", error);
+          }
+        }, 20000);
+        return () => clearInterval(interval);
+      } catch (error) {
+        console.error("Error initializing roster:", error);
+      }
     }
   }, [activeTab, leagueId]);
 
