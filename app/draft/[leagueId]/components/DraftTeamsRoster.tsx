@@ -265,7 +265,7 @@ export function DraftTeamsRoster({
                       textShadow: "0 0 8px rgba(204,52,51,0.4)",
                     }}
                   >
-                    🎯 PICKING NOW
+                    PICKING NOW
                   </div>
                 )}
               </button>

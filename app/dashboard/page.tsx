@@ -532,9 +532,8 @@ const HomeruntCard = ({ hr, isYourPlayer }: { hr: HomerunEvent; isYourPlayer: bo
           : "1px solid rgba(255,255,255,0.07)",
         boxShadow: `
           0 2px 0 rgba(255,255,255,0.05) inset,
-          0 4px 8px rgba(0,0,0,0.3),
-          0 8px 20px rgba(0,0,0,0.25),
-          0 16px 40px rgba(0,0,0,0.15)
+          0 8px 16px rgba(0,0,0,0.2),
+          0 16px 32px rgba(0,0,0,0.15)
         `,
         filter: isYourPlayer
           ? "drop-shadow(0 0 12px rgba(204,52,51,0.4)) drop-shadow(0 0 24px rgba(204,52,51,0.2))"

@@ -460,7 +460,7 @@ export function DraftRoom({ leagueId, userId }: DraftRoomProps) {
                       color: "rgba(255,255,255,0.6)",
                     }}
                   >
-                    {isCurrentPicker ? "🎯 It's your turn to pick!" : "⏳ Waiting for their selection..."}
+                    {isCurrentPicker ? "It's your turn to pick!" : "Waiting for their selection..."}
                   </div>
                 </div>
 
@@ -535,7 +535,7 @@ export function DraftRoom({ leagueId, userId }: DraftRoomProps) {
                         color: "white",
                       }}
                     >
-                      ⏳ Waiting for {status?.currentPickerName}
+                      Waiting for {status?.currentPickerName}
                     </div>
                     <div
                       style={{

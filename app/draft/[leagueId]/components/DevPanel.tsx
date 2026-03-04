@@ -89,7 +89,7 @@ export function DevPanel({ leagueId, currentState, onStatusChange }: DevPanelPro
               disabled={loading}
               className="w-full px-3 py-2 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400"
             >
-              {loading ? "..." : "⏸ Pause"}
+              {loading ? "..." : "Pause"}
             </button>
 
             <button
@@ -97,7 +97,7 @@ export function DevPanel({ leagueId, currentState, onStatusChange }: DevPanelPro
               disabled={loading}
               className="w-full px-3 py-2 text-sm bg-green-500 text-white rounded hover:bg-green-600 disabled:bg-gray-400"
             >
-              {loading ? "..." : "▶ Resume"}
+              {loading ? "..." : "Resume"}
             </button>
 
             <button
@@ -105,7 +105,7 @@ export function DevPanel({ leagueId, currentState, onStatusChange }: DevPanelPro
               disabled={loading}
               className="w-full px-3 py-2 text-sm bg-purple-500 text-white rounded hover:bg-purple-600 disabled:bg-gray-400"
             >
-              {loading ? "..." : "🤖 Auto-Pick"}
+              {loading ? "..." : "Auto-Pick"}
             </button>
 
             <button
@@ -117,7 +117,7 @@ export function DevPanel({ leagueId, currentState, onStatusChange }: DevPanelPro
               disabled={loading}
               className="w-full px-3 py-2 text-sm bg-red-500 text-white rounded hover:bg-red-600 disabled:bg-gray-400"
             >
-              {loading ? "..." : "🔄 Reset"}
+              {loading ? "..." : "Reset"}
             </button>
           </div>
 
