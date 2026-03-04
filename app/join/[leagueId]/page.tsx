@@ -159,11 +159,21 @@ export default function JoinLeaguePage() {
       <main
         className="min-h-screen flex flex-col items-center justify-center p-5 relative overflow-hidden"
         style={{
-          background: "linear-gradient(170deg, #0f1923 0%, #141d2e 35%, #181428 70%, #1a1226 100%)",
+          backgroundImage: 'url(/design-inspiration/CubsFireworkField.jpg)',
+          backgroundSize: "cover",
+          backgroundPosition: "center 30%",
         }}
       >
         <div
-          className="flex flex-col items-center w-full"
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: "rgba(15, 25, 35, 0.6)",
+            pointerEvents: "none",
+          }}
+        />
+        <div
+          className="flex flex-col items-center w-full relative z-10"
           style={{
             maxWidth: "420px",
             paddingLeft: "20px",
@@ -241,12 +251,22 @@ export default function JoinLeaguePage() {
     <main
       className="min-h-screen flex flex-col items-center justify-center p-5 relative overflow-hidden"
       style={{
-        background: "linear-gradient(170deg, #0f1923 0%, #141d2e 35%, #181428 70%, #1a1226 100%)",
+        backgroundImage: 'url(/design-inspiration/CubsFireworkField.jpg)',
+        backgroundSize: "cover",
+        backgroundPosition: "center 30%",
       }}
     >
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: "rgba(15, 25, 35, 0.6)",
+          pointerEvents: "none",
+        }}
+      />
 
       <div
-        className="flex flex-col items-center w-full"
+        className="flex flex-col items-center w-full relative z-10"
         style={{
           maxWidth: "420px",
           paddingLeft: "20px",
