@@ -2082,28 +2082,11 @@ export default function LeagueHomePage() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          backgroundImage: 'url(/design-inspiration/CubsFireworkField.jpg)',
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundAttachment: "fixed",
+          background: "linear-gradient(170deg, #0f1923 0%, #141d2e 35%, #181428 70%, #1a1226 100%)",
           position: "relative",
         }}
-        className="noise-texture"
       >
-        {/* Semi-opaque overlay */}
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: "rgba(15, 25, 35, 0.75)",
-            backdropFilter: "blur(2px)",
-            pointerEvents: "none",
-          }}
-        />
-        <p style={{ color: "rgba(255,255,255,0.8)", position: "relative", zIndex: 1 }}>Loading...</p>
+        <p style={{ color: "rgba(255,255,255,0.8)" }}>Loading...</p>
       </main>
     );
   }
@@ -2118,7 +2101,6 @@ export default function LeagueHomePage() {
           justifyContent: "center",
           background: "linear-gradient(170deg, #0f1923 0%, #141d2e 35%, #181428 70%, #1a1226 100%)",
         }}
-        className="noise-texture"
       >
         <p style={{ color: "rgba(255,255,255,0.5)" }}>League not found</p>
       </main>
@@ -2165,7 +2147,6 @@ export default function LeagueHomePage() {
         background: "linear-gradient(170deg, #0f1923 0%, #141d2e 35%, #181428 70%, #1a1226 100%)",
         overflowX: "hidden",
       }}
-      className="noise-texture"
     >
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
         {/* Back Button */}
@@ -2302,7 +2283,6 @@ export default function LeagueHomePage() {
           alignItems: "center",
           justifyContent: "center",
           zIndex: 1000,
-          backdropFilter: "blur(4px)",
         }}>
           <div style={{
             backgroundColor: "#0f1923",
