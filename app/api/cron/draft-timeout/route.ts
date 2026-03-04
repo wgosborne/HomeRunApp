@@ -19,11 +19,12 @@ const PICK_TIMEOUT_SECONDS = 60;
 export async function POST(request: NextRequest) {
   try {
     // Verify cron secret
-    const authHeader = request.headers.get("Authorization");
-    const cronSecret = process.env.CRON_SECRET;
-
-    if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
-      logger.warn("Unauthorized cron request");
+    const cronSecret = request.headers.get("x-vercel-cron-secret");
+    if (cronSecret !== process.env.CRON_SECRET) {
+      logger.warn("Unauthorized cron request", {
+        provided: !!cronSecret,
+        expected: !!process.env.CRON_SECRET,
+      });
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }

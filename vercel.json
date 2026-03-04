@@ -2,19 +2,23 @@
   "crons": [
     {
       "path": "/api/cron/draft-timeout",
-      "schedule": "* * * * *"
+      "schedule": "* * * * *",
+      "method": "POST"
     },
     {
       "path": "/api/cron/homerun-poll",
-      "schedule": "*/5 * * * *"
+      "schedule": "*/5 * * * *",
+      "method": "POST"
     },
     {
       "path": "/api/cron/trade-expire",
-      "schedule": "*/5 * * * *"
+      "schedule": "*/5 * * * *",
+      "method": "POST"
     },
     {
       "path": "/api/cron/sync-live-games",
-      "schedule": "*/2 * * * *"
+      "schedule": "*/2 * * * *",
+      "method": "POST"
     }
   ]
 }
