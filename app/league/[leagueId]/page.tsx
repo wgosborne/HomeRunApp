@@ -1849,7 +1849,41 @@ export default function LeagueHomePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const params = useParams();
-  const leagueId = params.leagueId as string;
+  const leagueId = params?.leagueId as string | undefined;
+
+  // Show loading if leagueId isn't available yet (iOS Safari timing issue)
+  if (!leagueId) {
+    return (
+      <main
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundImage: 'url(/design-inspiration/CubsFireworkField.jpg)',
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundAttachment: "fixed",
+          position: "relative",
+        }}
+        className="noise-texture"
+      >
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(15, 25, 35, 0.75)",
+            backdropFilter: "blur(2px)",
+            pointerEvents: "none",
+          }}
+        />
+        <p style={{ color: "rgba(255,255,255,0.8)", position: "relative", zIndex: 1 }}>Loading...</p>
+      </main>
+    );
+  }
 
   const [league, setLeague] = useState<League | null>(null);
   const [standings, setStandings] = useState<StandingsEntry[]>([]);
