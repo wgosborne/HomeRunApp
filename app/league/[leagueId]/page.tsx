@@ -1899,6 +1899,17 @@ export default function LeagueHomePage() {
   const [modalError, setModalError] = useState<string | null>(null);
   const [teamNameModalShown, setTeamNameModalShown] = useState(false);
 
+  // Reset state when leagueId changes
+  useEffect(() => {
+    setLeague(null);
+    setStandings([]);
+    setRoster([]);
+    setLoading(true);
+    setActiveTab("leaderboard");
+    setShowTeamNameModal(false);
+    setTeamNameModalShown(false);
+  }, [leagueId]);
+
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/");
@@ -2022,7 +2033,8 @@ export default function LeagueHomePage() {
 
   const fetchLeague = async () => {
     try {
-      const res = await fetch(`/api/leagues/${leagueId}`);
+      // Add cache-buster to prevent mobile browser caching old league data
+      const res = await fetch(`/api/leagues/${leagueId}?t=${Date.now()}`);
       if (res.ok) {
         const data = await res.json();
         setLeague(data);
@@ -2052,6 +2064,12 @@ export default function LeagueHomePage() {
             console.error("Error checking team name modal:", error);
           }
         }
+      } else if (res.status === 404 || res.status === 403) {
+        // League not found or no access - redirect to dashboard
+        console.warn(`League ${leagueId} not found (${res.status}), redirecting to dashboard`);
+        setTimeout(() => router.push("/dashboard"), 500);
+      } else {
+        console.error(`Failed to fetch league: ${res.status}`);
       }
     } catch (error) {
       console.error("Failed to fetch league:", error);
@@ -2062,7 +2080,7 @@ export default function LeagueHomePage() {
 
   const fetchStandings = async () => {
     try {
-      const res = await fetch(`/api/leagues/${leagueId}/standings`);
+      const res = await fetch(`/api/leagues/${leagueId}/standings?t=${Date.now()}`);
       if (res.ok) {
         const data = await res.json();
         setStandings(data);
@@ -2074,7 +2092,7 @@ export default function LeagueHomePage() {
 
   const fetchRoster = async () => {
     try {
-      const res = await fetch(`/api/leagues/${leagueId}/roster`);
+      const res = await fetch(`/api/leagues/${leagueId}/roster?t=${Date.now()}`);
       if (res.ok) {
         const data = await res.json();
         setRoster(data);
