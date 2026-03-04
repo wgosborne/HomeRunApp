@@ -1896,37 +1896,45 @@ export default function LeagueHomePage() {
   }, [activeTab, leagueId]);
 
   useEffect(() => {
-    const channel = pusherClient.subscribe(`draft-${leagueId}`);
+    try {
+      const channel = pusherClient.subscribe(`draft-${leagueId}`);
 
-    const handleDraftStarted = () => {
-      setTimeout(() => {
-        router.push(`/draft/${leagueId}`);
-      }, 500);
-    };
+      const handleDraftStarted = () => {
+        setTimeout(() => {
+          router.push(`/draft/${leagueId}`);
+        }, 500);
+      };
 
-    channel.bind("draft:started", handleDraftStarted);
+      channel.bind("draft:started", handleDraftStarted);
 
-    return () => {
-      channel.unbind("draft:started", handleDraftStarted);
-    };
+      return () => {
+        channel.unbind("draft:started", handleDraftStarted);
+      };
+    } catch (error) {
+      console.error("Error subscribing to draft channel:", error);
+    }
   }, [leagueId, router]);
 
   useEffect(() => {
-    const channel = pusherClient.subscribe(`league-${leagueId}`);
+    try {
+      const channel = pusherClient.subscribe(`league-${leagueId}`);
 
-    const handleHomerun = () => {
-      if (activeTab === "leaderboard") {
-        fetchStandings();
-      } else if (activeTab === "myteam" || activeTab === "players") {
-        fetchRoster();
-      }
-    };
+      const handleHomerun = () => {
+        if (activeTab === "leaderboard") {
+          fetchStandings();
+        } else if (activeTab === "myteam" || activeTab === "players") {
+          fetchRoster();
+        }
+      };
 
-    channel.bind("homerun", handleHomerun);
+      channel.bind("homerun", handleHomerun);
 
-    return () => {
-      channel.unbind("homerun", handleHomerun);
-    };
+      return () => {
+        channel.unbind("homerun", handleHomerun);
+      };
+    } catch (error) {
+      console.error("Error subscribing to league channel:", error);
+    }
   }, [leagueId, activeTab]);
 
   const fetchLeague = async () => {
@@ -1944,15 +1952,21 @@ export default function LeagueHomePage() {
         const isCommissioner = data.commissionerId === session?.user?.id;
         const userMembership = data.memberships.find((m: any) => m.userId === session?.user?.id);
         if (!teamNameModalShown && !isCommissioner && userMembership && userMembership.teamName && userMembership.teamName.endsWith("'s Team")) {
-          const joinedAt = new Date(userMembership.joinedAt).getTime();
-          const now = Date.now();
-          const secondsAgo = (now - joinedAt) / 1000;
+          try {
+            const joinedAtTime = userMembership.joinedAt ? new Date(userMembership.joinedAt).getTime() : null;
+            if (joinedAtTime) {
+              const now = Date.now();
+              const secondsAgo = (now - joinedAtTime) / 1000;
 
-          // Only show modal if joined within last 60 seconds
-          if (secondsAgo < 60) {
-            setModalTeamName(userMembership.teamName);
-            setShowTeamNameModal(true);
-            setTeamNameModalShown(true);
+              // Only show modal if joined within last 60 seconds
+              if (secondsAgo < 60) {
+                setModalTeamName(userMembership.teamName);
+                setShowTeamNameModal(true);
+                setTeamNameModalShown(true);
+              }
+            }
+          } catch (error) {
+            console.error("Error checking team name modal:", error);
           }
         }
       }
