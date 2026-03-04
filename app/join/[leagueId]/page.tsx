@@ -159,41 +159,11 @@ export default function JoinLeaguePage() {
       <main
         className="min-h-screen flex flex-col items-center justify-center p-5 relative overflow-hidden"
         style={{
-          backgroundImage: 'url(/design-inspiration/CubsFireworkField.jpg)',
-          backgroundSize: "cover",
-          backgroundPosition: "center 30%",
-          backgroundAttachment: "fixed",
+          background: "linear-gradient(170deg, #0f1923 0%, #141d2e 35%, #181428 70%, #1a1226 100%)",
         }}
       >
-        {/* Overlay 1: Dark gradient */}
         <div
-          className="absolute inset-0 z-0"
-          style={{
-            background:
-              "linear-gradient(180deg, rgba(6,13,26,0.30) 0%, rgba(6,13,26,0.15) 30%, rgba(6,13,26,0.50) 65%, rgba(6,13,26,0.85) 100%)",
-          }}
-        />
-
-        {/* Overlay 2: Vignette */}
-        <div
-          className="absolute inset-0 z-0"
-          style={{
-            background:
-              "radial-gradient(ellipse at center, transparent 40%, rgba(6,13,26,0.55) 100%)",
-          }}
-        />
-
-        {/* Overlay 3: Red atmospheric glow */}
-        <div
-          className="absolute inset-0 z-0"
-          style={{
-            background:
-              "radial-gradient(ellipse at 50% 120%, rgba(200,16,46,0.10) 0%, transparent 60%)",
-          }}
-        />
-
-        <div
-          className="relative z-10 flex flex-col items-center w-full"
+          className="flex flex-col items-center w-full"
           style={{
             maxWidth: "420px",
             paddingLeft: "20px",
@@ -271,41 +241,12 @@ export default function JoinLeaguePage() {
     <main
       className="min-h-screen flex flex-col items-center justify-center p-5 relative overflow-hidden"
       style={{
-        backgroundImage: 'url(/design-inspiration/CubsFireworkField.jpg)',
-        backgroundSize: "cover",
-        backgroundPosition: "center 30%",
-        backgroundAttachment: "fixed",
+        background: "linear-gradient(170deg, #0f1923 0%, #141d2e 35%, #181428 70%, #1a1226 100%)",
       }}
     >
-      {/* Overlay 1: Dark gradient */}
-      <div
-        className="absolute inset-0 z-0"
-        style={{
-          background:
-            "linear-gradient(180deg, rgba(6,13,26,0.30) 0%, rgba(6,13,26,0.15) 30%, rgba(6,13,26,0.50) 65%, rgba(6,13,26,0.85) 100%)",
-        }}
-      />
-
-      {/* Overlay 2: Vignette */}
-      <div
-        className="absolute inset-0 z-0"
-        style={{
-          background:
-            "radial-gradient(ellipse at center, transparent 40%, rgba(6,13,26,0.55) 100%)",
-        }}
-      />
-
-      {/* Overlay 3: Red atmospheric glow */}
-      <div
-        className="absolute inset-0 z-0"
-        style={{
-          background:
-            "radial-gradient(ellipse at 50% 120%, rgba(200,16,46,0.10) 0%, transparent 60%)",
-        }}
-      />
 
       <div
-        className="relative z-10 flex flex-col items-center w-full"
+        className="flex flex-col items-center w-full"
         style={{
           maxWidth: "420px",
           paddingLeft: "20px",
