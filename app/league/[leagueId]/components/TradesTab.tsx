@@ -144,11 +144,11 @@ export function TradesTab({ leagueId }: { leagueId: string }) {
       case "rejected":
         return { bg: "rgba(200, 16, 46, 0.1)", border: "1px solid rgba(200, 16, 46, 0.3)", text: "#C8102E" };
       case "expired":
-        return { bg: "rgba(245, 230, 200, 0.05)", border: "1px solid rgba(245, 230, 200, 0.15)", text: "rgba(245, 230, 200, 0.6)" };
+        return { bg: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.15)", text: "rgba(255, 255, 255, 0.6)" };
       case "pending":
-        return { bg: "rgba(245, 230, 200, 0.05)", border: "1px solid rgba(245, 230, 200, 0.15)", text: "#F5E6C8" };
+        return { bg: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.15)", text: "#FFFFFF" };
       default:
-        return { bg: "rgba(245, 230, 200, 0.05)", border: "1px solid rgba(255, 255, 255, 0.15)", text: "#F5E6C8" };
+        return { bg: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.15)", text: "#FFFFFF" };
     }
   };
 
@@ -171,7 +171,7 @@ export function TradesTab({ leagueId }: { leagueId: string }) {
   };
 
   if (loading) {
-    return <div className="py-8 text-center" style={{ color: "rgba(245, 230, 200, 0.7)" }}>Loading trades...</div>;
+    return <div className="py-8 text-center" style={{ color: "rgba(255, 255, 255, 0.7)" }}>Loading trades...</div>;
   }
 
   return (
@@ -192,7 +192,7 @@ export function TradesTab({ leagueId }: { leagueId: string }) {
 
       {/* Header with Action */}
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold" style={{ color: "#F5E6C8" }}>
+        <h2 className="text-2xl font-bold" style={{ color: "#FFFFFF" }}>
           Trades
         </h2>
         <button
@@ -200,7 +200,7 @@ export function TradesTab({ leagueId }: { leagueId: string }) {
           className="px-4 py-2 rounded font-semibold text-sm transition"
           style={{
             backgroundColor: showProposalForm ? "rgba(200, 16, 46, 0.3)" : "#C8102E",
-            color: showProposalForm ? "#F5E6C8" : "#0D1F3C",
+            color: showProposalForm ? "#FFFFFF" : "#0D1F3C",
           }}
         >
           {showProposalForm ? "Cancel" : "Propose Trade"}
@@ -228,7 +228,7 @@ export function TradesTab({ leagueId }: { leagueId: string }) {
             className="px-4 py-2 rounded text-sm font-medium transition"
             style={{
               backgroundColor: filter === f ? "#C8102E" : "#162749",
-              color: filter === f ? "#0D1F3C" : "#F5E6C8",
+              color: filter === f ? "#0D1F3C" : "#FFFFFF",
               border: filter === f ? "none" : "1px solid rgba(255, 255, 255, 0.15)",
             }}
           >
@@ -252,7 +252,7 @@ export function TradesTab({ leagueId }: { leagueId: string }) {
           }}
           className="p-4 rounded"
         >
-          <p style={{ color: "#F5E6C8" }} className="font-semibold text-sm">
+          <p style={{ color: "#FFFFFF" }} className="font-semibold text-sm">
             You have {myPendingTrades.length} trade proposal{myPendingTrades.length === 1 ? "" : "s"} awaiting your response
           </p>
         </div>
@@ -267,7 +267,7 @@ export function TradesTab({ leagueId }: { leagueId: string }) {
           }}
           className="p-8 rounded text-center"
         >
-          <p style={{ color: "rgba(245, 230, 200, 0.7)" }}>
+          <p style={{ color: "rgba(255, 255, 255, 0.7)" }}>
             {filter === "pending"
               ? "No pending trades"
               : filter === "completed"
@@ -292,7 +292,7 @@ export function TradesTab({ leagueId }: { leagueId: string }) {
                 {/* Trade Header */}
                 <div className="flex justify-between items-start mb-4">
                   <div>
-                    <p className="font-bold text-sm" style={{ color: "#F5E6C8" }}>
+                    <p className="font-bold text-sm" style={{ color: "#FFFFFF" }}>
                       {trade.owner.name} vs {trade.receiver.name}
                     </p>
                   </div>
@@ -315,12 +315,12 @@ export function TradesTab({ leagueId }: { leagueId: string }) {
                 <div className="grid grid-cols-3 gap-4 mb-4">
                   {/* Owner's Offer */}
                   <div>
-                    <p className="text-xs font-semibold mb-2" style={{ color: "rgba(245, 230, 200, 0.6)" }}>
+                    <p className="text-xs font-semibold mb-2" style={{ color: "rgba(255, 255, 255, 0.6)" }}>
                       {trade.owner.name} offers
                     </p>
-                    <div style={{ backgroundColor: "rgba(245, 230, 200, 0.05)", border: "1px solid rgba(255, 255, 255, 0.15)" }} className="p-3 rounded flex items-center gap-2">
+                    <div style={{ backgroundColor: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.15)" }} className="p-3 rounded flex items-center gap-2">
                       <PlayerAvatar mlbId={trade.ownerPlayerMlbId} playerName={trade.ownerPlayerName} size="md" isYourPlayer={trade.ownerId === session?.user?.id} />
-                      <p className="font-semibold text-sm" style={{ color: "#F5E6C8" }}>
+                      <p className="font-semibold text-sm" style={{ color: "#FFFFFF" }}>
                         {trade.ownerPlayerName}
                       </p>
                     </div>
@@ -328,17 +328,17 @@ export function TradesTab({ leagueId }: { leagueId: string }) {
 
                   {/* Arrow */}
                   <div className="flex items-center justify-center">
-                    <div style={{ color: "rgba(245, 230, 200, 0.4)" }}>↔</div>
+                    <div style={{ color: "rgba(255, 255, 255, 0.4)" }}>↔</div>
                   </div>
 
                   {/* Receiver's Offer */}
                   <div>
-                    <p className="text-xs font-semibold mb-2" style={{ color: "rgba(245, 230, 200, 0.6)" }}>
+                    <p className="text-xs font-semibold mb-2" style={{ color: "rgba(255, 255, 255, 0.6)" }}>
                       {trade.receiver.name} offers
                     </p>
-                    <div style={{ backgroundColor: "rgba(245, 230, 200, 0.05)", border: "1px solid rgba(255, 255, 255, 0.15)" }} className="p-3 rounded flex items-center gap-2">
+                    <div style={{ backgroundColor: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.15)" }} className="p-3 rounded flex items-center gap-2">
                       <PlayerAvatar mlbId={trade.receiverPlayerMlbId} playerName={trade.receiverPlayerName} size="md" isYourPlayer={trade.receiverId === session?.user?.id} />
-                      <p className="font-semibold text-sm" style={{ color: "#F5E6C8" }}>
+                      <p className="font-semibold text-sm" style={{ color: "#FFFFFF" }}>
                         {trade.receiverPlayerName}
                       </p>
                     </div>
@@ -374,7 +374,7 @@ export function TradesTab({ leagueId }: { leagueId: string }) {
                 {/* Timestamp */}
                 <div
                   className="mt-4 pt-4 text-xs"
-                  style={{ borderTop: "1px solid rgba(255, 255, 255, 0.15)", color: "rgba(245, 230, 200, 0.5)" }}
+                  style={{ borderTop: "1px solid rgba(255, 255, 255, 0.15)", color: "rgba(255, 255, 255, 0.5)" }}
                 >
                   Proposed on {new Date(trade.createdAt).toLocaleDateString()} at{" "}
                   {new Date(trade.createdAt).toLocaleTimeString()}
@@ -500,14 +500,14 @@ function TradeProposalForm({
       }}
       className="p-6 rounded-lg"
     >
-      <h3 className="text-lg font-bold mb-4" style={{ color: "#F5E6C8" }}>
+      <h3 className="text-lg font-bold mb-4" style={{ color: "#FFFFFF" }}>
         Propose a Trade
       </h3>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Select Receiver */}
         <div>
-          <label className="block text-sm font-medium mb-1" style={{ color: "rgba(245, 230, 200, 0.7)" }}>
+          <label className="block text-sm font-medium mb-1" style={{ color: "rgba(255, 255, 255, 0.7)" }}>
             Trade with
           </label>
           <select
@@ -518,7 +518,7 @@ function TradeProposalForm({
             className="w-full px-4 py-2 rounded text-sm"
             style={{
               backgroundColor: "#0D1F3C",
-              color: "#F5E6C8",
+              color: "#FFFFFF",
               border: "1px solid rgba(255, 255, 255, 0.15)",
             }}
             required
@@ -534,7 +534,7 @@ function TradeProposalForm({
 
         {/* Your Player */}
         <div>
-          <label className="block text-sm font-medium mb-1" style={{ color: "rgba(245, 230, 200, 0.7)" }}>
+          <label className="block text-sm font-medium mb-1" style={{ color: "rgba(255, 255, 255, 0.7)" }}>
             Your Player
           </label>
           <select
@@ -551,7 +551,7 @@ function TradeProposalForm({
             className="w-full px-4 py-2 rounded text-sm"
             style={{
               backgroundColor: "#0D1F3C",
-              color: "#F5E6C8",
+              color: "#FFFFFF",
               border: "1px solid rgba(255, 255, 255, 0.15)",
             }}
             required
@@ -567,7 +567,7 @@ function TradeProposalForm({
 
         {/* Receiver's Player */}
         <div>
-          <label className="block text-sm font-medium mb-1" style={{ color: "rgba(245, 230, 200, 0.7)" }}>
+          <label className="block text-sm font-medium mb-1" style={{ color: "rgba(255, 255, 255, 0.7)" }}>
             {formData.receiverId
               ? leagueMembers.find((m) => m.userId === formData.receiverId)
                   ?.user?.name + "'s Player"
@@ -589,7 +589,7 @@ function TradeProposalForm({
             className="w-full px-4 py-2 rounded text-sm"
             style={{
               backgroundColor: "#0D1F3C",
-              color: "#F5E6C8",
+              color: "#FFFFFF",
               border: "1px solid rgba(255, 255, 255, 0.15)",
             }}
             required
