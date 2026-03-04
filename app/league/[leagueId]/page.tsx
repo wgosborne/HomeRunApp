@@ -1969,45 +1969,55 @@ export default function LeagueHomePage() {
   }, [activeTab, leagueId]);
 
   useEffect(() => {
-    try {
-      const channel = pusherClient.subscribe(`draft-${leagueId}`);
+    // Delay Pusher subscription to avoid blocking initial render on mobile
+    const timer = setTimeout(() => {
+      try {
+        const channel = pusherClient.subscribe(`draft-${leagueId}`);
 
-      const handleDraftStarted = () => {
-        setTimeout(() => {
-          router.push(`/draft/${leagueId}`);
-        }, 500);
-      };
+        const handleDraftStarted = () => {
+          setTimeout(() => {
+            router.push(`/draft/${leagueId}`);
+          }, 500);
+        };
 
-      channel.bind("draft:started", handleDraftStarted);
+        channel.bind("draft:started", handleDraftStarted);
 
-      return () => {
-        channel.unbind("draft:started", handleDraftStarted);
-      };
-    } catch (error) {
-      console.error("Error subscribing to draft channel:", error);
-    }
+        return () => {
+          channel.unbind("draft:started", handleDraftStarted);
+        };
+      } catch (error) {
+        console.error("Error subscribing to draft channel:", error);
+      }
+    }, 1000);
+
+    return () => clearTimeout(timer);
   }, [leagueId, router]);
 
   useEffect(() => {
-    try {
-      const channel = pusherClient.subscribe(`league-${leagueId}`);
+    // Delay Pusher subscription to avoid blocking initial render on mobile
+    const timer = setTimeout(() => {
+      try {
+        const channel = pusherClient.subscribe(`league-${leagueId}`);
 
-      const handleHomerun = () => {
-        if (activeTab === "leaderboard") {
-          fetchStandings();
-        } else if (activeTab === "myteam" || activeTab === "players") {
-          fetchRoster();
-        }
-      };
+        const handleHomerun = () => {
+          if (activeTab === "leaderboard") {
+            fetchStandings();
+          } else if (activeTab === "myteam" || activeTab === "players") {
+            fetchRoster();
+          }
+        };
 
-      channel.bind("homerun", handleHomerun);
+        channel.bind("homerun", handleHomerun);
 
-      return () => {
-        channel.unbind("homerun", handleHomerun);
-      };
-    } catch (error) {
-      console.error("Error subscribing to league channel:", error);
-    }
+        return () => {
+          channel.unbind("homerun", handleHomerun);
+        };
+      } catch (error) {
+        console.error("Error subscribing to league channel:", error);
+      }
+    }, 1000);
+
+    return () => clearTimeout(timer);
   }, [leagueId, activeTab]);
 
   const fetchLeague = async () => {

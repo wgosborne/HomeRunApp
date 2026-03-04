@@ -113,6 +113,12 @@ export default function JoinLeaguePage() {
             // Successfully joined, redirect to league home
             router.push(`/league/${leagueId}`);
             return;
+          } else if (res.status === 409) {
+            // Already a member - this is success, just redirect
+            // (happens when join succeeds but redirect fails on first attempt)
+            await fetch("/api/invite", { method: "GET" });
+            router.push(`/league/${leagueId}`);
+            return;
           } else if (res.status === 401) {
             // Unauthorized - session might not be ready yet on iOS
             lastError = "Session not ready, retrying...";
