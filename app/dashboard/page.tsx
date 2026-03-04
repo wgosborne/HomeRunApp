@@ -946,27 +946,35 @@ export default function DashboardPage() {
     );
   }
 
-  // Sort games by closest to now (live first, then upcoming)
-  const sortedGames = [...games].sort((a, b) => {
-    // Live games first
-    if (a.status === "Live" && b.status !== "Live") return -1;
-    if (a.status !== "Live" && b.status === "Live") return 1;
-    // Both live or both upcoming - keep original order (API already orders by time)
-    return 0;
-  }).slice(0, 9);
+  // Categorize games by status
+  const liveGames = games.filter((g) => g.status === "Live");
+  const upcomingGames = games
+    .filter((g) => g.status !== "Live" && g.status !== "Final")
+    .slice(0, 8); // up to 8 upcoming in small cards
+  const finalGames = games.filter((g) => g.status === "Final");
 
-  // Find featured game (use selected game if valid, otherwise first live game or first game)
-  let featuredGame = sortedGames[0];
+  // Determine featured game and small games
+  let featuredGame: LiveGame | undefined;
+  let smallGames: LiveGame[] = [];
+
   if (featuredGameId) {
-    const selected = sortedGames.find((g) => g.id === featuredGameId);
-    if (selected) {
-      featuredGame = selected;
-    }
-  } else {
-    // Default to first live game, or first game if none are live
-    featuredGame = sortedGames.find((g) => g.status === "Live") || sortedGames[0];
+    featuredGame = games.find((g) => g.id === featuredGameId);
   }
-  const smallGames = sortedGames.filter((g) => g.id !== featuredGame?.id);
+
+  if (!featuredGame) {
+    if (liveGames.length > 0) {
+      // Live mode: feature first live game, rest of live + upcoming in small
+      featuredGame = liveGames[0];
+      smallGames = [...liveGames.slice(1), ...upcomingGames].slice(0, 8);
+    } else {
+      // No live games: feature most recently ended game, upcoming in small
+      const mostRecentFinal = finalGames[finalGames.length - 1]; // API returns asc by startTime, so last = most recent
+      featuredGame = mostRecentFinal || upcomingGames[0];
+      smallGames = upcomingGames
+        .filter((g) => g.id !== featuredGame?.id)
+        .slice(0, 8);
+    }
+  }
 
   return (
     <main
