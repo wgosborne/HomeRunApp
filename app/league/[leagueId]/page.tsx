@@ -1906,9 +1906,13 @@ export default function LeagueHomePage() {
   }, [status, router]);
 
   useEffect(() => {
-    if (status === "authenticated") {
+    if (status === "authenticated" && session?.user?.id) {
       try {
-        fetchLeague();
+        // Small delay to ensure session is fully established (helps with iOS Safari)
+        const timer = setTimeout(() => {
+          fetchLeague();
+        }, 100);
+
         const interval = setInterval(() => {
           try {
             fetchLeague();
@@ -1916,13 +1920,17 @@ export default function LeagueHomePage() {
             console.error("Error in periodic fetchLeague:", error);
           }
         }, 20000);
-        return () => clearInterval(interval);
+
+        return () => {
+          clearTimeout(timer);
+          clearInterval(interval);
+        };
       } catch (error) {
         console.error("Error initializing league data:", error);
         setLoading(false);
       }
     }
-  }, [status, leagueId]);
+  }, [status, leagueId, session?.user?.id]);
 
   useEffect(() => {
     if (activeTab === "leaderboard") {

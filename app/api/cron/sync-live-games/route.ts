@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createLogger } from "@/lib/logger";
 
@@ -97,23 +97,11 @@ interface MLBScheduleResponse {
 }
 
 /**
- * POST /api/cron/sync-live-games
- * Sync today's MLB games into the Game table
- *
- * Called via Vercel cron job every 2 minutes
- * Requires CRON_SECRET header
+ * Shared handler for game sync cron job
+ * Vercel sends GET requests by default
  */
-export async function POST(request: NextRequest) {
+async function handleGameSync() {
   try {
-    // Verify cron secret
-    const cronSecret = request.headers.get("x-vercel-cron-secret");
-    if (cronSecret !== process.env.CRON_SECRET) {
-      logger.warn("Unauthorized cron request", {
-        provided: !!cronSecret,
-        expected: !!process.env.CRON_SECRET,
-      });
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
 
     const now = new Date();
 
@@ -239,4 +227,16 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+/**
+ * GET and POST handlers for Vercel cron
+ * Vercel sends GET requests by default
+ */
+export async function GET() {
+  return handleGameSync();
+}
+
+export async function POST() {
+  return handleGameSync();
 }

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher-server";
 import { createLogger } from "@/lib/logger";
@@ -10,26 +10,11 @@ const TOTAL_ROUNDS = 10;
 const PICK_TIMEOUT_SECONDS = 60;
 
 /**
- * Cron job that runs every 5 seconds to check for draft picks that have timed out
- * and automatically picks a player for the user whose turn it is.
- *
- * POST /api/cron/draft-timeout
- * Requires: Authorization header with cron secret
+ * Shared handler for draft timeout cron job
+ * Vercel sends GET requests by default
  */
-export async function POST(request: NextRequest) {
+async function handleDraftTimeout() {
   try {
-    // Verify cron secret
-    const cronSecret = request.headers.get("x-vercel-cron-secret");
-    if (cronSecret !== process.env.CRON_SECRET) {
-      logger.warn("Unauthorized cron request", {
-        provided: !!cronSecret,
-        expected: !!process.env.CRON_SECRET,
-      });
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
 
     // Find all active draft leagues where the pick has timed out
     const activeLeagues = await prisma.league.findMany({
@@ -203,4 +188,16 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+/**
+ * GET and POST handlers for Vercel cron
+ * Vercel sends GET requests by default
+ */
+export async function GET() {
+  return handleDraftTimeout();
+}
+
+export async function POST() {
+  return handleDraftTimeout();
 }

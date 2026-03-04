@@ -94,25 +94,51 @@ export default function JoinLeaguePage() {
     setJoining(true);
     setError("");
     try {
-      const res = await fetch(`/api/leagues/${leagueId}/join`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
+      // Retry logic for iOS Safari session timing issues
+      let retries = 3;
+      let lastError = null;
 
-      if (res.ok) {
-        // Clear the invite cookie
-        await fetch("/api/invite", { method: "GET" });
+      while (retries > 0) {
+        try {
+          const res = await fetch(`/api/leagues/${leagueId}/join`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({}),
+          });
 
-        // Successfully joined, redirect to league home
-        router.push(`/league/${leagueId}`);
-      } else {
-        const data = await res.json();
-        setError(data.error || "Failed to join league");
+          if (res.ok) {
+            // Clear the invite cookie
+            await fetch("/api/invite", { method: "GET" });
+
+            // Successfully joined, redirect to league home
+            router.push(`/league/${leagueId}`);
+            return;
+          } else if (res.status === 401) {
+            // Unauthorized - session might not be ready yet on iOS
+            lastError = "Session not ready, retrying...";
+            retries--;
+            if (retries > 0) {
+              // Wait before retry
+              await new Promise(resolve => setTimeout(resolve, 500));
+              continue;
+            }
+          } else {
+            const data = await res.json();
+            setError(data.error || "Failed to join league");
+            return;
+          }
+        } catch (err) {
+          lastError = err;
+          retries--;
+          if (retries > 0) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+            continue;
+          }
+        }
       }
-    } catch (error) {
-      console.error("Failed to join league:", error);
-      setError("Failed to join league");
+
+      // All retries failed
+      setError(lastError instanceof Error ? lastError.message : "Failed to join league after retries");
     } finally {
       setJoining(false);
     }

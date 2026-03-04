@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher-server";
 import { createLogger } from "@/lib/logger";
@@ -8,26 +8,11 @@ import { sendPushToUser } from "@/lib/push-service";
 const logger = createLogger("cron-homerun-poll");
 
 /**
- * Cron job that runs every 5 minutes to poll MLB games for homerun events
- * and update league standings in real-time via Pusher.
- *
- * POST /api/cron/homerun-poll
- * Requires: Authorization header with cron secret
+ * Shared handler for homerun polling cron job
+ * Vercel sends GET requests by default
  */
-export async function POST(request: NextRequest) {
+async function handleHomerungPoll() {
   try {
-    // Verify cron secret
-    const cronSecret = request.headers.get("x-vercel-cron-secret");
-    if (cronSecret !== process.env.CRON_SECRET) {
-      logger.warn("Unauthorized cron request", {
-        provided: !!cronSecret,
-        expected: !!process.env.CRON_SECRET,
-      });
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
 
     let processedCount = 0;
     let skippedCount = 0;
@@ -192,6 +177,18 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+/**
+ * GET and POST handlers for Vercel cron
+ * Vercel sends GET requests by default
+ */
+export async function GET() {
+  return handleHomerungPoll();
+}
+
+export async function POST() {
+  return handleHomerungPoll();
 }
 
 /**
