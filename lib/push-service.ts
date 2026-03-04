@@ -31,7 +31,7 @@ export interface PushNotification {
 }
 
 /**
- * Send push notification to a single user in a specific league
+ * Send push notification to a single user (all their active subscriptions)
  * Returns true if sent successfully, false otherwise
  */
 export async function sendPushToUser(
@@ -40,11 +40,10 @@ export async function sendPushToUser(
   notification: PushNotification
 ): Promise<boolean> {
   try {
-    // Fetch active subscriptions for this user in this league
+    // Fetch active subscriptions for this user (global, not league-specific)
     const subscriptions = await prisma.pushSubscription.findMany({
       where: {
         userId,
-        leagueId,
         isActive: true,
       },
     });
@@ -229,7 +228,6 @@ export async function getUserSubscriptions(userId: string) {
     where: { userId, isActive: true },
     select: {
       id: true,
-      leagueId: true,
       endpoint: true,
       userAgent: true,
       createdAt: true,

@@ -1,6 +1,11 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import {
+  getServiceWorkerRegistration,
+  subscribeUserToPush,
+  isIOSBrowser,
+} from "@/lib/push-utils";
 
 interface NotificationDropdownProps {
   onBellClick: () => void;
@@ -44,8 +49,7 @@ export function NotificationDropdown({ onBellClick }: NotificationDropdownProps)
 
   async function checkSubscriptionStatus() {
     try {
-      if (!("serviceWorker" in navigator)) return;
-      const registration = await navigator.serviceWorker.ready;
+      const registration = await getServiceWorkerRegistration();
       const subscription = await registration.pushManager.getSubscription();
       setIsSubscribed(!!subscription);
     } catch (error) {
@@ -53,57 +57,87 @@ export function NotificationDropdown({ onBellClick }: NotificationDropdownProps)
     }
   }
 
+  // iOS-critical: This function must call Notification.requestPermission()
+  // directly in the click handler with NO async delay before the call
+  async function handleEnableNotifications() {
+    // Step 1: Check if notifications are supported
+    if (!("Notification" in window)) {
+      console.log("[Push] Notifications not supported");
+      return;
+    }
+
+    // Step 2: Check if service worker is supported
+    if (!("serviceWorker" in navigator)) {
+      console.log("[Push] Service worker not supported");
+      return;
+    }
+
+    // Step 3: Check if on iOS Safari browser (not installed app)
+    if (isIOSBrowser()) {
+      alert(
+        "To enable notifications, first add Dingerz to your home screen:\n\n" +
+          "1. Tap Share in Safari\n" +
+          "2. Select Add to Home Screen\n" +
+          "3. Open Dingerz from your home screen\n" +
+          "4. Enable notifications there"
+      );
+      return;
+    }
+
+    // Step 4: Check current permission state
+    if (Notification.permission === "granted") {
+      // Already granted — just ensure subscription exists
+      await subscribeUserToPush();
+      setIsSubscribed(true);
+      return;
+    }
+
+    if (Notification.permission === "denied") {
+      // User previously denied — show message directing them to Settings
+      alert(
+        "Notifications are blocked. Go to Settings > [App Name] and enable notifications."
+      );
+      return;
+    }
+
+    // Step 5: Request permission — THIS must be synchronous in click handler
+    // on iOS. Do not move this behind any await or it will silently fail.
+    const permission = await Notification.requestPermission();
+
+    if (permission === "granted") {
+      await subscribeUserToPush();
+      setIsSubscribed(true);
+    } else {
+      console.log("[Push] Permission denied by user");
+    }
+  }
+
+  async function handleDisableNotifications() {
+    try {
+      const registration = await getServiceWorkerRegistration();
+      const subscription = await registration.pushManager.getSubscription();
+      if (subscription) {
+        await fetch("/api/notifications/unsubscribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ endpoint: subscription.endpoint }),
+        });
+        await subscription.unsubscribe();
+        setIsSubscribed(false);
+      }
+    } catch (error) {
+      console.error("Disable notifications error:", error);
+      throw error;
+    }
+  }
+
   async function handleToggleNotifications() {
     setIsLoading(true);
     try {
       if (isSubscribed) {
-        // Unsubscribe
-        const registration = await navigator.serviceWorker.ready;
-        const subscription = await registration.pushManager.getSubscription();
-        if (subscription) {
-          await fetch("/api/notifications/unsubscribe", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ endpoint: subscription.endpoint }),
-          });
-          await subscription.unsubscribe();
-          setIsSubscribed(false);
-        }
+        await handleDisableNotifications();
       } else {
-        // Subscribe
-        const permission = await Notification.requestPermission();
-        if (permission !== "granted") {
-          alert("Please enable notifications in your browser");
-          setIsLoading(false);
-          return;
-        }
-
-        const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-        if (!vapidKey) {
-          throw new Error("VAPID key not configured");
-        }
-
-        const registration = await navigator.serviceWorker.ready;
-        const subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(vapidKey) as BufferSource,
-        });
-
-        await fetch("/api/notifications/subscribe", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            subscription: {
-              endpoint: subscription.endpoint,
-              keys: {
-                p256dh: arrayBufferToBase64(subscription.getKey("p256dh")),
-                auth: arrayBufferToBase64(subscription.getKey("auth")),
-              },
-            },
-          }),
-        });
-
-        setIsSubscribed(true);
+        await handleEnableNotifications();
       }
     } catch (error) {
       console.error("Toggle notifications error:", error);
@@ -113,29 +147,6 @@ export function NotificationDropdown({ onBellClick }: NotificationDropdownProps)
     } finally {
       setIsLoading(false);
     }
-  }
-
-  function urlBase64ToUint8Array(base64String: string): Uint8Array {
-    const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-    const base64 = (base64String + padding)
-      .replace(/\-/g, "+")
-      .replace(/_/g, "/");
-    const rawData = window.atob(base64);
-    const outputArray = new Uint8Array(rawData.length);
-    for (let i = 0; i < rawData.length; ++i) {
-      outputArray[i] = rawData.charCodeAt(i);
-    }
-    return outputArray;
-  }
-
-  function arrayBufferToBase64(buffer: ArrayBuffer | null): string {
-    if (!buffer) return "";
-    let binary = "";
-    const bytes = new Uint8Array(buffer);
-    for (let i = 0; i < bytes.byteLength; i++) {
-      binary += String.fromCharCode(bytes[i]);
-    }
-    return window.btoa(binary);
   }
 
   if (!isSupported) return null;

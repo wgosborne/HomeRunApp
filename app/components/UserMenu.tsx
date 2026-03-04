@@ -8,6 +8,8 @@ export function UserMenu() {
   const { data: session } = useSession();
   const router = useRouter();
   const [showMenu, setShowMenu] = useState(false);
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [isChecking, setIsChecking] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close menu when clicking outside
@@ -21,6 +23,55 @@ export function UserMenu() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Check for updates on mount
+  useEffect(() => {
+    const checkForUpdates = async () => {
+      try {
+        const response = await fetch("/api/version");
+        const { version } = await response.json();
+        const storedVersion = localStorage.getItem("appVersion");
+
+        if (storedVersion && storedVersion !== version) {
+          setUpdateAvailable(true);
+        }
+        localStorage.setItem("appVersion", version);
+      } catch (error) {
+        console.error("Failed to check for updates:", error);
+      }
+    };
+
+    checkForUpdates();
+  }, []);
+
+  const handleCheckForUpdates = async () => {
+    setIsChecking(true);
+    try {
+      // Clear all caches
+      if ("caches" in window) {
+        const cacheNames = await caches.keys();
+        await Promise.all(cacheNames.map((name) => caches.delete(name)));
+      }
+
+      // Check version
+      const response = await fetch("/api/version");
+      const { version } = await response.json();
+      const storedVersion = localStorage.getItem("appVersion");
+
+      if (storedVersion && storedVersion !== version) {
+        setUpdateAvailable(true);
+      }
+      localStorage.setItem("appVersion", version);
+
+      // Hard refresh (clear cache and reload)
+      window.location.href = window.location.href;
+    } catch (error) {
+      console.error("Failed to check for updates:", error);
+      alert("Failed to check for updates. Please try again.");
+    } finally {
+      setIsChecking(false);
+    }
+  };
 
   if (!session?.user) return null;
 
@@ -145,6 +196,46 @@ export function UserMenu() {
               }}
             >
               Profile
+            </button>
+
+            {/* Check for Updates */}
+            <button
+              onClick={handleCheckForUpdates}
+              disabled={isChecking}
+              style={{
+                width: "100%",
+                background: "none",
+                border: "none",
+                padding: "10px 12px",
+                borderRadius: "6px",
+                cursor: isChecking ? "not-allowed" : "pointer",
+                textAlign: "left",
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: "13px",
+                color: updateAvailable
+                  ? "rgba(255, 200, 100, 0.9)"
+                  : "rgba(255, 255, 255, 0.8)",
+                transition: "all 0.2s",
+                marginBottom: "6px",
+                opacity: isChecking ? 0.6 : 1,
+              }}
+              onMouseEnter={(e) => {
+                if (!isChecking) {
+                  e.currentTarget.style.backgroundColor = "rgba(204, 52, 51, 0.2)";
+                  e.currentTarget.style.color = updateAvailable
+                    ? "rgba(255, 200, 100, 1)"
+                    : "white";
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "transparent";
+                e.currentTarget.style.color = updateAvailable
+                  ? "rgba(255, 200, 100, 0.9)"
+                  : "rgba(255, 255, 255, 0.8)";
+              }}
+            >
+              {isChecking ? "Checking..." : "Check for Updates"}
+              {updateAvailable && " ●"}
             </button>
 
             {/* Sign Out */}

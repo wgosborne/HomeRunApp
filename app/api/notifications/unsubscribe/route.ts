@@ -7,11 +7,11 @@ const logger = createLogger('api-notifications-unsubscribe');
 
 /**
  * POST /api/notifications/unsubscribe
- * Unsubscribe user from push notifications for a league
+ * Unsubscribe user from push notifications (global)
+ * Removes a specific subscription endpoint
  *
  * Request body:
  * {
- *   leagueId: string,
  *   endpoint: string  // push subscription endpoint to remove
  * }
  */
@@ -41,48 +41,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { leagueId, endpoint } = data;
+    const { endpoint } = data;
 
     // Validate required fields
-    if (!leagueId || !endpoint) {
-      logger.warn('Missing required fields', { leagueId: !!leagueId, endpoint: !!endpoint });
+    if (!endpoint) {
+      logger.warn('Missing endpoint in request body', { userId });
       return NextResponse.json(
-        { error: 'Missing leagueId or endpoint' },
+        { error: 'Missing endpoint in request body' },
         { status: 400 }
-      );
-    }
-
-    // Verify user is member of this league
-    const membership = await prisma.leagueMembership.findUnique({
-      where: {
-        userId_leagueId: {
-          userId,
-          leagueId,
-        },
-      },
-    });
-
-    if (!membership) {
-      logger.warn('User not member of league', { userId, leagueId });
-      return NextResponse.json(
-        { error: 'Not a member of this league' },
-        { status: 403 }
       );
     }
 
     // Find and delete subscription
     const subscription = await prisma.pushSubscription.findUnique({
       where: {
-        userId_leagueId_endpoint: {
+        userId_endpoint: {
           userId,
-          leagueId,
           endpoint,
         },
       },
     });
 
     if (!subscription) {
-      logger.warn('Subscription not found', { userId, leagueId, endpoint });
+      logger.warn('Subscription not found', { userId, endpoint });
       return NextResponse.json(
         { error: 'Subscription not found' },
         { status: 404 }
@@ -96,8 +77,8 @@ export async function POST(request: NextRequest) {
 
     logger.info('User unsubscribed from push notifications', {
       userId,
-      leagueId,
       subscriptionId: subscription.id,
+      endpoint,
     });
 
     return NextResponse.json(

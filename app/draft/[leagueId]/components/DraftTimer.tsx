@@ -82,7 +82,7 @@ export function DraftTimer({
           fontStyle: "italic",
         }}
       >
-        {!isCurrentPicker ? "Waiting for other picker..." : isCurrentPicker && displayTime <= 10 ? "⏰ Hurry!" : ""}
+        {!isCurrentPicker ? "Waiting for other picker..." : isCurrentPicker && displayTime <= 10 ? "Hurry!" : ""}
       </div>
     </div>
   );

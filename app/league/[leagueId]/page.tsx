@@ -1583,6 +1583,7 @@ function SettingsTab({
             backgroundColor: "rgba(255,255,255,0.04)",
             border: "1px solid rgba(255,255,255,0.07)",
             padding: "20px",
+            overflow: "hidden",
           }}>
             <h3 style={{
               fontFamily: "'Exo 2', sans-serif",
@@ -1593,7 +1594,7 @@ function SettingsTab({
             }}>
               Draft Date
             </h3>
-            <div style={{ marginBottom: "16px" }}>
+            <div style={{ marginBottom: "16px", minWidth: 0 }}>
               <label style={{
                 fontFamily: "'DM Sans', sans-serif",
                 fontSize: "12px",
@@ -1612,6 +1613,7 @@ function SettingsTab({
                 onChange={(e) => setDraftDate(e.target.value)}
                 style={{
                   width: "100%",
+                  maxWidth: "100%",
                   padding: "12px 16px",
                   borderRadius: "8px",
                   backgroundColor: "rgba(255,255,255,0.08)",
@@ -1620,6 +1622,8 @@ function SettingsTab({
                   fontFamily: "'DM Sans', sans-serif",
                   fontSize: "14px",
                   boxSizing: "border-box",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
                 }}
                 onFocus={(e) => {
                   e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.12)";

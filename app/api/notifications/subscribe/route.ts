@@ -7,11 +7,11 @@ const logger = createLogger('api-notifications-subscribe');
 
 /**
  * POST /api/notifications/subscribe
- * Subscribe user to push notifications for a league
+ * Subscribe user to push notifications (global, cross-league)
+ * Subscriptions are user-wide, so users get notifications for all leagues they're in
  *
  * Request body:
  * {
- *   leagueId: string,
  *   subscription: {
  *     endpoint: string,
  *     keys: { p256dh: string, auth: string }
@@ -44,59 +44,39 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { leagueId, subscription } = data;
+    const { subscription } = data;
 
     // Validate required fields
-    if (!leagueId || !subscription) {
-      logger.warn('Missing required fields', { leagueId: !!leagueId, subscription: !!subscription });
+    if (!subscription) {
+      logger.warn('Missing subscription in request body', { userId });
       return NextResponse.json(
-        { error: 'Missing leagueId or subscription' },
+        { error: 'Missing subscription in request body' },
         { status: 400 }
       );
     }
 
     if (!subscription.endpoint || !subscription.keys?.p256dh || !subscription.keys?.auth) {
-      logger.warn('Invalid subscription object', { userId, leagueId });
+      logger.warn('Invalid subscription object - missing endpoint or keys', { userId });
       return NextResponse.json(
         { error: 'Invalid subscription object - missing endpoint or keys' },
         { status: 400 }
       );
     }
 
-    // Verify user is member of this league
-    const membership = await prisma.leagueMembership.findUnique({
-      where: {
-        userId_leagueId: {
-          userId,
-          leagueId,
-        },
-      },
-    });
-
-    if (!membership) {
-      logger.warn('User not member of league', { userId, leagueId });
-      return NextResponse.json(
-        { error: 'Not a member of this league' },
-        { status: 403 }
-      );
-    }
-
     // Get user agent for device identification
     const userAgent = request.headers.get('user-agent') || undefined;
 
-    // Save or update subscription
+    // Save or update subscription (user-wide)
     // Using upsert to handle duplicate subscriptions (same device, re-subscribing)
     const pushSubscription = await prisma.pushSubscription.upsert({
       where: {
-        userId_leagueId_endpoint: {
+        userId_endpoint: {
           userId,
-          leagueId,
           endpoint: subscription.endpoint,
         },
       },
       create: {
         userId,
-        leagueId,
         endpoint: subscription.endpoint,
         p256dh: subscription.keys.p256dh,
         auth: subscription.keys.auth,
@@ -104,6 +84,8 @@ export async function POST(request: NextRequest) {
         isActive: true,
       },
       update: {
+        p256dh: subscription.keys.p256dh,
+        auth: subscription.keys.auth,
         isActive: true,
         userAgent,
       },
@@ -111,8 +93,8 @@ export async function POST(request: NextRequest) {
 
     logger.info('User subscribed to push notifications', {
       userId,
-      leagueId,
       subscriptionId: pushSubscription.id,
+      endpoint: subscription.endpoint,
     });
 
     return NextResponse.json(

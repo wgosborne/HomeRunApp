@@ -312,7 +312,7 @@ export function TradesTab({ leagueId }: { leagueId: string }) {
                 </div>
 
                 {/* Trade Details */}
-                <div className="grid grid-cols-3 gap-4 mb-4">
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "16px" }}>
                   {/* Owner's Offer */}
                   <div>
                     <p className="text-xs font-semibold mb-2" style={{ color: "rgba(255, 255, 255, 0.6)" }}>
@@ -320,9 +320,11 @@ export function TradesTab({ leagueId }: { leagueId: string }) {
                     </p>
                     <div style={{ backgroundColor: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.15)" }} className="p-3 rounded flex items-center gap-2">
                       <PlayerAvatar mlbId={trade.ownerPlayerMlbId} playerName={trade.ownerPlayerName} size="md" isYourPlayer={trade.ownerId === session?.user?.id} />
-                      <p className="font-semibold text-sm" style={{ color: "#FFFFFF" }}>
-                        {trade.ownerPlayerName}
-                      </p>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p className="font-semibold text-sm" style={{ color: "#FFFFFF", wordWrap: "break-word" }}>
+                          {trade.ownerPlayerName}
+                        </p>
+                      </div>
                     </div>
                   </div>
 
@@ -338,9 +340,11 @@ export function TradesTab({ leagueId }: { leagueId: string }) {
                     </p>
                     <div style={{ backgroundColor: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.15)" }} className="p-3 rounded flex items-center gap-2">
                       <PlayerAvatar mlbId={trade.receiverPlayerMlbId} playerName={trade.receiverPlayerName} size="md" isYourPlayer={trade.receiverId === session?.user?.id} />
-                      <p className="font-semibold text-sm" style={{ color: "#FFFFFF" }}>
-                        {trade.receiverPlayerName}
-                      </p>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p className="font-semibold text-sm" style={{ color: "#FFFFFF", wordWrap: "break-word" }}>
+                          {trade.receiverPlayerName}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>

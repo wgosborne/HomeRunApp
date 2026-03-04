@@ -379,7 +379,7 @@ export function DraftRoom({ leagueId, userId }: DraftRoomProps) {
                 color: "#86efac",
               }}
             >
-              ✓ Draft Complete!
+              Draft Complete!
             </div>
           </div>
         )}
@@ -569,7 +569,7 @@ export function DraftRoom({ leagueId, userId }: DraftRoomProps) {
                     textShadow: "0 0 12px rgba(34,197,94,0.5)",
                   }}
                 >
-                  ✓ Draft Complete!
+                  Draft Complete!
                 </div>
                 <p
                   style={{

@@ -102,7 +102,6 @@ export async function DELETE(
     // Delete member's push subscriptions
     await prisma.pushSubscription.deleteMany({
       where: {
-        leagueId: leagueId,
         userId: userId,
       },
     });
