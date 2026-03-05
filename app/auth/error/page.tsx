@@ -1,6 +1,10 @@
+"use client";
+
 import { Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+
+export const dynamic = "force-dynamic";
 
 function ErrorContent() {
   const searchParams = useSearchParams();
