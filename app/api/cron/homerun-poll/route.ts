@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher-server";
 import { createLogger } from "@/lib/logger";
-import { fetchTodaysGames, fetchGameHomeruns } from "@/lib/mlb-stats";
+import { fetchTodaysGames, fetchGameHomeruns, getPlayerJerseyNumber } from "@/lib/mlb-stats";
 import { sendPushToUser } from "@/lib/push-service";
 
 const logger = createLogger("cron-homerun-poll");
@@ -55,6 +55,12 @@ async function handleHomerungPoll() {
 
             for (const spot of rosterSpots) {
               try {
+                // Fetch jersey number if we have mlbId
+                let jerseyNumber: number | null = null;
+                if (homerun.mlbId) {
+                  jerseyNumber = await getPlayerJerseyNumber(homerun.mlbId);
+                }
+
                 // Create homerun event record
                 await prisma.homerrunEvent.create({
                   data: {
@@ -62,6 +68,7 @@ async function handleHomerungPoll() {
                     playerId: homerun.playerId,
                     playerName: homerun.playerName,
                     mlbId: homerun.mlbId,
+                    jerseyNumber: jerseyNumber,
                     playByPlayId: homerun.playByPlayId,
                     gameId: homerun.gameId,
                     gameDate: homerun.gameDate,

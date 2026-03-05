@@ -973,6 +973,11 @@ export default function DashboardPage() {
         .filter((g) => g.id !== featuredGame?.id)
         .slice(0, 8);
     }
+  } else {
+    // User selected a specific game - show other games in small cards
+    smallGames = games
+      .filter((g) => g.id !== featuredGame?.id)
+      .slice(0, 8);
   }
 
   return (

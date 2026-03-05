@@ -10,7 +10,7 @@ export interface ApiHomerun {
   playerName: string;
   mlbTeam: string;
   mlbId: number | null;
-  hrNumber: number;
+  hrNumber: number | null;
   game: string;
   leagueName: string;
   ownerName: string;
@@ -111,7 +111,7 @@ export async function GET() {
         playerName: event.playerName,
         mlbTeam: event.team || "Unknown",
         mlbId: event.mlbId,
-        hrNumber: event.inning, // Using inning as a placeholder for HR number
+        hrNumber: event.jerseyNumber,
         game: `${event.homeTeam || ""} vs ${event.awayTeam || ""}`.trim(),
         leagueName: event.league.name,
         ownerName: owner?.name || "Unknown",

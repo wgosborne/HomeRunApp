@@ -36,6 +36,7 @@ export interface HomerrunPlay {
   playerId: string; // matchup.batter.id as string
   mlbId: number; // matchup.batter.id as number
   playerName: string; // matchup.batter.fullName
+  jerseyNumber?: number; // Player's jersey number
   team: string; // matchup.batTeam.name
   homeTeam: string;
   awayTeam: string;
@@ -96,6 +97,9 @@ const cache: Record<
     timestamp: number;
   }
 > = {};
+
+// Jersey number cache (player ID -> jersey number)
+const jerseyNumberCache: Record<number, number | null> = {};
 
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
@@ -283,6 +287,56 @@ export async function getPlayerDetails(playerId: string): Promise<MLBPlayer | nu
     };
   } catch (error) {
     logger.debug("Failed to fetch player from MLB people endpoint", { playerId, error });
+    return null;
+  }
+}
+
+/**
+ * Fetch a player's jersey number from MLB API
+ * Caches results to avoid repeated API calls
+ */
+export async function getPlayerJerseyNumber(mlbId: number): Promise<number | null> {
+  // Check cache first
+  if (mlbId in jerseyNumberCache) {
+    return jerseyNumberCache[mlbId];
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+
+    const response = await fetch(
+      `https://statsapi.mlb.com/api/v1/people/${mlbId}`,
+      {
+        headers: {
+          "User-Agent": "FantasyBaseball/1.0",
+        },
+        signal: controller.signal,
+      }
+    );
+
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      jerseyNumberCache[mlbId] = null;
+      return null;
+    }
+
+    const data = (await response.json()) as {
+      people?: Array<{
+        id: number;
+        primaryNumber?: string;
+      }>;
+    };
+
+    const person = data.people?.[0];
+    const jerseyNum = person?.primaryNumber ? parseInt(person.primaryNumber, 10) : null;
+
+    jerseyNumberCache[mlbId] = jerseyNum || null;
+    return jerseyNum || null;
+  } catch (error) {
+    logger.debug("Failed to fetch jersey number", { mlbId, error });
+    jerseyNumberCache[mlbId] = null;
     return null;
   }
 }

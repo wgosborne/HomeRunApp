@@ -169,6 +169,7 @@ model HomerrunEvent {
   playerId              String
   playerName            String
   mlbId                 Int?         // MLB player ID for headshot URL
+  jerseyNumber          Int?         // Player's jersey number
   playByPlayId          String       @unique
   gameId                String
   gameDate              DateTime
