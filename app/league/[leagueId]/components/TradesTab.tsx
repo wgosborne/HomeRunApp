@@ -34,7 +34,13 @@ interface Trade {
 
 type TradeFilter = "pending" | "completed" | "all";
 
-export function TradesTab({ leagueId }: { leagueId: string }) {
+export function TradesTab({
+  leagueId,
+  isSeasonEnded = false,
+}: {
+  leagueId: string;
+  isSeasonEnded?: boolean;
+}) {
   const { data: session } = useSession();
   const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(true);
@@ -190,25 +196,50 @@ export function TradesTab({ leagueId }: { leagueId: string }) {
         </div>
       )}
 
+      {/* Season Ended Lock Message */}
+      {isSeasonEnded && (
+        <div
+          style={{
+            borderRadius: "12px",
+            backgroundColor: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.07)",
+            padding: "16px",
+            textAlign: "center",
+          }}
+        >
+          <p
+            style={{
+              color: "rgba(255,255,255,0.5)",
+              fontSize: "13px",
+              fontFamily: "'DM Sans', sans-serif",
+            }}
+          >
+            The season has ended. Trade history is read-only.
+          </p>
+        </div>
+      )}
+
       {/* Header with Action */}
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold" style={{ color: "#FFFFFF" }}>
           Trades
         </h2>
-        <button
-          onClick={() => setShowProposalForm(!showProposalForm)}
-          className="px-4 py-2 rounded font-semibold text-sm transition"
-          style={{
-            backgroundColor: showProposalForm ? "rgba(200, 16, 46, 0.3)" : "#C8102E",
-            color: showProposalForm ? "#FFFFFF" : "#0D1F3C",
-          }}
-        >
-          {showProposalForm ? "Cancel" : "Propose Trade"}
-        </button>
+        {!isSeasonEnded && (
+          <button
+            onClick={() => setShowProposalForm(!showProposalForm)}
+            className="px-4 py-2 rounded font-semibold text-sm transition"
+            style={{
+              backgroundColor: showProposalForm ? "rgba(200, 16, 46, 0.3)" : "#C8102E",
+              color: showProposalForm ? "#FFFFFF" : "#0D1F3C",
+            }}
+          >
+            {showProposalForm ? "Cancel" : "Propose Trade"}
+          </button>
+        )}
       </div>
 
       {/* Proposal Form */}
-      {showProposalForm && (
+      {!isSeasonEnded && showProposalForm && (
         <TradeProposalForm
           leagueId={leagueId}
           onSuccess={() => {

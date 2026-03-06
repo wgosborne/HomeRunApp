@@ -120,6 +120,16 @@ export async function POST(
       throw new AuthorizationError("You are not a member of this league");
     }
 
+    // Check if season has ended
+    const league = await prisma.league.findUnique({
+      where: { id: leagueId },
+      select: { seasonEndedAt: true },
+    });
+
+    if (league?.seasonEndedAt) {
+      throw new ConflictError("The season has ended. Trades are closed.");
+    }
+
     // Verify receiver exists and is member of league
     const receiverMembership = await prisma.leagueMembership.findUnique({
       where: {

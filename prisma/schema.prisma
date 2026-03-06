@@ -29,6 +29,7 @@ model User {
   trades                Trade[]
   tradeResponses        Trade[]        @relation("tradeReceiver")
   pushSubscriptions     PushSubscription[]
+  wonLeagues            League[]       @relation("leagueWinner")
   accounts              Account[]
   sessions              Session[]
 }
@@ -66,9 +67,11 @@ model League {
   draftCompletedAt      DateTime?
   currentPickStartedAt  DateTime?    // set when pick turn starts, reset on each pick
   tradeDeadline         DateTime?
+  seasonEndedAt         DateTime?    // set when commissioner ends season
   scoringFormat         String       @default("homerun_only")
   maxTradeVetoVotes     Int          @default(2)
   maxTeamSize           Int          @default(25)
+  winnerId              String?      // userId of the winner
   createdAt             DateTime     @default(now())
   updatedAt             DateTime     @updatedAt
 
@@ -79,6 +82,7 @@ model League {
   homeruns              HomerrunEvent[]
   trades                Trade[]
   settings              LeagueSettings?
+  winner                User?        @relation("leagueWinner", fields: [winnerId], references: [id])
 
   @@index([commissionerId])
   @@index([draftDate])

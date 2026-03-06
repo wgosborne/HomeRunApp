@@ -50,6 +50,9 @@ export async function GET(
           },
         },
         settings: true,
+        winner: {
+          select: { id: true, name: true, image: true },
+        },
       },
     });
 

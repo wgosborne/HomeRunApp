@@ -16,6 +16,7 @@ interface League {
   teamName?: string;
   memberships: any[];
   draftStatus?: string;
+  seasonEndedAt?: string;
   userRank?: number;
 }
 
@@ -1035,6 +1036,59 @@ export default function DashboardPage() {
               )}
             </div>
           </>
+        )}
+
+        {!featuredGame && (
+          <div style={{ padding: "0 16px 16px" }}>
+            <SectionHeader label="Live Games" />
+            <div
+              style={{
+                borderRadius: "14px",
+                backgroundColor: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.07)",
+                padding: "24px",
+                textAlign: "center",
+              }}
+            >
+              {leagues.some((l) => l.seasonEndedAt) ? (
+                <>
+                  <p style={{ fontSize: "24px", marginBottom: "8px" }}>
+                    ⚾
+                  </p>
+                  <p
+                    style={{
+                      fontFamily: "'Exo 2'",
+                      fontSize: "16px",
+                      fontWeight: 700,
+                      color: "white",
+                    }}
+                  >
+                    Season Complete
+                  </p>
+                  <p
+                    style={{
+                      fontFamily: "'DM Sans'",
+                      fontSize: "13px",
+                      color: "rgba(255,255,255,0.5)",
+                      marginTop: "4px",
+                    }}
+                  >
+                    See you in April!
+                  </p>
+                </>
+              ) : (
+                <p
+                  style={{
+                    fontFamily: "'DM Sans'",
+                    fontSize: "13px",
+                    color: "rgba(255,255,255,0.4)",
+                  }}
+                >
+                  No games scheduled today
+                </p>
+              )}
+            </div>
+          </div>
         )}
 
         {/* Recent homeruns section */}

@@ -53,6 +53,16 @@ export async function POST(
       throw new NotFoundError("Trade not found");
     }
 
+    // Check if season has ended
+    const league = await prisma.league.findUnique({
+      where: { id: leagueId },
+      select: { seasonEndedAt: true },
+    });
+
+    if (league?.seasonEndedAt) {
+      throw new ConflictError("The season has ended. Trades are closed.");
+    }
+
     // Only the receiver can accept
     if (user.id !== trade.receiverId) {
       throw new AuthorizationError("Only the trade receiver can accept this trade");
