@@ -2245,7 +2245,7 @@ export default function LeagueHomePage() {
           </p>
 
           {/* Draft Date Display */}
-          {league.draftDate && (
+          {league.draftDate && league.draftStatus !== "complete" && (
             <p style={{
               fontFamily: "'DM Sans', sans-serif",
               fontSize: "12px",
