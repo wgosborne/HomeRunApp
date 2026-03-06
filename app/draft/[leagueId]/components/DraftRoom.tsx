@@ -62,6 +62,7 @@ export function DraftRoom({ leagueId, userId }: DraftRoomProps) {
   const [playersLoaded, setPlayersLoaded] = useState(false);
   const [allContentLoaded, setAllContentLoaded] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [autopickFiredForPick, setAutopickFiredForPick] = useState<number | null>(null); // Track which pick triggered autopick
 
   // Fetch draft status
   const fetchStatus = useCallback(async () => {
@@ -144,6 +145,67 @@ export function DraftRoom({ leagueId, userId }: DraftRoomProps) {
       channel.unbind("draft:reset", handleDraftReset);
     };
   }, [leagueId, router, fetchStatus]);
+
+  // Client-side autopick trigger: Fire exactly when timer hits 0
+  useEffect(() => {
+    // Only trigger if:
+    // 1. Draft is active
+    // 2. Timer hit 0
+    // 3. We haven't already fired autopick for this pick
+    // 4. It's not the current user's turn (they can still pick manually)
+    if (
+      status &&
+      status.isDraftActive &&
+      status.timeRemainingSeconds === 0 &&
+      status.currentPickNumber &&
+      autopickFiredForPick !== status.currentPickNumber &&
+      status.currentPickerId !== userId // Don't autopick if it's your turn
+    ) {
+      console.log(
+        `[DRAFT-ROOM-AUTOPICK] ⏱️ TIMER HIT 0! Triggering autopick for pick ${status.currentPickNumber}`
+      );
+
+      setAutopickFiredForPick(status.currentPickNumber); // Mark this pick as processed
+
+      (async () => {
+        try {
+          console.log(
+            `[DRAFT-ROOM-AUTOPICK] Calling /api/draft/${leagueId}/autopick`
+          );
+          const response = await fetch(`/api/draft/${leagueId}/autopick`, {
+            method: "POST",
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            // Could fail if pick already made by cron, that's ok
+            console.log(
+              `[DRAFT-ROOM-AUTOPICK] Autopick request returned ${response.status}: ${
+                errorData.error || "Unknown error"
+              }`
+            );
+            return;
+          }
+
+          const result = await response.json();
+          console.log("[DRAFT-ROOM-AUTOPICK] ✓ Client-side autopick successful:", result);
+
+          // Fetch updated status to show the new pick
+          setTimeout(() => {
+            console.log(
+              "[DRAFT-ROOM-AUTOPICK] Fetching updated status after autopick"
+            );
+            fetchStatus();
+          }, 100);
+        } catch (err) {
+          const errMsg =
+            err instanceof Error ? err.message : "Unknown error";
+          console.error("[DRAFT-ROOM-AUTOPICK] Error triggering autopick:", errMsg);
+          // Don't show error to user - this is a backup trigger, if it fails the cron will handle it
+        }
+      })();
+    }
+  }, [status, userId, leagueId, autopickFiredForPick, fetchStatus]);
 
   // Determine if all UI content has loaded (for timer display)
   useEffect(() => {
