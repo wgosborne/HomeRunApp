@@ -31,7 +31,7 @@ export default function CreateLeaguePage() {
       <div
         style={{
           minHeight: "100vh",
-          backgroundImage: 'url(/design-inspiration/CubsFireworkField.jpg)',
+          backgroundImage: "url(/design-inspiration/CubsFireworkField.jpg)",
           backgroundSize: "cover",
           backgroundPosition: "center",
           backgroundAttachment: "fixed",
@@ -54,7 +54,15 @@ export default function CreateLeaguePage() {
             pointerEvents: "none",
           }}
         />
-        <div style={{ color: "rgba(255,255,255,0.8)", position: "relative", zIndex: 1 }}>Loading...</div>
+        <div
+          style={{
+            color: "rgba(255,255,255,0.8)",
+            position: "relative",
+            zIndex: 1,
+          }}
+        >
+          Loading...
+        </div>
       </div>
     );
   }
@@ -104,7 +112,13 @@ export default function CreateLeaguePage() {
   };
 
   return (
-    <div style={{ backgroundColor: "#0f1923", minHeight: "100vh", paddingBottom: "40px" }}>
+    <div
+      style={{
+        backgroundColor: "#0f1923",
+        minHeight: "100vh",
+        paddingBottom: "40px",
+      }}
+    >
       {/* Header */}
       <div
         style={{
@@ -152,7 +166,8 @@ export default function CreateLeaguePage() {
             style={{
               borderRadius: "20px",
               padding: "32px 24px",
-              background: "linear-gradient(145deg, #0e2a6e 0%, #1a3f9c 55%, #0f2660 100%)",
+              background:
+                "linear-gradient(145deg, #0e2a6e 0%, #1a3f9c 55%, #0f2660 100%)",
               boxShadow: shadowStack,
               overflow: "hidden",
               position: "relative",
@@ -167,7 +182,8 @@ export default function CreateLeaguePage() {
                 borderRadius: "50%",
                 top: "-50px",
                 right: "-50px",
-                background: "radial-gradient(circle, rgba(255,255,255,0.04) 0%, transparent 70%)",
+                background:
+                  "radial-gradient(circle, rgba(255,255,255,0.04) 0%, transparent 70%)",
                 pointerEvents: "none",
               }}
             />
@@ -179,7 +195,8 @@ export default function CreateLeaguePage() {
                 borderRadius: "50%",
                 bottom: "-30px",
                 left: "-40px",
-                background: "radial-gradient(circle, rgba(204,52,51,0.07) 0%, transparent 70%)",
+                background:
+                  "radial-gradient(circle, rgba(204,52,51,0.07) 0%, transparent 70%)",
                 pointerEvents: "none",
               }}
             />
@@ -192,7 +209,8 @@ export default function CreateLeaguePage() {
                 left: 0,
                 right: 0,
                 height: "3px",
-                background: "linear-gradient(90deg, #CC3433 0%, rgba(204,52,51,0.3) 60%, transparent 100%)",
+                background:
+                  "linear-gradient(90deg, #CC3433 0%, rgba(204,52,51,0.3) 60%, transparent 100%)",
               }}
             />
 
@@ -327,14 +345,21 @@ export default function CreateLeaguePage() {
                     fontFamily: "'DM Sans', sans-serif",
                     fontSize: "14px",
                     boxSizing: "border-box",
+                    maxWidth: "100%",
+                    WebkitAppearance: "none",
+                    appearance: "none",
                   }}
                   onFocus={(e) => {
-                    e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.12)";
-                    e.currentTarget.style.borderColor = "rgba(255,255,255,0.25)";
+                    e.currentTarget.style.backgroundColor =
+                      "rgba(255,255,255,0.12)";
+                    e.currentTarget.style.borderColor =
+                      "rgba(255,255,255,0.25)";
                   }}
                   onBlur={(e) => {
-                    e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.08)";
-                    e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)";
+                    e.currentTarget.style.backgroundColor =
+                      "rgba(255,255,255,0.08)";
+                    e.currentTarget.style.borderColor =
+                      "rgba(255,255,255,0.15)";
                   }}
                 />
                 <p
@@ -407,7 +432,8 @@ export default function CreateLeaguePage() {
                     fontWeight: 600,
                     textTransform: "uppercase",
                     letterSpacing: "1px",
-                    cursor: loading || !leagueName.trim() ? "not-allowed" : "pointer",
+                    cursor:
+                      loading || !leagueName.trim() ? "not-allowed" : "pointer",
                     opacity: loading || !leagueName.trim() ? 0.6 : 1,
                   }}
                 >
