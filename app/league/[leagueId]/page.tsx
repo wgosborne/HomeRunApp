@@ -85,11 +85,40 @@ const shadowStack = `
 // Leaderboard Tab
 function LeaderboardTab({ standings, loading, leagueId }: { standings: StandingsEntry[]; loading: boolean; leagueId: string }) {
   const [todayTopStandings, setTodayTopStandings] = useState<StandingsEntry[]>([]);
+  const [todayHomersPerUser, setTodayHomersPerUser] = useState<Map<string, number>>(new Map());
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    setTodayTopStandings([...standings].sort(() => Math.random() - 0.5));
-  }, [standings]);
+    const fetchTodayHomeruns = async () => {
+      try {
+        const res = await fetch(`/api/leagues/${leagueId}/homeruns/today`);
+        if (!res.ok) throw new Error("Failed to fetch today's homeruns");
+
+        const homeruns = await res.json();
+
+        // Aggregate homeruns by owner
+        const userCounts = new Map<string, number>();
+        for (const hr of homeruns) {
+          const current = userCounts.get(hr.ownerId) || 0;
+          userCounts.set(hr.ownerId, current + 1);
+        }
+
+        setTodayHomersPerUser(userCounts);
+      } catch (error) {
+        console.error("Error fetching today's homeruns:", error);
+      }
+    };
+
+    fetchTodayHomeruns();
+  }, [leagueId]);
+
+  useEffect(() => {
+    setTodayTopStandings([...standings].sort((a, b) => {
+      const aCount = todayHomersPerUser.get(a.userId) || 0;
+      const bCount = todayHomersPerUser.get(b.userId) || 0;
+      return bCount - aCount;
+    }));
+  }, [standings, todayHomersPerUser]);
 
   if (loading) {
     return <div className="py-8 text-center" style={{ color: "rgba(255,255,255,0.5)" }}>Loading standings...</div>;
@@ -356,7 +385,7 @@ function LeaderboardTab({ standings, loading, leagueId }: { standings: Standings
                     fontWeight: 800,
                     color: "#CC3433",
                   }}>
-                    +{Math.floor(Math.random() * 5)}
+                    +{todayHomersPerUser.get(entry.userId) || 0}
                   </span>
                   <span style={{
                     fontFamily: "'DM Sans', sans-serif",
