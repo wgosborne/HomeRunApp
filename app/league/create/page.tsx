@@ -211,7 +211,7 @@ export default function CreateLeaguePage() {
               </h2>
 
               {/* League Name Field */}
-              <div style={{ marginBottom: "24px" }}>
+              <div style={{ marginBottom: "24px", minWidth: 0 }}>
                 <label
                   style={{
                     fontFamily: "'DM Sans', sans-serif",
@@ -254,7 +254,7 @@ export default function CreateLeaguePage() {
               </div>
 
               {/* Team Name Field */}
-              <div style={{ marginBottom: "24px" }}>
+              <div style={{ marginBottom: "24px", minWidth: 0 }}>
                 <label
                   style={{
                     fontFamily: "'DM Sans', sans-serif",
@@ -298,7 +298,7 @@ export default function CreateLeaguePage() {
               </div>
 
               {/* Draft Date Field */}
-              <div style={{ marginBottom: "24px" }}>
+              <div style={{ marginBottom: "24px", minWidth: 0 }}>
                 <label
                   style={{
                     fontFamily: "'DM Sans', sans-serif",
