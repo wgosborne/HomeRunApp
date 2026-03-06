@@ -71,9 +71,12 @@ export function DraftRoom({ leagueId, userId }: DraftRoomProps) {
         throw new Error("Failed to fetch draft status");
       }
       const data = await response.json();
+      console.log(`[DRAFT-ROOM] Fetched status: pick ${data.currentPickNumber}/${data.totalPicks}, time=${data.timeRemainingSeconds}s, picker=${data.currentPickerName}`);
       setStatus(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error fetching status");
+      const errMsg = err instanceof Error ? err.message : "Error fetching status";
+      console.error("[DRAFT-ROOM] Error fetching status:", errMsg);
+      setError(errMsg);
     }
   }, [leagueId]);
 
@@ -87,8 +90,15 @@ export function DraftRoom({ leagueId, userId }: DraftRoomProps) {
 
   // Polling: refresh status every 20 seconds
   useEffect(() => {
-    const interval = setInterval(fetchStatus, 20000);
-    return () => clearInterval(interval);
+    console.log("[DRAFT-ROOM] Starting status polling every 20s");
+    const interval = setInterval(() => {
+      console.log("[DRAFT-ROOM] 📡 Polling status...");
+      fetchStatus();
+    }, 20000);
+    return () => {
+      console.log("[DRAFT-ROOM] Stopped status polling");
+      clearInterval(interval);
+    };
   }, [fetchStatus]);
 
   // Pusher real-time subscription
@@ -97,19 +107,24 @@ export function DraftRoom({ leagueId, userId }: DraftRoomProps) {
 
     // Listen for pick made events
     const handlePickMade = (data: any) => {
-      console.log("Pick made event received", data);
+      console.log("[PUSHER] Pick made event received:", {
+        playerName: data.playerName,
+        pickerName: data.pickerName,
+        pickNumber: data.pickNumber,
+        isAutoPick: data.isAutoPick,
+      });
       fetchStatus();
     };
 
     // Listen for draft state change events
     const handleDraftStateChange = (data: any) => {
-      console.log("Draft state changed", data);
+      console.log("[PUSHER] Draft state changed:", data);
       fetchStatus();
     };
 
     // Listen for draft reset
     const handleDraftReset = (data: any) => {
-      console.log("Draft reset event received", data);
+      console.log("[PUSHER] Draft reset event received", data);
       setTimeout(() => {
         router.push(`/league/${leagueId}`);
       }, 1000);
@@ -165,8 +180,12 @@ export function DraftRoom({ leagueId, userId }: DraftRoomProps) {
 
   // Handle player selection
   const handlePlayerSelected = async (player: Player) => {
+    console.log(`[DRAFT-ROOM] Player selected: ${player.name} (${player.id})`);
+
     if (!status?.isDraftActive || status.currentPickerId !== userId) {
-      setSubmitError("It's not your turn to pick");
+      const errMsg = "It's not your turn to pick";
+      console.warn("[DRAFT-ROOM]", errMsg);
+      setSubmitError(errMsg);
       return;
     }
 
@@ -174,6 +193,7 @@ export function DraftRoom({ leagueId, userId }: DraftRoomProps) {
     setSubmitError(null);
 
     try {
+      console.log(`[DRAFT-ROOM] Submitting pick for ${player.name}...`);
       const response = await fetch(`/api/draft/${leagueId}/pick`, {
         method: "POST",
         headers: {
@@ -193,13 +213,16 @@ export function DraftRoom({ leagueId, userId }: DraftRoomProps) {
         throw new Error(errorData.error || "Failed to submit pick");
       }
 
+      const result = await response.json();
+      console.log("[DRAFT-ROOM] ✓ Pick submitted successfully:", result);
+
       // Fetch updated status
       await fetchStatus();
       setSubmitError(null);
     } catch (err) {
-      setSubmitError(
-        err instanceof Error ? err.message : "Error submitting pick"
-      );
+      const errMsg = err instanceof Error ? err.message : "Error submitting pick";
+      console.error("[DRAFT-ROOM] Error submitting pick:", errMsg);
+      setSubmitError(errMsg);
     } finally {
       setIsSubmitting(false);
     }

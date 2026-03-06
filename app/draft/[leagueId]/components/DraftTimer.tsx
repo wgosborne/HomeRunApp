@@ -16,11 +16,18 @@ export function DraftTimer({
   useEffect(() => {
     // Initialize with server time
     setDisplayTime(timeRemainingSeconds);
+    console.log(`[DRAFT-TIMER] Initialized with ${timeRemainingSeconds}s remaining`);
 
     // Update locally every second (client-side countdown between server updates)
     const interval = setInterval(() => {
       setDisplayTime((prev) => {
         const nextTime = prev - 1;
+        if (nextTime === 0) {
+          console.log("[DRAFT-TIMER] ⏰ COUNTDOWN REACHED 0 - AUTOPICK SHOULD FIRE");
+        }
+        if (nextTime < 0) {
+          console.log("[DRAFT-TIMER] ⚠️ COUNTDOWN WENT NEGATIVE - Capping at 0");
+        }
         return nextTime >= 0 ? nextTime : 0;
       });
     }, 1000);

@@ -128,12 +128,15 @@ export async function GET(
       const pickStartTime = league.currentPickStartedAt.getTime();
       const pickEndTime = pickStartTime + PICK_TIMEOUT_SECONDS * 1000;
       const now = Date.now();
+      const elapsedSeconds = Math.floor((now - pickStartTime) / 1000);
 
       status.timeStarted = pickStartTime;
       status.timeRemainingSeconds = Math.max(
         0,
         Math.ceil((pickEndTime - now) / 1000)
       );
+
+      console.log(`[DRAFT-STATUS] League ${leagueId}: pick ${nextPickNumber}, picker=${status.currentPickerName}, elapsed=${elapsedSeconds}s, remaining=${status.timeRemainingSeconds}s, will timeout at ${new Date(pickEndTime).toISOString()}`);
     }
 
     logger.info("Retrieved draft status", {
@@ -141,6 +144,7 @@ export async function GET(
       isDraftActive,
       completedPicks,
       totalPicks,
+      timeRemaining: status.timeRemainingSeconds,
     });
 
     return NextResponse.json(status);

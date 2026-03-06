@@ -202,22 +202,6 @@ function LeaderboardTab({ standings, loading, leagueId }: { standings: Standings
                   </p>
                 </div>
 
-                {/* Expand Icon */}
-                <svg
-                  className="flex-shrink-0 transition transform"
-                  style={{
-                    marginLeft: "12px",
-                    color: "rgba(255,255,255,0.3)",
-                    width: "20px",
-                    height: "20px",
-                    transform: expandedUserId === entry.userId ? "rotate(180deg)" : "rotate(0deg)",
-                  }}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                </svg>
               </div>
             </div>
           ))}

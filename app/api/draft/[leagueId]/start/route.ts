@@ -59,12 +59,14 @@ export async function POST(
 
     // Update league - set draftStartedAt, draftStatus to active, and currentPickStartedAt
     const now = new Date();
+    console.log(`[DRAFT-START] League ${leagueId}: Starting draft at ${now.toISOString()}, timer begins now for 60s`);
+
     const updatedLeague = await prisma.league.update({
       where: { id: leagueId },
       data: {
         draftStartedAt: now,
         draftStatus: "active",
-        currentPickStartedAt: now,
+        currentPickStartedAt: now, // Timer will timeout at now + 60s
       },
       include: {
         memberships: true,
@@ -72,14 +74,26 @@ export async function POST(
       },
     });
 
+    console.log(`[DRAFT-START] League ${leagueId}: Draft started with ${updatedLeague.memberships.length} members`);
+
     // Broadcast draft started event to all members
     const channel = `draft-${leagueId}`;
-    await pusherServer.trigger(channel, "draft:started", {
-      leagueId,
-      startedAt: updatedLeague.draftStartedAt,
-      memberCount: updatedLeague.memberships.length,
-      timestamp: Date.now(),
-    });
+    console.log(`[DRAFT-START] League ${leagueId}: Broadcasting draft:started to ${channel}`);
+    try {
+      await pusherServer.trigger(channel, "draft:started", {
+        leagueId,
+        startedAt: updatedLeague.draftStartedAt,
+        memberCount: updatedLeague.memberships.length,
+        timestamp: Date.now(),
+      });
+      console.log(`[DRAFT-START] League ${leagueId}: draft:started broadcast successful`);
+    } catch (pushError) {
+      logger.error("CRITICAL: Failed to broadcast draft:started", {
+        leagueId,
+        error: pushError instanceof Error ? pushError.message : String(pushError),
+      });
+      console.error(`[DRAFT-START] CRITICAL: League ${leagueId}: Pusher broadcast failed:`, pushError);
+    }
 
     // Send "draft started" notification to all league members
     // First picker gets "your turn" message, others get "draft started" message
