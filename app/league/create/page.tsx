@@ -319,14 +319,17 @@ export default function CreateLeaguePage() {
                   onChange={(e) => setDraftDate(e.target.value)}
                   style={{
                     width: "100%",
-                    padding: "12px 16px",
+                    maxWidth: "100%",
+                    padding: "10px 12px",
                     borderRadius: "8px",
                     backgroundColor: "rgba(255,255,255,0.08)",
                     border: "1px solid rgba(255,255,255,0.15)",
                     color: "white",
                     fontFamily: "'DM Sans', sans-serif",
-                    fontSize: "14px",
+                    fontSize: "13px",
                     boxSizing: "border-box",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
                   }}
                   onFocus={(e) => {
                     e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.12)";
