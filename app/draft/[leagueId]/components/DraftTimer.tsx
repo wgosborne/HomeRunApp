@@ -23,10 +23,10 @@ export function DraftTimer({
       setDisplayTime((prev) => {
         const nextTime = prev - 1;
         if (nextTime === 0) {
-          console.log("[DRAFT-TIMER] ⏰ COUNTDOWN REACHED 0 - AUTOPICK SHOULD FIRE");
+          console.log("[DRAFT-TIMER] COUNTDOWN REACHED 0 - AUTOPICK SHOULD FIRE");
         }
         if (nextTime < 0) {
-          console.log("[DRAFT-TIMER] ⚠️ COUNTDOWN WENT NEGATIVE - Capping at 0");
+          console.log("[DRAFT-TIMER] COUNTDOWN WENT NEGATIVE - Capping at 0");
         }
         return nextTime >= 0 ? nextTime : 0;
       });

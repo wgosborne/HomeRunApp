@@ -1581,7 +1581,6 @@ function DraftTab({
 function EndSeasonSection({ leagueId }: { leagueId: string }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
 
   const handleEndSeason = async () => {
     if (!confirm("Are you sure? This will crown the winner and lock the league. No more trades after this.")) {
@@ -2817,7 +2816,6 @@ export default function LeagueHomePage() {
               padding: "20px",
               textAlign: "center",
             }}>
-              <p style={{ fontSize: "28px", marginBottom: "8px" }}>🏆</p>
               <p style={{ fontFamily: "'Exo 2'", fontWeight: 800, fontSize: "18px", color: "white" }}>
                 {winner?.teamName || league.winner?.name} — League Champion
               </p>

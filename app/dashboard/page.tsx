@@ -1052,9 +1052,6 @@ export default function DashboardPage() {
             >
               {leagues.some((l) => l.seasonEndedAt) ? (
                 <>
-                  <p style={{ fontSize: "24px", marginBottom: "8px" }}>
-                    ⚾
-                  </p>
                   <p
                     style={{
                       fontFamily: "'Exo 2'",
