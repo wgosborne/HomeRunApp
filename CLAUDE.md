@@ -4,7 +4,7 @@ Multi-tenant fantasy baseball league management PWA. Users create/join leagues, 
 
 ## Current Phase
 
-Week 7 Complete - Ready for Launch: All core features implemented (foundation, draft room, homerun polling, Web Push notifications, PWA offline support, trading system, player detail pages, user profiles). Service worker stabilized, PWA install UI finalized, full test coverage (240 tests passing). Next: Landing page design, soft launch, April 2026 go-live.
+Week 8 In Progress - End-of-Season Feature (2026-03-06): Commissioner can end completed leagues, crowning winners and locking trades. Champion banner displays on league page. Off-season messaging on dashboard. All 240 tests passing, stage database synced, build succeeds. Main branch: Week 7 stable. Stage branch: Week 8 ready for merge. Next: Landing page design, soft launch, April 2026 go-live.
 
 ## Tech Stack
 
@@ -20,14 +20,14 @@ Week 7 Complete - Ready for Launch: All core features implemented (foundation, d
 
 ## Core Entities
 
-- **Users:** Google OAuth via NextAuth, session storage in Postgres
-- **Leagues:** Commissioner creates, draftStatus enum (pending/active/paused/complete), currentPickStartedAt tracks timer
+- **Users:** Google OAuth via NextAuth, session storage in Postgres, wonLeagues relation
+- **Leagues:** Commissioner creates, draftStatus enum (pending/active/paused/complete), currentPickStartedAt tracks timer, seasonEndedAt marks end, winnerId references champion user
 - **LeagueMemberships:** Multi-tenant scoping, role (commissioner/member)
-- **DraftPicks:** Track 10-round draft (60-sec per pick), isPick, autoPickedAt for timeout picks
-- **RosterSpots:** Player assignments per user, homerun counts, drafted round/pick info
-- **HomerrunEvents:** Cron polls statsapi every 5 min, broadcasts via Pusher + Web Push
+- **DraftPicks:** Track 10-round draft (60-sec per pick), isPick, autoPickedAt for timeout picks, mlbId for headshots
+- **RosterSpots:** Player assignments per user, homerun counts, drafted round/pick info, mlbId for headshots
+- **HomerrunEvents:** Cron polls statsapi every 5 min, broadcasts via Pusher + Web Push, mlbId for headshots
 - **PushSubscriptions:** Web Push endpoints (service worker, VAPID encryption)
-- **Trades:** 1:1 player swaps, propose/accept/reject, 48-hour auto-expire, no veto voting (MVP)
+- **Trades:** 1:1 player swaps, propose/accept/reject, 48-hour auto-expire, blocked when season ends, no veto voting (MVP)
 
 ## API Endpoints (Live)
 
@@ -37,6 +37,7 @@ Week 7 Complete - Ready for Launch: All core features implemented (foundation, d
 | GET | `/api/leagues` | List user's leagues |
 | GET | `/api/leagues/[id]` | Get league details (with memberships) |
 | POST | `/api/leagues/[id]/join` | Join via invite link |
+| POST | `/api/leagues/[leagueId]/end-season` | End season, crown winner (commissioner only) |
 | GET | `/api/leagues/[leagueId]/standings` | Leaderboard (all members ranked by homeruns) |
 | GET | `/api/leagues/[leagueId]/roster` | User's roster with player stats |
 | POST | `/api/draft/[leagueId]/start` | Start draft (commissioner only) |
@@ -176,11 +177,23 @@ npx prisma studio
   - [x] PWA install UI (Desktop screenshots + icon purposes fixed)
   - [x] Dashboard layout fixes (Games grid alignment on desktop)
   - [x] Unit test suite (All 240 tests passing)
+- [ ] Week 8: End-of-Season Feature (in progress, 2026-03-06)
+  - [x] Schema: seasonEndedAt, winnerId, winner relation on League; wonLeagues on User
+  - [x] POST /api/leagues/[leagueId]/end-season endpoint (commissioner only, draft complete only)
+  - [x] Winner calculation: sum homeruns per user, crown max (broadcasted via Pusher)
+  - [x] Champion banner on league page (displays team name, total homeruns, season complete message)
+  - [x] End Season button in Settings tab (confirmation dialog, disabled until draft complete)
+  - [x] Block trade proposals/acceptance if season ended (409 Conflict response)
+  - [x] TradesTab shows read-only lock message when season ended, hides propose button
+  - [x] Dashboard off-season messaging when no games (checks if any league has seasonEndedAt)
+  - [x] Prisma client regenerated, migrations deployed to stage database
+  - [x] All 240 unit tests passing, build succeeds (TypeScript strict)
+  - [ ] Merge to main and deploy to production
 
 ## Testing Checklist (All Green)
 
-Weeks 1-7 verified (2026-03-03):
-- [x] npm run build succeeds (TypeScript strict, all routes registered)
+Weeks 1-8 verified (2026-03-06):
+- [x] npm run build succeeds (TypeScript strict, all routes registered including /api/leagues/[leagueId]/end-season)
 - [x] npm run test passes (all 240 unit tests passing)
 - [x] Auth works (Google OAuth, invite cookie flow)
 - [x] Draft room complete (start/pick/auto-pick/pause/resume/reset)
@@ -188,13 +201,16 @@ Weeks 1-7 verified (2026-03-03):
 - [x] Homerun polling & Pusher broadcasting live
 - [x] Web Push notifications (subscribe/send/test)
 - [x] PWA manifest valid (icons, offline caching, install prompt on desktop)
-- [x] Trading system complete (propose/accept/reject, 48h expiration)
+- [x] Trading system complete (propose/accept/reject, 48h expiration, blocked when season ends)
 - [x] Player detail page working (info, headshots, history, back nav)
 - [x] Profile page working (display name edit, sign out)
 - [x] NotificationDropdown/UserMenu in header
 - [x] All homeruns page with sorting
 - [x] Service worker caching (response cloning fixed, no errors)
 - [x] Dashboard layout (responsive grids, proper alignment on all screens)
+- [x] End-of-season feature (champion banner, lock message, trades blocked, off-season messaging)
+- [x] Database migrations deployed to stage (seasonEndedAt, winnerId, winner relation)
+- [x] Prisma client regenerated with new fields (no TypeScript errors)
 
 ## Blockers & Notes
 
@@ -204,13 +220,13 @@ Weeks 1-7 verified (2026-03-03):
 - Spring Training typically late Feb, Regular Season April 1
 - Homerun polling safe to deploy—returns `{ processed: 0, skipped: 0 }` when no games active
 
-**Recent Fixes (Session):**
-- Service Worker: Fixed "Response body is already used" errors by cloning responses in cacheFirst/networkFirst functions
-- PWA Manifest: Regenerated 13 icons (16px-1024px) + 7 splash screens (750x1334 to 2048x2732)
-- Desktop Install UI: Added 1280x720 wide screenshot for PWA install prompt
-- Icon Purposes: Fixed manifest.json to use separate "any" entries instead of combined "any maskable"
-- Dashboard Layout: Fixed games grid vertical alignment on desktop (removed margin-top override for small cards)
-- Test Suite: Fixed 7 failing tests (snake draft indexing, game sorting, multi-tenant isolation, auto-pick frequency, rate limits)
+**Recent Fixes (Session - Week 8):**
+- End-of-Season Schema: Added seasonEndedAt, winnerId, winner relation to League model, wonLeagues to User model
+- Migration Drift: Resolved migration conflicts on stage DB, marked jersey number migration as applied
+- TypeScript Scope: Fixed dateGroup scoping issue in sync-games test endpoint (moved logger outside loop)
+- Emoji Removal: Removed 🏆 from champion banner and ⚾ from off-season message (user preference)
+- Stage DB Sync: Pushed schema to stage database and regenerated Prisma client without modifying .env
+- Trade Blocking: Added season-end guards to trade proposal and acceptance endpoints (409 Conflict)
 
 **Deployment Ready:**
 - All endpoints secured (auth checks in place)
@@ -232,7 +248,7 @@ npx prisma migrate dev  # Create migration
 npx tsc --noEmit       # Type check
 ```
 
-## Key Files (Week 7 Additions)
+## Key Files (Week 7-8 Additions)
 
 Week 7 new files:
 - **/app/player/[leagueId]/[playerId]/page.tsx** - Player detail (info, headshots, homerun history, back nav)
@@ -241,6 +257,9 @@ Week 7 new files:
 - **/app/components/NotificationDropdown.tsx** - Bell dropdown (subscription toggle)
 - **/app/components/UserMenu.tsx** - Avatar menu (profile link, sign out)
 - **/app/api/user/update-name/route.ts** - Profile API endpoint
+
+Week 8 new files:
+- **/app/api/leagues/[leagueId]/end-season/route.ts** - End season, crown winner (commissioner only, draft complete only)
 
 Core pages/routes:
 - **/app/league/[leagueId]/page.tsx** - League home (6 tabs)
@@ -267,6 +286,9 @@ Infrastructure:
 
 - **League.draftStatus:** Enum (pending/active/paused/complete) - replaces implicit string tracking
 - **League.currentPickStartedAt:** DateTime - set when pick turn starts, reset on each pick for timer calculation
+- **League.seasonEndedAt:** DateTime - set when commissioner ends season (Week 8)
+- **League.winnerId:** String (FK to User.id) - userId of league champion (Week 8)
+- **User.wonLeagues:** Relation - leagues this user won (Week 8)
 - **Trade.status:** Enum (pending/accepted/rejected/expired) - tracks trade lifecycle (Week 6)
 - **Trade.expiresAt:** DateTime - 48-hour deadline from creation (Week 6)
 
@@ -283,7 +305,7 @@ Infrastructure:
 - Draft timer server-authoritative (auto-pick cron every 1 min, CRON_SECRET env var required)
 - Homerun polling every 5 min (MLB API 5-15s lag), idempotent via unique constraint
 - Dev panel testing only, seed has 50+ real MLB players
-- Real-time leaderboard (5-sec polling + Pusher), trades 1:1 swaps with 48h auto-expiration
+- Real-time leaderboard (5-sec polling + Pusher), trades 1:1 swaps with 48h auto-expiration, blocked when season ends
 - Player detail pages clickable from draft room, my team, leaderboard, dashboard with browser back nav
 - Player headshots from MLB CDN (img.mlbstatic.com) via mlbId, initials fallback
 - Profile page: edit display name, UserMenu in header with sign out
@@ -291,3 +313,7 @@ Infrastructure:
 - Service Worker: fixed response cloning (cacheFirst/networkFirst), PWA install UI finalized
 - Test Suite: 240 tests passing (draft logic, game sorting, multi-tenant, rate limits, API retries)
 - Week 7 done: stabilized service worker, PWA branding complete, deployment-ready
+- Week 8 in progress: End-of-season feature complete on stage branch (champion banner, trade lock, off-season messaging)
+- Stage DB synced with migrations, Prisma client regenerated, build passing with zero errors
+- Main branch stable at Week 7, stage branch ready for testing and merge
+- No emojis in code output per user preference
