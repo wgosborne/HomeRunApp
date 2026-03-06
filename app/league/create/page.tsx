@@ -18,7 +18,7 @@ export default function CreateLeaguePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [leagueName, setLeagueName] = useState("");
-  const [draftDate, setDraftDate] = useState("");
+  const [draftDate, setDraftDate] = useState(""); // YYYY-MM-DD format for date input
   const [teamName, setTeamName] = useState("");
 
   if (status === "unauthenticated") {
@@ -314,22 +314,19 @@ export default function CreateLeaguePage() {
                   Draft Date (Optional)
                 </label>
                 <input
-                  type="datetime-local"
+                  type="date"
                   value={draftDate}
                   onChange={(e) => setDraftDate(e.target.value)}
                   style={{
                     width: "100%",
-                    maxWidth: "100%",
-                    padding: "10px 12px",
+                    padding: "12px 16px",
                     borderRadius: "8px",
                     backgroundColor: "rgba(255,255,255,0.08)",
                     border: "1px solid rgba(255,255,255,0.15)",
                     color: "white",
                     fontFamily: "'DM Sans', sans-serif",
-                    fontSize: "13px",
+                    fontSize: "14px",
                     boxSizing: "border-box",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
                   }}
                   onFocus={(e) => {
                     e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.12)";

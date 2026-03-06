@@ -1280,7 +1280,7 @@ function SettingsTab({
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [draftDate, setDraftDate] = useState(league.draftDate ? new Date(league.draftDate).toISOString().slice(0, 16) : "");
+  const [draftDate, setDraftDate] = useState(league.draftDate ? new Date(league.draftDate).toISOString().slice(0, 10) : ""); // YYYY-MM-DD format for date input
   const [savingDraftDate, setSavingDraftDate] = useState(false);
   const [draftDateError, setDraftDateError] = useState<string | null>(null);
 
@@ -1608,22 +1608,19 @@ function SettingsTab({
                 Scheduled Draft Date (Optional)
               </label>
               <input
-                type="datetime-local"
+                type="date"
                 value={draftDate}
                 onChange={(e) => setDraftDate(e.target.value)}
                 style={{
                   width: "100%",
-                  maxWidth: "100%",
-                  padding: "10px 12px",
+                  padding: "12px 16px",
                   borderRadius: "8px",
                   backgroundColor: "rgba(255,255,255,0.08)",
                   border: "1px solid rgba(255,255,255,0.15)",
                   color: "white",
                   fontFamily: "'DM Sans', sans-serif",
-                  fontSize: "13px",
+                  fontSize: "14px",
                   boxSizing: "border-box",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
                 }}
                 onFocus={(e) => {
                   e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.12)";
