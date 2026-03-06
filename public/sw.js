@@ -132,13 +132,18 @@ self.addEventListener('push', (event) => {
       ],
     };
 
-    event.waitUntil(
-      self.registration.showNotification(title, options).catch((err) => {
-        console.error('[SW] Error showing notification:', err);
-      })
-    );
+    // Guard against browsers without Notification API (iOS Chrome, etc.)
+    if (typeof Notification !== 'undefined') {
+      event.waitUntil(
+        self.registration.showNotification(title, options).catch((err) => {
+          console.error('[SW] Error showing notification:', err);
+        })
+      );
 
-    console.log('[SW] Push notification displayed:', { title, body, eventType });
+      console.log('[SW] Push notification displayed:', { title, body, eventType });
+    } else {
+      console.log('[SW] Notification API not supported, skipping notification display');
+    }
   } catch (error) {
     console.error('[SW] Error parsing push data:', error);
   }

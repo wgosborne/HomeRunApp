@@ -61,7 +61,7 @@ export function NotificationDropdown({ onBellClick }: NotificationDropdownProps)
   // directly in the click handler with NO async delay before the call
   async function handleEnableNotifications() {
     // Step 1: Check if notifications are supported
-    if (!("Notification" in window)) {
+    if (!("Notification" in window) || typeof Notification === 'undefined') {
       console.log("[Push] Notifications not supported");
       return;
     }

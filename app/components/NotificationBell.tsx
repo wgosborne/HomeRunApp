@@ -24,7 +24,9 @@ export function NotificationBell({ leagueId, className = '' }: NotificationBellP
       'Notification' in window;
 
     setIsSupported(supported);
-    setPermissionStatus(Notification.permission);
+    if (typeof Notification !== 'undefined') {
+      setPermissionStatus(Notification.permission);
+    }
 
     if (supported) {
       // Check if already subscribed
@@ -62,6 +64,13 @@ export function NotificationBell({ leagueId, className = '' }: NotificationBellP
     setErrorMessage(null);
 
     try {
+      // Guard against browsers without Notification API
+      if (typeof Notification === 'undefined') {
+        setErrorMessage('Notifications are not supported on this browser.');
+        setIsLoading(false);
+        return;
+      }
+
       // Step 1: Request notification permission
       if (Notification.permission === 'default') {
         const permission = await Notification.requestPermission();
@@ -128,12 +137,14 @@ export function NotificationBell({ leagueId, className = '' }: NotificationBellP
       setShowMenu(false);
       setErrorMessage(null);
 
-      // Show confirmation
-      new Notification('Dingerz', {
-        body: 'You are now subscribed to notifications for this league!',
-        icon: '/icon-192x192.png',
-        badge: '/badge-72x72.png',
-      });
+      // Show confirmation (guard against browsers without Notification API)
+      if (typeof Notification !== 'undefined') {
+        new Notification('Dingerz', {
+          body: 'You are now subscribed to notifications for this league!',
+          icon: '/icon-192x192.png',
+          badge: '/badge-72x72.png',
+        });
+      }
     } catch (error) {
       console.error('Subscribe error:', error);
       setErrorMessage(error instanceof Error ? error.message : 'Failed to subscribe');
