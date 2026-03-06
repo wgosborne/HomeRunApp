@@ -129,8 +129,13 @@ async function handleGameSync() {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
 
+    // Get allowed game types based on env flag
+    const enableSpringTraining = process.env.NEXT_PUBLIC_ENABLE_SPRING_TRAINING === 'true';
+    const gameTypes = enableSpringTraining ? "R,S" : "R";
+    logger.info("Game sync filtering", { gameTypes, enableSpringTraining });
+
     const response = await fetch(
-      `https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${mmddyyyy}&hydrate=linescore`,
+      `https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${mmddyyyy}&hydrate=linescore&gameType=${gameTypes}`,
       {
         headers: {
           "User-Agent": "FantasyBaseball/1.0",

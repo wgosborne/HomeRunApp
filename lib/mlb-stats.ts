@@ -2,6 +2,23 @@ import { createLogger } from "./logger";
 
 const logger = createLogger("mlb-stats");
 
+/**
+ * Get allowed game types for MLB API calls
+ * Production (default): "R" (regular season only)
+ * Testing: "R,S" (regular season + spring training)
+ */
+function getAllowedGameTypes(): string {
+  const enableSpringTraining = process.env.NEXT_PUBLIC_ENABLE_SPRING_TRAINING === 'true';
+
+  if (enableSpringTraining) {
+    logger.debug("Spring training enabled - including gameType S");
+    return "R,S";
+  }
+
+  logger.debug("Spring training disabled - gameType R only");
+  return "R";
+}
+
 interface MLBPlayer {
   id: string;
   mlbId: number;
@@ -374,13 +391,14 @@ export async function fetchTodaysGames(): Promise<
 > {
   try {
     const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+    const gameTypes = getAllowedGameTypes();
 
     // Set 10-second timeout for MLB API call
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
 
     const response = await fetch(
-      `https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${today}`,
+      `https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${today}&gameType=${gameTypes}`,
       {
         headers: {
           "User-Agent": "FantasyBaseball/1.0",
@@ -511,8 +529,9 @@ export async function fetchTodaysGameForTeam(
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
 
+    const gameTypes = getAllowedGameTypes();
     const response = await fetch(
-      `https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${today}&hydrate=team,linescore&gameType=R,S`,
+      `https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${today}&hydrate=team,linescore&gameType=${gameTypes}`,
       {
         headers: {
           "User-Agent": "FantasyBaseball/1.0",
