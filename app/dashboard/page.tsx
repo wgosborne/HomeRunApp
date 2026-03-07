@@ -802,55 +802,11 @@ export default function DashboardPage() {
         throw new Error("Failed to fetch games");
       }
       const games = await res.json();
-
-      // If we got real games, use them
-      if (games && games.length > 0) {
-        setGames(games);
-        return;
-      }
+      setGames(games || []);
     } catch (error) {
       console.error("Error fetching live games:", error);
+      setGames([]);
     }
-
-    // Fallback to placeholder data during off-season
-    setGames([
-      {
-        id: "game-1",
-        homeTeam: "Chicago Cubs",
-        awayTeam: "Milwaukee Brewers",
-        homeScore: 4,
-        awayScore: 2,
-        status: "Live",
-        inning: 7,
-        inningHalf: "Top",
-        gameType: "S",
-        userPlayerCount: 3,
-      },
-      {
-        id: "game-2",
-        homeTeam: "New York Yankees",
-        awayTeam: "Boston Red Sox",
-        homeScore: 0,
-        awayScore: 0,
-        status: "Upcoming",
-        inning: null,
-        inningHalf: null,
-        gameType: "S",
-        userPlayerCount: 1,
-      },
-      {
-        id: "game-3",
-        homeTeam: "Los Angeles Dodgers",
-        awayTeam: "San Francisco Giants",
-        homeScore: 0,
-        awayScore: 0,
-        status: "Upcoming",
-        inning: null,
-        inningHalf: null,
-        gameType: "S",
-        userPlayerCount: 0,
-      },
-    ]);
   };
 
   const fetchHomeruns = async () => {
@@ -860,55 +816,11 @@ export default function DashboardPage() {
         throw new Error("Failed to fetch homeruns");
       }
       const homeruns = await res.json();
-
-      // If we got real homeruns, use them
-      if (homeruns && homeruns.length > 0) {
-        setHomeruns(homeruns);
-        return;
-      }
+      setHomeruns(homeruns || []);
     } catch (error) {
       console.error("Error fetching live homeruns:", error);
+      setHomeruns([]);
     }
-
-    // Fallback to placeholder data during off-season
-    setHomeruns([
-      {
-        playerName: "Kyle Schwarber",
-        mlbTeam: "PHI",
-        mlbId: 656941,
-        hrNumber: 12,
-        leagueName: "Summer Sluggers",
-        isYourPlayer: true,
-        occurredAt: "2h ago",
-      },
-      {
-        playerName: "Juan Soto",
-        mlbTeam: "NYM",
-        mlbId: 665742,
-        hrNumber: 8,
-        leagueName: "Home Run Heroes",
-        isYourPlayer: false,
-        occurredAt: "3h ago",
-      },
-      {
-        playerName: "Aaron Judge",
-        mlbTeam: "NYY",
-        mlbId: 592450,
-        hrNumber: 15,
-        leagueName: "Summer Sluggers",
-        isYourPlayer: true,
-        occurredAt: "5h ago",
-      },
-      {
-        playerName: "Mookie Betts",
-        mlbTeam: "LAD",
-        mlbId: 605141,
-        hrNumber: 6,
-        leagueName: "Power Hitters",
-        isYourPlayer: false,
-        occurredAt: "6h ago",
-      },
-    ]);
   };
 
   if (status === "loading" || loading) {
