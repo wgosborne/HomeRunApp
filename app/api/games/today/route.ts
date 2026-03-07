@@ -51,6 +51,9 @@ export async function GET() {
     };
 
     const today = getOfficialDateET();
+    logger.info('games/today date check', {
+      today,
+      utcNow: new Date().toISOString() });
 
     // Helper to get yesterday/tomorrow dates
     const getDateOffset = (days: number): string => {
