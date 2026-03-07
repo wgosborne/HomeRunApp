@@ -480,6 +480,15 @@ export async function fetchGameHomeruns(gamePk: number): Promise<HomerrunPlay[]>
           const playIndex = plays.indexOf(play);
           const playByPlayId = `${gamePk}-${playIndex}`;
 
+          // Get batting team - try multiple paths
+          let battingTeam = play.matchup?.batTeam?.name;
+          if (!battingTeam) {
+            // Fallback: infer from home/away based on which team is batting
+            // If inning is odd, home team bats; if even, away team bats (simplified)
+            const inning = play.about?.inning || 1;
+            battingTeam = inning % 2 === 1 ? awayTeam : homeTeam;
+          }
+
           homeruns.push({
             playByPlayId,
             gameId: gamePk.toString(),
@@ -487,7 +496,7 @@ export async function fetchGameHomeruns(gamePk: number): Promise<HomerrunPlay[]>
             playerId: play.matchup?.batter?.id?.toString() || "unknown",
             mlbId: play.matchup?.batter?.id || 0,
             playerName: play.matchup?.batter?.fullName || "Unknown",
-            team: play.matchup?.batTeam?.name || "Unknown",
+            team: battingTeam || "Unknown",
             homeTeam,
             awayTeam,
             inning: play.about?.inning || 0,
