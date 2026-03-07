@@ -10,9 +10,10 @@ interface Homerun {
   playerName: string;
   mlbTeam: string;
   mlbId: number | null;
-  hrNumber: number;
-  leagueName: string;
-  isYourPlayer: boolean;
+  hrNumber: number | null;
+  game: string;
+  leagueName: string | null;
+  isMyPlayer: boolean;
   occurredAt: string;
 }
 
@@ -21,14 +22,17 @@ export default function HomerunsPage() {
   const router = useRouter();
   const [homeruns, setHomeruns] = useState<Homerun[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [sortBy, setSortBy] = useState<"recent" | "player" | "league">("recent");
+  const [sortBy, setSortBy] = useState<"recent" | "player" | "team">("recent");
+  const [filterLeague, setFilterLeague] = useState<string>("");
+  const [filterTeam, setFilterTeam] = useState<string>("");
+  const [filterPlayer, setFilterPlayer] = useState<string>("");
 
   useEffect(() => {
     if (!session) return;
 
     const fetchHomeruns = async () => {
       try {
-        const res = await fetch("/api/homeruns/recent?limit=1000");
+        const res = await fetch("/api/homeruns/all");
         if (res.ok) {
           const data = await res.json();
           setHomeruns(data);
@@ -41,22 +45,37 @@ export default function HomerunsPage() {
     };
 
     fetchHomeruns();
-    const interval = setInterval(fetchHomeruns, 10000); // Refresh every 10s
-    return () => clearInterval(interval);
   }, [session]);
 
-  const sortedHomeruns = [...homeruns].sort((a, b) => {
+  // Get unique values for filter dropdowns
+  const leagues = Array.from(
+    new Set(homeruns.map((h) => h.leagueName).filter((l) => l !== null))
+  ).sort();
+  const teams = Array.from(
+    new Set(homeruns.map((h) => h.mlbTeam).filter(Boolean))
+  ).sort();
+
+  // Apply filters
+  const filteredHomeruns = homeruns.filter((hr) => {
+    if (filterLeague && hr.leagueName !== filterLeague) return false;
+    if (filterTeam && hr.mlbTeam !== filterTeam) return false;
+    if (filterPlayer && !hr.playerName.toLowerCase().includes(filterPlayer.toLowerCase())) return false;
+    return true;
+  });
+
+  // Apply sorting
+  const sortedHomeruns = [...filteredHomeruns].sort((a, b) => {
     if (sortBy === "recent") {
       return new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime();
     } else if (sortBy === "player") {
       return a.playerName.localeCompare(b.playerName);
     } else {
-      return a.leagueName.localeCompare(b.leagueName);
+      return a.mlbTeam.localeCompare(b.mlbTeam);
     }
   });
 
-  const yourHomeruns = sortedHomeruns.filter((hr) => hr.isYourPlayer);
-  const othersHomeruns = sortedHomeruns.filter((hr) => !hr.isYourPlayer);
+  const yourHomeruns = sortedHomeruns.filter((hr) => hr.isMyPlayer);
+  const othersHomeruns = sortedHomeruns.filter((hr) => !hr.isMyPlayer);
 
   return (
     <div
@@ -74,7 +93,7 @@ export default function HomerunsPage() {
         style={{
           paddingLeft: "18px",
           paddingRight: "18px",
-          marginBottom: "32px",
+          marginBottom: "24px",
         }}
       >
         <button
@@ -111,53 +130,119 @@ export default function HomerunsPage() {
             margin: 0,
           }}
         >
-          {homeruns.length} homeruns across all your leagues
+          {sortedHomeruns.length} of {homeruns.length} homeruns
         </p>
       </div>
 
-      {/* Sort controls */}
-      <div
-        className="dashboard-content"
-        style={{
-          paddingLeft: "18px",
-          paddingRight: "18px",
-          marginBottom: "24px",
-          display: "flex",
-          gap: "8px",
-          flexWrap: "wrap",
-        }}
-      >
-        {(["recent", "player", "league"] as const).map((sort) => (
-          <button
-            key={sort}
-            onClick={() => setSortBy(sort)}
+      {/* Filters */}
+      {!isLoading && homeruns.length > 0 && (
+        <div
+          className="dashboard-content"
+          style={{
+            paddingLeft: "18px",
+            paddingRight: "18px",
+            marginBottom: "24px",
+            display: "flex",
+            gap: "12px",
+            flexWrap: "wrap",
+            alignItems: "center",
+          }}
+        >
+          <select
+            value={filterLeague}
+            onChange={(e) => setFilterLeague(e.target.value)}
             style={{
-              backgroundColor:
-                sortBy === sort
-                  ? "#CC3433"
-                  : "rgba(255, 255, 255, 0.05)",
-              border: `1px solid ${
-                sortBy === sort
-                  ? "#CC3433"
-                  : "rgba(255, 255, 255, 0.1)"
-              }`,
+              backgroundColor: "rgba(255, 255, 255, 0.05)",
+              border: "1px solid rgba(255, 255, 255, 0.1)",
               borderRadius: "8px",
-              padding: "8px 14px",
-              color: sortBy === sort ? "white" : "rgba(255, 255, 255, 0.6)",
-              cursor: "pointer",
+              padding: "8px 12px",
+              color: "white",
               fontFamily: "'DM Sans', sans-serif",
               fontSize: "12px",
-              fontWeight: 600,
-              textTransform: "capitalize",
-              transition: "all 0.2s",
+              cursor: "pointer",
             }}
           >
-            {sort === "recent" && "Recent"}
-            {sort === "player" && "Player"}
-            {sort === "league" && "League"}
-          </button>
-        ))}
-      </div>
+            <option value="">All Leagues</option>
+            {leagues.map((league) => (
+              <option key={league} value={league || ""}>
+                {league || "No League"}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={filterTeam}
+            onChange={(e) => setFilterTeam(e.target.value)}
+            style={{
+              backgroundColor: "rgba(255, 255, 255, 0.05)",
+              border: "1px solid rgba(255, 255, 255, 0.1)",
+              borderRadius: "8px",
+              padding: "8px 12px",
+              color: "white",
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: "12px",
+              cursor: "pointer",
+            }}
+          >
+            <option value="">All Teams</option>
+            {teams.map((team) => (
+              <option key={team} value={team}>
+                {team}
+              </option>
+            ))}
+          </select>
+
+          <input
+            type="text"
+            placeholder="Search player..."
+            value={filterPlayer}
+            onChange={(e) => setFilterPlayer(e.target.value)}
+            style={{
+              backgroundColor: "rgba(255, 255, 255, 0.05)",
+              border: "1px solid rgba(255, 255, 255, 0.1)",
+              borderRadius: "8px",
+              padding: "8px 12px",
+              color: "white",
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: "12px",
+            }}
+          />
+
+          {/* Sort buttons */}
+          <div style={{ marginLeft: "auto", display: "flex", gap: "8px" }}>
+            {(["recent", "player", "team"] as const).map((sort) => (
+              <button
+                key={sort}
+                onClick={() => setSortBy(sort)}
+                style={{
+                  backgroundColor:
+                    sortBy === sort
+                      ? "#CC3433"
+                      : "rgba(255, 255, 255, 0.05)",
+                  border: `1px solid ${
+                    sortBy === sort
+                      ? "#CC3433"
+                      : "rgba(255, 255, 255, 0.1)"
+                  }`,
+                  borderRadius: "8px",
+                  padding: "8px 12px",
+                  color: sortBy === sort ? "white" : "rgba(255, 255, 255, 0.6)",
+                  cursor: "pointer",
+                  fontFamily: "'DM Sans', sans-serif",
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  textTransform: "capitalize",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {sort === "recent" && "Recent"}
+                {sort === "player" && "Player"}
+                {sort === "team" && "Team"}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Content */}
       {isLoading ? (
@@ -184,6 +269,18 @@ export default function HomerunsPage() {
         >
           <p>No homeruns yet. Create a league and start tracking!</p>
         </div>
+      ) : sortedHomeruns.length === 0 ? (
+        <div
+          className="dashboard-content"
+          style={{
+            paddingLeft: "18px",
+            paddingRight: "18px",
+            textAlign: "center",
+            color: "rgba(255, 255, 255, 0.5)",
+          }}
+        >
+          <p>No homeruns match your filters.</p>
+        </div>
       ) : (
         <>
           {/* Your Homeruns */}
@@ -204,7 +301,7 @@ export default function HomerunsPage() {
                   display: "inline-block",
                 }}
               >
-                Your Players
+                Your Players ({yourHomeruns.length})
               </h2>
               <div
                 style={{
@@ -237,7 +334,7 @@ export default function HomerunsPage() {
                   display: "inline-block",
                 }}
               >
-                League Opponents
+                All Homeruns ({othersHomeruns.length})
               </h2>
               <div
                 style={{
@@ -277,9 +374,7 @@ function HomerunItem({ hr, isYours }: { hr: Homerun; isYours: boolean }) {
       {/* Avatar */}
       {hr.mlbId ? (
         <Link href={`/player/${hr.mlbId}`}>
-          <a>
-            <PlayerAvatar mlbId={hr.mlbId} playerName={hr.playerName} size="sm" />
-          </a>
+          <PlayerAvatar mlbId={hr.mlbId} playerName={hr.playerName} size="sm" />
         </Link>
       ) : (
         <PlayerAvatar mlbId={null} playerName={hr.playerName} size="sm" />
@@ -288,27 +383,26 @@ function HomerunItem({ hr, isYours }: { hr: Homerun; isYours: boolean }) {
       {/* Info */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <Link href={`/player/${hr.mlbId}`}>
-          <a style={{ textDecoration: "none" }}>
-            <p
-              style={{
-                margin: 0,
-                fontFamily: "'Exo 2', sans-serif",
-                fontSize: "14px",
-                fontWeight: 700,
-                color: "white",
-                cursor: "pointer",
-                textDecoration: "underline",
-              }}
-            >
-              {hr.playerName}
-            </p>
-          </a>
+          <p
+            style={{
+              margin: 0,
+              fontFamily: "'Exo 2', sans-serif",
+              fontSize: "14px",
+              fontWeight: 700,
+              color: "white",
+              cursor: "pointer",
+              textDecoration: "underline",
+            }}
+          >
+            {hr.playerName}
+          </p>
         </Link>
         <div
           style={{
             display: "flex",
             gap: "12px",
             marginTop: "4px",
+            flexWrap: "wrap",
           }}
         >
           <span
@@ -320,37 +414,36 @@ function HomerunItem({ hr, isYours }: { hr: Homerun; isYours: boolean }) {
           >
             {hr.mlbTeam}
           </span>
+          {hr.leagueName && (
+            <span
+              style={{
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: "12px",
+                color: "rgba(255, 255, 255, 0.4)",
+              }}
+            >
+              {hr.leagueName}
+            </span>
+          )}
           <span
             style={{
               fontFamily: "'DM Sans', sans-serif",
               fontSize: "12px",
-              color: "rgba(255, 255, 255, 0.4)",
+              color: "rgba(255, 255, 255, 0.3)",
             }}
           >
-            {hr.leagueName}
+            {hr.game}
           </span>
         </div>
       </div>
 
-      {/* HR count and date */}
-      <div style={{ textAlign: "right" }}>
-        <div
-          style={{
-            fontFamily: "'Exo 2', sans-serif",
-            fontSize: "18px",
-            fontWeight: 800,
-            color: isYours ? "#CC3433" : "rgba(255, 255, 255, 0.7)",
-            lineHeight: "1",
-          }}
-        >
-          {hr.hrNumber}
-        </div>
+      {/* Date */}
+      <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
         <div
           style={{
             fontFamily: "'DM Sans', sans-serif",
             fontSize: "11px",
             color: "rgba(255, 255, 255, 0.4)",
-            marginTop: "2px",
           }}
         >
           {new Date(hr.occurredAt).toLocaleDateString(undefined, {
