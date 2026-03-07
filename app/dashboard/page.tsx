@@ -858,39 +858,19 @@ export default function DashboardPage() {
     );
   }
 
-  // Categorize games by status
-  const liveGames = games.filter((g) => g.status === "Live");
-  const upcomingGames = games
-    .filter((g) => g.status !== "Live" && g.status !== "Final")
-    .slice(0, 8); // up to 8 upcoming in small cards
-  const finalGames = games.filter((g) => g.status === "Final");
-
-  // Determine featured game and small games
+  // Display all games from API (already prioritized and limited to 9 by endpoint)
+  // Feature the first game, display remaining 8 in small cards
   let featuredGame: LiveGame | undefined;
   let smallGames: LiveGame[] = [];
 
   if (featuredGameId) {
+    // User selected a specific game
     featuredGame = games.find((g) => g.id === featuredGameId);
-  }
-
-  if (!featuredGame) {
-    if (liveGames.length > 0) {
-      // Live mode: feature first live game, rest of live + upcoming in small
-      featuredGame = liveGames[0];
-      smallGames = [...liveGames.slice(1), ...upcomingGames].slice(0, 8);
-    } else {
-      // No live games: feature most recently ended game, upcoming in small
-      const mostRecentFinal = finalGames[finalGames.length - 1]; // API returns asc by startTime, so last = most recent
-      featuredGame = mostRecentFinal || upcomingGames[0];
-      smallGames = upcomingGames
-        .filter((g) => g.id !== featuredGame?.id)
-        .slice(0, 8);
-    }
-  } else {
-    // User selected a specific game - show other games in small cards
-    smallGames = games
-      .filter((g) => g.id !== featuredGame?.id)
-      .slice(0, 8);
+    smallGames = games.filter((g) => g.id !== featuredGame?.id);
+  } else if (games.length > 0) {
+    // Default: feature first game, show rest in small cards
+    featuredGame = games[0];
+    smallGames = games.slice(1);
   }
 
   return (
