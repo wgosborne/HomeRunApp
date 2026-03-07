@@ -206,7 +206,13 @@ async function handleGameSync() {
           });
 
           // BUG FIX #3: Use officialDate from API (Eastern time date for schedule queries)
-          const officialDate = (game as any).officialDate || mmddyyyy.replace(/\//g, "-");
+          // Format must be YYYY-MM-DD to match games/today query filter
+          let officialDate = (game as any).officialDate;
+          if (!officialDate) {
+            // Fallback: convert mmddyyyy (MM/DD/YYYY) to YYYY-MM-DD
+            const [m, d, y] = mmddyyyy.split("/");
+            officialDate = `${y}-${m}-${d}`;
+          }
 
           // BUG FIX #4: Upsert must update all fields in BOTH create and update blocks
           await prisma.game.upsert({
