@@ -448,7 +448,7 @@ export async function fetchGameHomeruns(gamePk: number): Promise<HomerrunPlay[]>
     const timeout = setTimeout(() => controller.abort(), 10000);
 
     const response = await fetch(
-      `https://statsapi.mlb.com/api/v1.1/game/${gamePk}/feed/live?fields=gameData,liveData,plays,allPlays,result,about,matchup`,
+      `https://statsapi.mlb.com/api/v1.1/game/${gamePk}/feed/live`,
       {
         headers: {
           "User-Agent": "FantasyBaseball/1.0",
