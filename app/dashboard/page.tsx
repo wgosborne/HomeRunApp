@@ -422,6 +422,7 @@ const FeaturedGameCard = ({ game }: { game: LiveGame }) => {
 // Small game card component
 const SmallGameCard = ({ game, onSelect }: { game: LiveGame; onSelect?: (gameId: string) => void }) => {
   const isLive = game.status === "Live";
+  const isFinal = game.status === "Final";
 
   return (
     <div
@@ -436,7 +437,7 @@ const SmallGameCard = ({ game, onSelect }: { game: LiveGame; onSelect?: (gameId:
         boxShadow:
           "0 4px 12px rgba(0,0,0,0.35), 0 8px 24px rgba(0,0,0,0.2), 0 1px 0 rgba(255,255,255,0.06) inset",
         cursor: isLive ? "pointer" : "default",
-        opacity: isLive ? 1 : 0.6,
+        opacity: isLive || isFinal ? 1 : 0.6,
         transition: isLive ? "all 0.2s" : "none",
       }}
       onMouseEnter={(e) => {
@@ -486,6 +487,16 @@ const SmallGameCard = ({ game, onSelect }: { game: LiveGame; onSelect?: (gameId:
             Live · Inning {game.inning || 1}
           </span>
         </div>
+      ) : isFinal ? (
+        <div
+          style={{
+            fontFamily: "'DM Sans', sans-serif",
+            fontSize: "10px",
+            color: "rgba(255,255,255,0.5)",
+          }}
+        >
+          Final
+        </div>
       ) : (
         <div
           style={{
@@ -497,7 +508,7 @@ const SmallGameCard = ({ game, onSelect }: { game: LiveGame; onSelect?: (gameId:
           Upcoming
         </div>
       )}
-      {isLive && (
+      {(isLive || isFinal) && (
         <div
           className="score-desktop"
           style={{
