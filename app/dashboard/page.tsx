@@ -615,22 +615,24 @@ const HomeruntCard = ({ hr, isYourPlayer }: { hr: HomerunEvent; isYourPlayer: bo
         {hr.mlbTeam} · 2h ago
       </div>
 
-      {/* League pill */}
-      <div
-        style={{
-          backgroundColor: "rgba(14,51,134,0.55)",
-          color: "#FFFFFF",
-          fontFamily: "'DM Sans', sans-serif",
-          fontSize: "9px",
-          borderRadius: "100px",
-          padding: "3px 8px",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-        }}
-      >
-        {hr.leagueName}
-      </div>
+      {/* League pill - only show if player is in a league */}
+      {hr.leagueName && (
+        <div
+          style={{
+            backgroundColor: "rgba(14,51,134,0.55)",
+            color: "#FFFFFF",
+            fontFamily: "'DM Sans', sans-serif",
+            fontSize: "9px",
+            borderRadius: "100px",
+            padding: "3px 8px",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {hr.leagueName}
+        </div>
+      )}
     </Link>
   );
 };
@@ -822,7 +824,7 @@ export default function DashboardPage() {
 
   const fetchHomeruns = async () => {
     try {
-      const res = await fetch("/api/homeruns/recent");
+      const res = await fetch("/api/homeruns/all-recent");
       if (!res.ok) {
         throw new Error("Failed to fetch homeruns");
       }
