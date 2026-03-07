@@ -42,22 +42,22 @@ export async function GET() {
     }
 
     // Get today's games using officialDate (Eastern time, matches MLB API)
-    // Format: YYYY-MM-DD from Eastern timezone
-    const easternDate = new Date().toLocaleDateString("en-US", {
-      timeZone: "America/New_York",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    });
-    const [year, month, day] = easternDate.split("/");
-    const officialDateStr = `${year}-${month}-${day}`;
+    const getOfficialDateET = (): string => {
+      return new Date().toLocaleDateString("en-CA", {
+        timeZone: "America/New_York",
+      });
+      // en-CA locale returns YYYY-MM-DD format natively
+      // No manipulation needed — this is the exact format stored in officialDate
+    };
+
+    const today = getOfficialDateET();
 
     const games = await prisma.game.findMany({
       where: {
-        officialDate: officialDateStr,
+        officialDate: today,
       },
       orderBy: {
-        startTime: "asc",
+        gameDate: "asc",
       },
     });
 
