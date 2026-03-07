@@ -221,12 +221,11 @@ async function handleBackfill(startDate: string, endDate: string) {
               }
               }
             } else {
-              // Player not in any league - create a generic HomerrunEvent for dashboard display
-              // Use a dummy leagueId to store all-MLB homeruns
+              // Player not in any user league - store in all-mlb league
               try {
                 await prisma.homerrunEvent.create({
                   data: {
-                    leagueId: "all-mlb", // Special league ID for all-MLB homeruns
+                    leagueId: "all-mlb",
                     playerId: homerun.playerId,
                     playerName: homerun.playerName,
                     mlbId: homerun.mlbId,
