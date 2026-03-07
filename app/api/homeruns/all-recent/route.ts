@@ -51,21 +51,10 @@ export async function GET() {
 
     const userLeagueIds = userLeagueMemberships.map((m) => m.leagueId);
 
-    // Get today's date in ET (matches MLB official date)
-    const today = new Date().toLocaleDateString("en-CA", {
-      timeZone: "America/New_York",
-    });
-
-    // Get database homeruns (from drafted players in user's leagues, today only)
+    // Get database homeruns (all recent, not just today)
     const dbEvents = await prisma.homerrunEvent.findMany({
-      where: {
-        gameDate: {
-          gte: new Date(`${today}T00:00:00`),
-          lt: new Date(new Date(`${today}T00:00:00`).getTime() + 86400000),
-        },
-      },
       orderBy: {
-        createdAt: "desc",
+        gameDate: "desc",
       },
       take: 50,
       include: {
