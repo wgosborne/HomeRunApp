@@ -16,6 +16,7 @@ interface League {
   teamName?: string;
   memberships: any[];
   draftStatus?: string;
+  seasonEndedAt?: string;
   userRank?: number;
 }
 
@@ -421,6 +422,7 @@ const FeaturedGameCard = ({ game }: { game: LiveGame }) => {
 // Small game card component
 const SmallGameCard = ({ game, onSelect }: { game: LiveGame; onSelect?: (gameId: string) => void }) => {
   const isLive = game.status === "Live";
+  const isFinal = game.status === "Final";
 
   return (
     <div
@@ -435,7 +437,7 @@ const SmallGameCard = ({ game, onSelect }: { game: LiveGame; onSelect?: (gameId:
         boxShadow:
           "0 4px 12px rgba(0,0,0,0.35), 0 8px 24px rgba(0,0,0,0.2), 0 1px 0 rgba(255,255,255,0.06) inset",
         cursor: isLive ? "pointer" : "default",
-        opacity: isLive ? 1 : 0.6,
+        opacity: isLive || isFinal ? 1 : 0.6,
         transition: isLive ? "all 0.2s" : "none",
       }}
       onMouseEnter={(e) => {
@@ -485,6 +487,16 @@ const SmallGameCard = ({ game, onSelect }: { game: LiveGame; onSelect?: (gameId:
             Live · Inning {game.inning || 1}
           </span>
         </div>
+      ) : isFinal ? (
+        <div
+          style={{
+            fontFamily: "'DM Sans', sans-serif",
+            fontSize: "10px",
+            color: "rgba(255,255,255,0.5)",
+          }}
+        >
+          Final
+        </div>
       ) : (
         <div
           style={{
@@ -496,7 +508,7 @@ const SmallGameCard = ({ game, onSelect }: { game: LiveGame; onSelect?: (gameId:
           Upcoming
         </div>
       )}
-      {isLive && (
+      {(isLive || isFinal) && (
         <div
           className="score-desktop"
           style={{
@@ -801,55 +813,11 @@ export default function DashboardPage() {
         throw new Error("Failed to fetch games");
       }
       const games = await res.json();
-
-      // If we got real games, use them
-      if (games && games.length > 0) {
-        setGames(games);
-        return;
-      }
+      setGames(games || []);
     } catch (error) {
       console.error("Error fetching live games:", error);
+      setGames([]);
     }
-
-    // Fallback to placeholder data during off-season
-    setGames([
-      {
-        id: "game-1",
-        homeTeam: "Chicago Cubs",
-        awayTeam: "Milwaukee Brewers",
-        homeScore: 4,
-        awayScore: 2,
-        status: "Live",
-        inning: 7,
-        inningHalf: "Top",
-        gameType: "S",
-        userPlayerCount: 3,
-      },
-      {
-        id: "game-2",
-        homeTeam: "New York Yankees",
-        awayTeam: "Boston Red Sox",
-        homeScore: 0,
-        awayScore: 0,
-        status: "Upcoming",
-        inning: null,
-        inningHalf: null,
-        gameType: "S",
-        userPlayerCount: 1,
-      },
-      {
-        id: "game-3",
-        homeTeam: "Los Angeles Dodgers",
-        awayTeam: "San Francisco Giants",
-        homeScore: 0,
-        awayScore: 0,
-        status: "Upcoming",
-        inning: null,
-        inningHalf: null,
-        gameType: "S",
-        userPlayerCount: 0,
-      },
-    ]);
   };
 
   const fetchHomeruns = async () => {
@@ -859,55 +827,11 @@ export default function DashboardPage() {
         throw new Error("Failed to fetch homeruns");
       }
       const homeruns = await res.json();
-
-      // If we got real homeruns, use them
-      if (homeruns && homeruns.length > 0) {
-        setHomeruns(homeruns);
-        return;
-      }
+      setHomeruns(homeruns || []);
     } catch (error) {
       console.error("Error fetching live homeruns:", error);
+      setHomeruns([]);
     }
-
-    // Fallback to placeholder data during off-season
-    setHomeruns([
-      {
-        playerName: "Kyle Schwarber",
-        mlbTeam: "PHI",
-        mlbId: 656941,
-        hrNumber: 12,
-        leagueName: "Summer Sluggers",
-        isYourPlayer: true,
-        occurredAt: "2h ago",
-      },
-      {
-        playerName: "Juan Soto",
-        mlbTeam: "NYM",
-        mlbId: 665742,
-        hrNumber: 8,
-        leagueName: "Home Run Heroes",
-        isYourPlayer: false,
-        occurredAt: "3h ago",
-      },
-      {
-        playerName: "Aaron Judge",
-        mlbTeam: "NYY",
-        mlbId: 592450,
-        hrNumber: 15,
-        leagueName: "Summer Sluggers",
-        isYourPlayer: true,
-        occurredAt: "5h ago",
-      },
-      {
-        playerName: "Mookie Betts",
-        mlbTeam: "LAD",
-        mlbId: 605141,
-        hrNumber: 6,
-        leagueName: "Power Hitters",
-        isYourPlayer: false,
-        occurredAt: "6h ago",
-      },
-    ]);
   };
 
   if (status === "loading" || loading) {
@@ -945,39 +869,19 @@ export default function DashboardPage() {
     );
   }
 
-  // Categorize games by status
-  const liveGames = games.filter((g) => g.status === "Live");
-  const upcomingGames = games
-    .filter((g) => g.status !== "Live" && g.status !== "Final")
-    .slice(0, 8); // up to 8 upcoming in small cards
-  const finalGames = games.filter((g) => g.status === "Final");
-
-  // Determine featured game and small games
+  // Display all games from API (already prioritized and limited to 9 by endpoint)
+  // Feature the first game, display remaining 8 in small cards
   let featuredGame: LiveGame | undefined;
   let smallGames: LiveGame[] = [];
 
   if (featuredGameId) {
+    // User selected a specific game
     featuredGame = games.find((g) => g.id === featuredGameId);
-  }
-
-  if (!featuredGame) {
-    if (liveGames.length > 0) {
-      // Live mode: feature first live game, rest of live + upcoming in small
-      featuredGame = liveGames[0];
-      smallGames = [...liveGames.slice(1), ...upcomingGames].slice(0, 8);
-    } else {
-      // No live games: feature most recently ended game, upcoming in small
-      const mostRecentFinal = finalGames[finalGames.length - 1]; // API returns asc by startTime, so last = most recent
-      featuredGame = mostRecentFinal || upcomingGames[0];
-      smallGames = upcomingGames
-        .filter((g) => g.id !== featuredGame?.id)
-        .slice(0, 8);
-    }
-  } else {
-    // User selected a specific game - show other games in small cards
-    smallGames = games
-      .filter((g) => g.id !== featuredGame?.id)
-      .slice(0, 8);
+    smallGames = games.filter((g) => g.id !== featuredGame?.id);
+  } else if (games.length > 0) {
+    // Default: feature first game, show rest in small cards
+    featuredGame = games[0];
+    smallGames = games.slice(1);
   }
 
   return (
@@ -1035,6 +939,56 @@ export default function DashboardPage() {
               )}
             </div>
           </>
+        )}
+
+        {!featuredGame && (
+          <div style={{ padding: "0 16px 16px" }}>
+            <SectionHeader label="Live Games" />
+            <div
+              style={{
+                borderRadius: "14px",
+                backgroundColor: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.07)",
+                padding: "24px",
+                textAlign: "center",
+              }}
+            >
+              {leagues.some((l) => l.seasonEndedAt) ? (
+                <>
+                  <p
+                    style={{
+                      fontFamily: "'Exo 2'",
+                      fontSize: "16px",
+                      fontWeight: 700,
+                      color: "white",
+                    }}
+                  >
+                    Season Complete
+                  </p>
+                  <p
+                    style={{
+                      fontFamily: "'DM Sans'",
+                      fontSize: "13px",
+                      color: "rgba(255,255,255,0.5)",
+                      marginTop: "4px",
+                    }}
+                  >
+                    See you in April!
+                  </p>
+                </>
+              ) : (
+                <p
+                  style={{
+                    fontFamily: "'DM Sans'",
+                    fontSize: "13px",
+                    color: "rgba(255,255,255,0.4)",
+                  }}
+                >
+                  No games scheduled today
+                </p>
+              )}
+            </div>
+          </div>
         )}
 
         {/* Recent homeruns section */}

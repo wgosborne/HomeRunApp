@@ -17,6 +17,9 @@ interface League {
   draftStatus: string;
   draftDate?: string;
   draftStartedAt?: string;
+  seasonEndedAt?: string;
+  winnerId?: string;
+  winner?: { id: string; name: string; image?: string };
   memberships: Array<{
     id: string;
     userId: string;
@@ -1574,6 +1577,116 @@ function DraftTab({
   );
 }
 
+// End Season Section
+function EndSeasonSection({ leagueId }: { leagueId: string }) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleEndSeason = async () => {
+    if (!confirm("Are you sure? This will crown the winner and lock the league. No more trades after this.")) {
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(
+        `/api/leagues/${leagueId}/end-season`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to end season");
+      }
+
+      // Reload to show updated UI
+      window.location.reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to end season");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div
+      style={{
+        borderRadius: "14px",
+        border: "1px solid rgba(204,52,51,0.3)",
+        backgroundColor: "rgba(204,52,51,0.08)",
+        padding: "20px",
+      }}
+    >
+      <h3
+        style={{
+          fontFamily: "'Exo 2', sans-serif",
+          fontSize: "16px",
+          fontWeight: 800,
+          color: "white",
+          marginBottom: "8px",
+        }}
+      >
+        End Season
+      </h3>
+      <p
+        style={{
+          fontFamily: "'DM Sans', sans-serif",
+          fontSize: "13px",
+          color: "rgba(255,255,255,0.6)",
+          marginBottom: "16px",
+        }}
+      >
+        Crown the winner and lock the league. No more trades or roster changes after this.
+      </p>
+
+      {error && (
+        <div
+          style={{
+            marginBottom: "12px",
+            padding: "12px 16px",
+            borderRadius: "8px",
+            backgroundColor: "rgba(204,52,51,0.2)",
+            border: "1px solid rgba(204,52,51,0.5)",
+            color: "#FF6B6B",
+            fontFamily: "'DM Sans', sans-serif",
+            fontSize: "13px",
+          }}
+        >
+          {error}
+        </div>
+      )}
+
+      <button
+        onClick={handleEndSeason}
+        disabled={loading}
+        style={{
+          padding: "10px 16px",
+          borderRadius: "10px",
+          fontFamily: "'Exo 2', sans-serif",
+          fontSize: "12px",
+          fontWeight: 700,
+          backgroundColor: "#CC3433",
+          color: "white",
+          border: "none",
+          cursor: loading ? "not-allowed" : "pointer",
+          opacity: loading ? 0.6 : 1,
+          minHeight: "44px",
+          boxShadow: "0 4px 14px rgba(204, 52, 51, 0.45), 0 1px 0 rgba(255, 255, 255, 0.15) inset",
+        }}
+      >
+        {loading ? "Ending Season..." : "End Season"}
+      </button>
+    </div>
+  );
+}
+
 // Settings Tab
 function SettingsTab({
   league,
@@ -2044,6 +2157,10 @@ function SettingsTab({
               {savingDraftDate ? "Saving..." : "Save Draft Date"}
             </button>
           </div>
+        )}
+
+        {isCommissioner && league.draftStatus === "complete" && !league.seasonEndedAt && (
+          <EndSeasonSection leagueId={leagueId} />
         )}
 
         <div
@@ -2687,6 +2804,31 @@ export default function LeagueHomePage() {
           />
         </div>
 
+        {/* Champion Banner */}
+        {league.seasonEndedAt && (() => {
+          const winner = standings.find(s => s.userId === league.winnerId);
+          return (
+            <div style={{
+              margin: "16px 0 16px 0",
+              borderRadius: "14px",
+              background: "linear-gradient(135deg, rgba(204,52,51,0.15) 0%, rgba(14,51,134,0.15) 100%)",
+              border: "1px solid rgba(204,52,51,0.35)",
+              padding: "20px",
+              textAlign: "center",
+            }}>
+              <p style={{ fontFamily: "'Exo 2'", fontWeight: 800, fontSize: "18px", color: "white" }}>
+                {winner?.teamName || league.winner?.name} — League Champion
+              </p>
+              <p style={{ fontFamily: "'DM Sans'", fontSize: "13px", color: "rgba(255,255,255,0.6)", marginTop: "4px" }}>
+                {winner?.totalHomeruns ?? "—"} Home Runs · {winner?.userName}
+              </p>
+              <p style={{ fontFamily: "'DM Sans'", fontSize: "11px", color: "rgba(255,255,255,0.3)", marginTop: "8px" }}>
+                Season Complete · See you in April!
+              </p>
+            </div>
+          );
+        })()}
+
         {/* Tab Navigation */}
         <TabNavigation
           tabs={
@@ -2728,7 +2870,12 @@ export default function LeagueHomePage() {
               router={router}
             />
           )}
-          {activeTab === "trades" && <TradesTab leagueId={leagueId} />}
+          {activeTab === "trades" && (
+            <TradesTab
+              leagueId={leagueId}
+              isSeasonEnded={!!league.seasonEndedAt}
+            />
+          )}
           {activeTab === "players" && (
             <PlayersTab standings={standings} loading={loading} />
           )}

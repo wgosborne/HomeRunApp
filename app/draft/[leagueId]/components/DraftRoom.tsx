@@ -93,7 +93,7 @@ export function DraftRoom({ leagueId, userId }: DraftRoomProps) {
   useEffect(() => {
     console.log("[DRAFT-ROOM] Starting status polling every 20s");
     const interval = setInterval(() => {
-      console.log("[DRAFT-ROOM] 📡 Polling status...");
+      console.log("[DRAFT-ROOM] Polling status...");
       fetchStatus();
     }, 20000);
     return () => {
@@ -188,7 +188,7 @@ export function DraftRoom({ leagueId, userId }: DraftRoomProps) {
           }
 
           const result = await response.json();
-          console.log("[DRAFT-ROOM-AUTOPICK] ✓ Client-side autopick successful:", result);
+          console.log("[DRAFT-ROOM-AUTOPICK] Client-side autopick successful:", result);
 
           // Fetch updated status to show the new pick
           setTimeout(() => {
@@ -276,7 +276,7 @@ export function DraftRoom({ leagueId, userId }: DraftRoomProps) {
       }
 
       const result = await response.json();
-      console.log("[DRAFT-ROOM] ✓ Pick submitted successfully:", result);
+      console.log("[DRAFT-ROOM] Pick submitted successfully:", result);
 
       // Fetch updated status
       await fetchStatus();
@@ -664,7 +664,7 @@ export function DraftRoom({ leagueId, userId }: DraftRoomProps) {
                     marginBottom: "24px",
                   }}
                 >
-                  All {status?.completedPicks} picks have been made. Great draft! 🎉
+                  All {status?.completedPicks} picks have been made. Great draft!
                 </p>
                 <button
                   onClick={() => router.push(`/league/${leagueId}`)}
