@@ -41,19 +41,20 @@ export async function GET() {
       throw new AuthenticationError("User not found");
     }
 
-    // Calculate date bounds for today
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    // Get today's games using officialDate (Eastern time, matches MLB API)
+    // Format: YYYY-MM-DD from Eastern timezone
+    const easternDate = new Date().toLocaleDateString("en-US", {
+      timeZone: "America/New_York",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    const [year, month, day] = easternDate.split("/");
+    const officialDateStr = `${year}-${month}-${day}`;
 
-    // Get today's games
     const games = await prisma.game.findMany({
       where: {
-        gameDate: {
-          gte: today,
-          lt: tomorrow,
-        },
+        officialDate: officialDateStr,
       },
       orderBy: {
         startTime: "asc",

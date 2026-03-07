@@ -97,15 +97,23 @@ interface MLBScheduleResponse {
 }
 
 /**
+ * Map game status from abstract game state
+ */
+function mapStatus(abstractGameState: string): string {
+  if (abstractGameState === "Live") return "Live";
+  if (abstractGameState === "Final") return "Final";
+  return "Preview";
+}
+
+/**
  * Shared handler for game sync cron job
  * Vercel sends GET requests by default
  */
 async function handleGameSync() {
   try {
-
     const now = new Date();
 
-    // Season gate: return early if outside 2026-03-26 to 2026-09-27
+    // Season gate: return early if outside 2026-02-20 to 2026-09-27
     if (now < SEASON_START || now >= SEASON_END) {
       logger.info("Outside season bounds, skipping", {
         date: now.toISOString(),
@@ -118,19 +126,26 @@ async function handleGameSync() {
       });
     }
 
-    // Fetch today's games from MLB API
-    const mmddyyyy = `${(now.getMonth() + 1)
-      .toString()
-      .padStart(2, "0")}/${now
-      .getDate()
-      .toString()
-      .padStart(2, "0")}/${now.getFullYear()}`;
+    // BUG FIX #1: Use Eastern time to match MLB officialDate (games organized by ET, not UTC)
+    // A game with gameDate: "2026-03-07T00:10:00Z" has officialDate: "2026-03-06" —
+    // an evening ET game that crosses midnight UTC gets filed under the previous day
+    const easternDate = new Date().toLocaleDateString("en-US", {
+      timeZone: "America/New_York",
+      month: "2-digit",
+      day: "2-digit",
+      year: "numeric",
+    });
+    // Format: MM/DD/YYYY
+    const [month, day, year] = easternDate.split("/");
+    const mmddyyyy = `${month}/${day}/${year}`;
+
+    logger.info("Syncing games for ET date", { mmddyyyy });
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
 
     // Get allowed game types based on env flag
-    const enableSpringTraining = process.env.NEXT_PUBLIC_ENABLE_SPRING_TRAINING === 'true';
+    const enableSpringTraining = process.env.NEXT_PUBLIC_ENABLE_SPRING_TRAINING === "true";
     const gameTypes = enableSpringTraining ? "R,S" : "R";
     logger.info("Game sync filtering", { gameTypes, enableSpringTraining });
 
@@ -159,19 +174,29 @@ async function handleGameSync() {
       for (const game of dateGroup.games || []) {
         try {
           // Get team abbreviation from map, or use team ID as fallback
-          const homeTeamAbbrev = TEAM_ABBREV_MAP[game.teams.home.team.id] || `T${game.teams.home.team.id}`;
-          const awayTeamAbbrev = TEAM_ABBREV_MAP[game.teams.away.team.id] || `T${game.teams.away.team.id}`;
+          const homeTeamAbbrev =
+            TEAM_ABBREV_MAP[game.teams.home.team.id] ||
+            `T${game.teams.home.team.id}`;
+          const awayTeamAbbrev =
+            TEAM_ABBREV_MAP[game.teams.away.team.id] ||
+            `T${game.teams.away.team.id}`;
 
           const homeTeamId = game.teams.home.team.id;
           const awayTeamId = game.teams.away.team.id;
-          const homeScore = game.linescore?.teams?.home?.runs ?? 0;
-          const awayScore = game.linescore?.teams?.away?.runs ?? 0;
-          const status = game.status.abstractGameState;
-          const inning =
-            status === "Live" ? game.linescore?.currentInning : null;
-          const inningHalf =
-            status === "Live" ? game.linescore?.inningHalf : null;
           const gameDate = new Date(game.gameDate);
+
+          // BUG FIX #2: Read scores from teams object, NOT linescore
+          // The linescore contains inning-by-inning breakdown, not the authoritative totals
+          // Confirmed: teams.home.score and teams.away.score are the current game scores
+          const homeScore = (game.teams.home as any).score ?? 0;
+          const awayScore = (game.teams.away as any).score ?? 0;
+
+          // Game state from linescore (only populated for live games)
+          const inning = game.linescore?.currentInning ?? null;
+          const inningHalf = game.linescore?.inningHalf ?? null;
+
+          // Status mapping
+          const status = mapStatus(game.status.abstractGameState);
 
           // Format startTime as "H:MM AM/PM" local time
           const startTime = gameDate.toLocaleString("en-US", {
@@ -180,6 +205,10 @@ async function handleGameSync() {
             hour12: true,
           });
 
+          // BUG FIX #3: Use officialDate from API (Eastern time date for schedule queries)
+          const officialDate = (game as any).officialDate || mmddyyyy.replace(/\//g, "-");
+
+          // BUG FIX #4: Upsert must update all fields in BOTH create and update blocks
           await prisma.game.upsert({
             where: { id: game.gamePk.toString() },
             update: {
@@ -188,6 +217,7 @@ async function handleGameSync() {
               status,
               inning,
               inningHalf,
+              officialDate,
               gameType: game.gameType,
             },
             create: {
@@ -202,6 +232,7 @@ async function handleGameSync() {
               inning,
               inningHalf,
               gameDate,
+              officialDate,
               startTime,
               gameType: game.gameType,
             },

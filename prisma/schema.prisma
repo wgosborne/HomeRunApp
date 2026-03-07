@@ -274,10 +274,12 @@ model Game {
   inning                Int?         // only set if live
   inningHalf            String?      // only set if live
   gameDate              DateTime
+  officialDate          String?      // "YYYY-MM-DD" — Eastern time date from MLB API, use for schedule queries
   startTime             String?      // formatted as "H:MM AM/PM"
   gameType              String       @default("R")  // R=Regular, S=Spring Training, F=Fall, W=Playoff
   lastUpdated           DateTime     @updatedAt
 
+  @@index([officialDate])
   @@index([gameDate])
   @@index([status])
   @@index([gameType])
