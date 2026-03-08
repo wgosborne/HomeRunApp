@@ -21,18 +21,22 @@ export default function HomerunsPage() {
   const { data: session } = useSession();
   const router = useRouter();
   const [homeruns, setHomeruns] = useState<Homerun[]>([]);
+  const [userLeagues, setUserLeagues] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [sortBy, setSortBy] = useState<"recent" | "player" | "team">("recent");
-  const [filterLeague, setFilterLeague] = useState<string>("");
-  const [filterTeam, setFilterTeam] = useState<string>("");
+  const [filterLeagues, setFilterLeagues] = useState<Set<string>>(new Set());
+  const [filterTeams, setFilterTeams] = useState<Set<string>>(new Set());
   const [filterPlayer, setFilterPlayer] = useState<string>("");
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
   useEffect(() => {
     if (!session) return;
 
     const fetchHomeruns = async () => {
       try {
-        const res = await fetch("/api/homeruns/all");
+        const res = await fetch(`/api/homeruns/all?t=${Date.now()}`, {
+          cache: "no-store",
+        });
         if (res.ok) {
           const data = await res.json();
           setHomeruns(data);
@@ -47,9 +51,30 @@ export default function HomerunsPage() {
     fetchHomeruns();
   }, [session]);
 
+  useEffect(() => {
+    if (!session) return;
+
+    const fetchUserLeagues = async () => {
+      try {
+        const res = await fetch("/api/leagues");
+        if (res.ok) {
+          const data = await res.json();
+          setUserLeagues(data.map((league: any) => league.name));
+        }
+      } catch (error) {
+        console.error("Error fetching user leagues:", error);
+      }
+    };
+
+    fetchUserLeagues();
+  }, [session]);
+
   // Get unique values for filter dropdowns
   const leagues = Array.from(
-    new Set(homeruns.map((h) => h.leagueName).filter((l) => l !== null))
+    new Set([
+      ...userLeagues,
+      ...homeruns.map((h) => h.leagueName).filter((l) => l !== null)
+    ])
   ).sort();
   const teams = Array.from(
     new Set(homeruns.map((h) => h.mlbTeam).filter(Boolean))
@@ -57,11 +82,36 @@ export default function HomerunsPage() {
 
   // Apply filters
   const filteredHomeruns = homeruns.filter((hr) => {
-    if (filterLeague && hr.leagueName !== filterLeague) return false;
-    if (filterTeam && hr.mlbTeam !== filterTeam) return false;
+    if (filterLeagues.size > 0) {
+      // Show if homerun belongs to a selected league OR if it's your player
+      const leagueMatch = hr.leagueName && filterLeagues.has(hr.leagueName);
+      const allMlbMatch = !hr.leagueName && filterLeagues.has("all-mlb");
+      if (!leagueMatch && !allMlbMatch && !hr.isMyPlayer) return false;
+    }
+    if (filterTeams.size > 0 && !filterTeams.has(hr.mlbTeam)) return false;
     if (filterPlayer && !hr.playerName.toLowerCase().includes(filterPlayer.toLowerCase())) return false;
     return true;
   });
+
+  const toggleLeague = (league: string) => {
+    const newLeagues = new Set(filterLeagues);
+    if (newLeagues.has(league)) {
+      newLeagues.delete(league);
+    } else {
+      newLeagues.add(league);
+    }
+    setFilterLeagues(newLeagues);
+  };
+
+  const toggleTeam = (team: string) => {
+    const newTeams = new Set(filterTeams);
+    if (newTeams.has(team)) {
+      newTeams.delete(team);
+    } else {
+      newTeams.add(team);
+    }
+    setFilterTeams(newTeams);
+  };
 
   // Apply sorting
   const sortedHomeruns = [...filteredHomeruns].sort((a, b) => {
@@ -148,49 +198,193 @@ export default function HomerunsPage() {
             alignItems: "center",
           }}
         >
-          <select
-            value={filterLeague}
-            onChange={(e) => setFilterLeague(e.target.value)}
-            style={{
-              backgroundColor: "rgba(255, 255, 255, 0.05)",
-              border: "1px solid rgba(255, 255, 255, 0.1)",
-              borderRadius: "8px",
-              padding: "8px 12px",
-              color: "white",
-              fontFamily: "'DM Sans', sans-serif",
-              fontSize: "12px",
-              cursor: "pointer",
-            }}
-          >
-            <option value="">All Leagues</option>
-            {leagues.map((league) => (
-              <option key={league} value={league || ""}>
-                {league || "No League"}
-              </option>
-            ))}
-          </select>
+          {/* League Checkbox Dropdown */}
+          <div style={{ position: "relative" }}>
+            <button
+              onClick={() => setOpenDropdown(openDropdown === "league" ? null : "league")}
+              style={{
+                backgroundColor: "rgba(255, 255, 255, 0.05)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                borderRadius: "8px",
+                padding: "8px 12px",
+                color: "white",
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: "12px",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {filterLeagues.size === 0 ? "All Leagues" : `${filterLeagues.size} League${filterLeagues.size !== 1 ? "s" : ""}`}
+              <span style={{ fontSize: "10px" }}>▼</span>
+            </button>
+            {openDropdown === "league" && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "100%",
+                  left: 0,
+                  marginTop: "4px",
+                  backgroundColor: "rgba(20, 30, 48, 0.95)",
+                  border: "1px solid rgba(255, 255, 255, 0.15)",
+                  borderRadius: "8px",
+                  minWidth: "200px",
+                  zIndex: 10,
+                  boxShadow: "0 8px 16px rgba(0, 0, 0, 0.4)",
+                }}
+              >
+                <div style={{ padding: "8px" }}>
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      padding: "8px 10px",
+                      cursor: "pointer",
+                      color: "white",
+                      fontSize: "12px",
+                      borderRadius: "6px",
+                      marginBottom: "4px",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.05)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = "transparent";
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={filterLeagues.has("all-mlb")}
+                      onChange={() => toggleLeague("all-mlb")}
+                      style={{
+                        width: "14px",
+                        height: "14px",
+                        cursor: "pointer",
+                        accentColor: "#CC3433",
+                      }}
+                    />
+                    All MLB
+                  </label>
+                  {leagues.map((league) => (
+                    <label
+                      key={league}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        padding: "8px 10px",
+                        cursor: "pointer",
+                        color: "white",
+                        fontSize: "12px",
+                        borderRadius: "6px",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.05)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = "transparent";
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={filterLeagues.has(league)}
+                        onChange={() => toggleLeague(league)}
+                        style={{
+                          width: "14px",
+                          height: "14px",
+                          cursor: "pointer",
+                          accentColor: "#CC3433",
+                        }}
+                      />
+                      {league}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
 
-          <select
-            value={filterTeam}
-            onChange={(e) => setFilterTeam(e.target.value)}
-            style={{
-              backgroundColor: "rgba(255, 255, 255, 0.05)",
-              border: "1px solid rgba(255, 255, 255, 0.1)",
-              borderRadius: "8px",
-              padding: "8px 12px",
-              color: "white",
-              fontFamily: "'DM Sans', sans-serif",
-              fontSize: "12px",
-              cursor: "pointer",
-            }}
-          >
-            <option value="">All Teams</option>
-            {teams.map((team) => (
-              <option key={team} value={team}>
-                {team}
-              </option>
-            ))}
-          </select>
+          {/* Team Checkbox Dropdown */}
+          <div style={{ position: "relative" }}>
+            <button
+              onClick={() => setOpenDropdown(openDropdown === "team" ? null : "team")}
+              style={{
+                backgroundColor: "rgba(255, 255, 255, 0.05)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                borderRadius: "8px",
+                padding: "8px 12px",
+                color: "white",
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: "12px",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {filterTeams.size === 0 ? "All Teams" : `${filterTeams.size} Team${filterTeams.size !== 1 ? "s" : ""}`}
+              <span style={{ fontSize: "10px" }}>▼</span>
+            </button>
+            {openDropdown === "team" && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "100%",
+                  left: 0,
+                  marginTop: "4px",
+                  backgroundColor: "rgba(20, 30, 48, 0.95)",
+                  border: "1px solid rgba(255, 255, 255, 0.15)",
+                  borderRadius: "8px",
+                  minWidth: "200px",
+                  maxHeight: "300px",
+                  overflowY: "auto",
+                  zIndex: 10,
+                  boxShadow: "0 8px 16px rgba(0, 0, 0, 0.4)",
+                }}
+              >
+                <div style={{ padding: "8px" }}>
+                  {teams.map((team) => (
+                    <label
+                      key={team}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        padding: "8px 10px",
+                        cursor: "pointer",
+                        color: "white",
+                        fontSize: "12px",
+                        borderRadius: "6px",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.05)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = "transparent";
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={filterTeams.has(team)}
+                        onChange={() => toggleTeam(team)}
+                        style={{
+                          width: "14px",
+                          height: "14px",
+                          cursor: "pointer",
+                          accentColor: "#CC3433",
+                        }}
+                      />
+                      {team}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
 
           <input
             type="text"

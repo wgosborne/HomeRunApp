@@ -824,7 +824,9 @@ export default function DashboardPage() {
 
   const fetchHomeruns = async () => {
     try {
-      const res = await fetch("/api/homeruns/all-recent");
+      const res = await fetch(`/api/homeruns/all-recent?t=${Date.now()}`, {
+        cache: "no-store",
+      });
       if (!res.ok) {
         throw new Error("Failed to fetch homeruns");
       }

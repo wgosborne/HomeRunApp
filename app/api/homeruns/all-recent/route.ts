@@ -94,8 +94,8 @@ export async function GET() {
         leagueName = league?.league.name || null;
       } else {
         // Check if player is in any of the user's leagues (but not drafted by user)
-        const playerInUserLeague = userLeagueMemberships.find((membership) =>
-          membership.league.id === event.leagueId ? event.leagueId : null
+        const playerInUserLeague = userLeagueMemberships.find(
+          (membership) => membership.league.id === event.leagueId
         );
         leagueName = playerInUserLeague?.league.name || null;
       }
@@ -119,7 +119,11 @@ export async function GET() {
       myPlayers: response.filter((h) => h.isMyPlayer).length,
     });
 
-    return NextResponse.json(response);
+    return NextResponse.json(response, {
+      headers: {
+        "Cache-Control": "no-store, max-age=0",
+      },
+    });
   } catch (error) {
     const { statusCode, message } = handleError(
       error,
