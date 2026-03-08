@@ -18,7 +18,7 @@ export default function CreateLeaguePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [leagueName, setLeagueName] = useState("");
-  const [draftDate, setDraftDate] = useState(""); // YYYY-MM-DD format for date input
+  const [draftDateTime, setDraftDateTime] = useState(""); // YYYY-MM-DDTHH:mm format for datetime input
   const [teamName, setTeamName] = useState("");
 
   if (status === "unauthenticated") {
@@ -81,8 +81,8 @@ export default function CreateLeaguePage() {
         name: leagueName.trim(),
       };
 
-      if (draftDate) {
-        payload.draftDate = new Date(draftDate).toISOString();
+      if (draftDateTime) {
+        payload.draftDate = new Date(draftDateTime).toISOString();
       }
 
       if (teamName.trim()) {
@@ -315,7 +315,7 @@ export default function CreateLeaguePage() {
                 />
               </div>
 
-              {/* Draft Date Field */}
+              {/* Draft Date & Time Field */}
               <div style={{ marginBottom: "24px", minWidth: 0 }}>
                 <label
                   style={{
@@ -329,12 +329,12 @@ export default function CreateLeaguePage() {
                     marginBottom: "8px",
                   }}
                 >
-                  Draft Date (Optional)
+                  Draft Date & Time (Optional)
                 </label>
                 <input
-                  type="date"
-                  value={draftDate}
-                  onChange={(e) => setDraftDate(e.target.value)}
+                  type="datetime-local"
+                  value={draftDateTime}
+                  onChange={(e) => setDraftDateTime(e.target.value)}
                   style={{
                     width: "100%",
                     padding: "12px 16px",
@@ -371,7 +371,7 @@ export default function CreateLeaguePage() {
                     margin: "6px 0 0 0",
                   }}
                 >
-                  Leave blank to set draft date later
+                  Leave blank to set draft date & time later
                 </p>
               </div>
 

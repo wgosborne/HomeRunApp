@@ -1703,11 +1703,11 @@ function SettingsTab({
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [draftDate, setDraftDate] = useState(
+  const [draftDateTime, setDraftDateTime] = useState(
     league.draftDate
-      ? new Date(league.draftDate).toISOString().slice(0, 10)
+      ? new Date(league.draftDate).toISOString().slice(0, 16)
       : "",
-  ); // YYYY-MM-DD format for date input
+  ); // YYYY-MM-DDTHH:mm format for datetime input
   const [savingDraftDate, setSavingDraftDate] = useState(false);
   const [draftDateError, setDraftDateError] = useState<string | null>(null);
 
@@ -1737,8 +1737,8 @@ function SettingsTab({
 
     try {
       const payload: any = {};
-      if (draftDate) {
-        payload.draftDate = new Date(draftDate).toISOString();
+      if (draftDateTime) {
+        payload.draftDate = new Date(draftDateTime).toISOString();
       } else {
         payload.draftDate = null;
       }
@@ -2055,7 +2055,7 @@ function SettingsTab({
                 marginBottom: "16px",
               }}
             >
-              Draft Date
+              Draft Date & Time
             </h3>
             <div style={{ marginBottom: "16px", minWidth: 0 }}>
               <label
@@ -2070,12 +2070,12 @@ function SettingsTab({
                   marginBottom: "8px",
                 }}
               >
-                Scheduled Draft Date (Optional)
+                Scheduled Draft Date & Time (Optional)
               </label>
               <input
-                type="date"
-                value={draftDate}
-                onChange={(e) => setDraftDate(e.target.value)}
+                type="datetime-local"
+                value={draftDateTime}
+                onChange={(e) => setDraftDateTime(e.target.value)}
                 style={{
                   width: "100%",
                   padding: "12px 16px",
@@ -2110,7 +2110,7 @@ function SettingsTab({
                   marginBottom: "0",
                 }}
               >
-                This date is for reference only. The draft will{" "}
+                This date and time are for reference only. The draft will{" "}
                 <strong>not</strong> automatically start at this time. You'll
                 need to manually click "Start Draft" in the Draft tab whenever
                 you're ready. Members will receive a notification when you start
