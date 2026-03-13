@@ -48,6 +48,7 @@ enum DraftStatus {
 // Trade Status Enum
 // ============================================================================
 enum TradeStatus {
+  pending_commissioner
   pending
   accepted
   rejected

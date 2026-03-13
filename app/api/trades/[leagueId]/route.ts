@@ -9,6 +9,16 @@ import { sendPushToUser } from "@/lib/push-service";
 
 const logger = createLogger("api-trades");
 
+// Trade window helper
+const TRADE_WINDOW_START = "2026-07-13";
+const TRADE_WINDOW_END = "2026-07-17";
+
+function isTradeWindowOpen(): boolean {
+  if (process.env.NEXT_PUBLIC_ENABLE_SPRING_TRAINING === "true") return true;
+  const etDateStr = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+  return etDateStr >= TRADE_WINDOW_START && etDateStr <= TRADE_WINDOW_END;
+}
+
 /**
  * GET /api/trades/[leagueId]
  * Get all trades in a league (pending, accepted, rejected, expired)
@@ -47,6 +57,18 @@ export async function GET(
       return NextResponse.json({ error: "Not a league member" }, { status: 403 });
     }
 
+    // Fetch league commissioner ID
+    const league = await prisma.league.findUnique({
+      where: { id: leagueId },
+      select: { commissionerId: true },
+    });
+
+    if (!league) {
+      return NextResponse.json({ error: "League not found" }, { status: 404 });
+    }
+
+    const isCommissioner = user.id === league.commissionerId;
+
     // Fetch all trades for league
     const trades = await prisma.trade.findMany({
       where: { leagueId },
@@ -61,9 +83,18 @@ export async function GET(
       orderBy: { createdAt: "desc" },
     });
 
-    logger.info("Fetched trades", { leagueId, count: trades.length });
+    // Filter out pending_commissioner trades that user shouldn't see
+    const visibleTrades = trades.filter((trade) => {
+      const tradeStatusStr = (trade.status as any) as string;
+      if (tradeStatusStr !== "pending_commissioner") return true;
+      if (isCommissioner) return true;
+      if (trade.ownerId === user.id) return true;
+      return false;
+    });
 
-    return NextResponse.json(trades, { status: 200 });
+    logger.info("Fetched trades", { leagueId, count: visibleTrades.length });
+
+    return NextResponse.json(visibleTrades, { status: 200 });
   } catch (error) {
     const { statusCode, message } = handleError(error, "Failed to fetch trades");
     return NextResponse.json({ error: message }, { status: statusCode });
@@ -120,14 +151,23 @@ export async function POST(
       throw new AuthorizationError("You are not a member of this league");
     }
 
-    // Check if season has ended
+    // Check if season has ended and get commissioner
     const league = await prisma.league.findUnique({
       where: { id: leagueId },
-      select: { seasonEndedAt: true },
+      select: { seasonEndedAt: true, commissionerId: true },
     });
 
-    if (league?.seasonEndedAt) {
+    if (!league) {
+      throw new NotFoundError("League not found");
+    }
+
+    if (league.seasonEndedAt) {
       throw new ConflictError("The season has ended. Trades are closed.");
+    }
+
+    // Check if trade window is open
+    if (!isTradeWindowOpen()) {
+      throw new ConflictError("The trade window is closed. Trades are open July 13–17.");
     }
 
     // Verify receiver exists and is member of league
@@ -209,7 +249,7 @@ export async function POST(
               },
             ],
           },
-          { status: "pending" },
+          { status: { in: ["pending", "pending_commissioner" as any] } },
         ],
       },
     });
@@ -220,7 +260,7 @@ export async function POST(
       );
     }
 
-    // Create the trade with 48-hour expiration
+    // Create the trade with 48-hour expiration (pending_commissioner status)
     const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
 
     const trade = await prisma.trade.create({
@@ -234,7 +274,7 @@ export async function POST(
         receiverPlayerId: validatedData.receiverPlayerId,
         receiverPlayerName: validatedData.receiverPlayerName,
         receiverPlayerMlbId: validatedData.receiverPlayerMlbId || receiverPlayerRoster?.mlbId || null,
-        status: "pending",
+        status: "pending_commissioner" as any,
         expiresAt,
       },
       include: {
@@ -260,11 +300,11 @@ export async function POST(
       timestamp: Date.now(),
     });
 
-    // Send push notification to receiver
+    // Send push notification to commissioner
     try {
-      await sendPushToUser(validatedData.receiverId, leagueId, {
-        title: "New trade proposal!",
-        body: `${user.name} is offering ${validatedData.ownerPlayerName} for ${validatedData.receiverPlayerName}. You have 48 hours to respond.`,
+      await sendPushToUser(league.commissionerId, leagueId, {
+        title: "Trade proposal awaiting review",
+        body: `${user.name} proposed a trade: ${validatedData.ownerPlayerName} for ${validatedData.receiverPlayerName}.`,
         icon: "/icon-192x192.png",
         badge: "/badge-72x72.png",
         tag: "trade-proposal",
@@ -278,7 +318,7 @@ export async function POST(
     } catch (pushError) {
       logger.error("Error sending trade proposal push notification", {
         leagueId,
-        receiverId: validatedData.receiverId,
+        commissionerId: league.commissionerId,
         error: pushError,
       });
       // Continue even if push fails

@@ -2874,6 +2874,7 @@ export default function LeagueHomePage() {
             <TradesTab
               leagueId={leagueId}
               isSeasonEnded={!!league.seasonEndedAt}
+              isCommissioner={isCommissioner}
             />
           )}
           {activeTab === "players" && (

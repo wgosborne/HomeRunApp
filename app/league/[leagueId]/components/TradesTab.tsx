@@ -16,7 +16,7 @@ interface Trade {
   receiverPlayerId: string;
   receiverPlayerName: string;
   receiverPlayerMlbId?: number | null;
-  status: "pending" | "accepted" | "rejected" | "expired";
+  status: "pending_commissioner" | "pending" | "accepted" | "rejected" | "expired";
   expiresAt: string;
   respondedAt?: string;
   createdAt: string;
@@ -34,12 +34,21 @@ interface Trade {
 
 type TradeFilter = "pending" | "completed" | "all";
 
+// Trade window helper
+function isTradeWindowOpen() {
+  if (process.env.NEXT_PUBLIC_ENABLE_SPRING_TRAINING === "true") return true;
+  const etDateStr = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+  return etDateStr >= "2026-07-13" && etDateStr <= "2026-07-17";
+}
+
 export function TradesTab({
   leagueId,
   isSeasonEnded = false,
+  isCommissioner = false,
 }: {
   leagueId: string;
   isSeasonEnded?: boolean;
+  isCommissioner?: boolean;
 }) {
   const { data: session } = useSession();
   const [trades, setTrades] = useState<Trade[]>([]);
@@ -47,6 +56,7 @@ export function TradesTab({
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<TradeFilter>("all");
   const [showProposalForm, setShowProposalForm] = useState(false);
+  const tradeWindowOpen = isTradeWindowOpen();
 
   useEffect(() => {
     fetchTrades();
@@ -65,12 +75,16 @@ export function TradesTab({
     channel.bind("trade-accepted", handleTradeUpdate);
     channel.bind("trade-rejected", handleTradeUpdate);
     channel.bind("trade-expired", handleTradeUpdate);
+    channel.bind("trade-commissioner-approved", handleTradeUpdate);
+    channel.bind("trade-commissioner-rejected", handleTradeUpdate);
 
     return () => {
       channel.unbind("trade-proposed", handleTradeUpdate);
       channel.unbind("trade-accepted", handleTradeUpdate);
       channel.unbind("trade-rejected", handleTradeUpdate);
       channel.unbind("trade-expired", handleTradeUpdate);
+      channel.unbind("trade-commissioner-approved", handleTradeUpdate);
+      channel.unbind("trade-commissioner-rejected", handleTradeUpdate);
     };
   }, [leagueId]);
 
@@ -107,6 +121,23 @@ export function TradesTab({
     }
   };
 
+  const handleApprove = async (tradeId: string) => {
+    try {
+      const res = await fetch(`/api/trades/${leagueId}/${tradeId}/approve`, {
+        method: "POST",
+      });
+
+      if (res.ok) {
+        setError("");
+      } else {
+        const data = await res.json();
+        setError(data.error || "Failed to approve trade");
+      }
+    } catch (err) {
+      setError("Failed to approve trade");
+    }
+  };
+
   const handleReject = async (tradeId: string) => {
     try {
       const res = await fetch(`/api/trades/${leagueId}/${tradeId}/reject`, {
@@ -127,7 +158,9 @@ export function TradesTab({
   const getFilteredTrades = () => {
     switch (filter) {
       case "pending":
-        return trades.filter((t) => t.status === "pending");
+        return isCommissioner
+          ? trades.filter((t) => t.status === "pending" || t.status === "pending_commissioner")
+          : trades.filter((t) => t.status === "pending");
       case "completed":
         return trades.filter((t) =>
           ["accepted", "rejected", "expired"].includes(t.status)
@@ -138,10 +171,14 @@ export function TradesTab({
   };
 
   const filteredTrades = getFilteredTrades();
-  const pendingTrades = trades.filter((t) => t.status === "pending");
-  const myPendingTrades = pendingTrades.filter(
-    (t) => t.receiverId === session?.user?.id && t.status === "pending"
-  );
+  const pendingTrades = isCommissioner
+    ? trades.filter((t) => t.status === "pending" || t.status === "pending_commissioner")
+    : trades.filter((t) => t.status === "pending");
+  const myPendingTrades = isCommissioner
+    ? pendingTrades
+    : pendingTrades.filter(
+      (t) => t.receiverId === session?.user?.id && t.status === "pending"
+    );
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -151,6 +188,8 @@ export function TradesTab({
         return { bg: "rgba(200, 16, 46, 0.1)", border: "1px solid rgba(200, 16, 46, 0.3)", text: "#C8102E" };
       case "expired":
         return { bg: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.15)", text: "rgba(255, 255, 255, 0.6)" };
+      case "pending_commissioner":
+        return { bg: "rgba(255,196,0,0.1)", border: "1px solid rgba(255,196,0,0.3)", text: "#FFC400" };
       case "pending":
         return { bg: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.15)", text: "#FFFFFF" };
       default:
@@ -219,6 +258,23 @@ export function TradesTab({
         </div>
       )}
 
+      {/* Trade Window Banner */}
+      {!tradeWindowOpen && !isSeasonEnded && (
+        <div
+          style={{
+            borderRadius: "12px",
+            backgroundColor: "rgba(255,196,0,0.08)",
+            border: "1px solid rgba(255,196,0,0.25)",
+            padding: "16px",
+            textAlign: "center",
+          }}
+        >
+          <p style={{ color: "rgba(255,196,0,0.9)", fontSize: "13px" }}>
+            Trade window is closed. Trades open July 13–17, 2026.
+          </p>
+        </div>
+      )}
+
       {/* Header with Action */}
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold" style={{ color: "#FFFFFF" }}>
@@ -227,10 +283,13 @@ export function TradesTab({
         {!isSeasonEnded && (
           <button
             onClick={() => setShowProposalForm(!showProposalForm)}
+            disabled={!tradeWindowOpen}
             className="px-4 py-2 rounded font-semibold text-sm transition"
             style={{
               backgroundColor: showProposalForm ? "rgba(200, 16, 46, 0.3)" : "#C8102E",
               color: showProposalForm ? "#FFFFFF" : "#0D1F3C",
+              opacity: tradeWindowOpen ? 1 : 0.4,
+              cursor: tradeWindowOpen ? "pointer" : "not-allowed",
             }}
           >
             {showProposalForm ? "Cancel" : "Propose Trade"}
@@ -332,10 +391,12 @@ export function TradesTab({
                       className="px-3 py-1 rounded text-xs font-semibold"
                       style={{ backgroundColor: statusColor.text ? statusColor.text : "#C8102E", color: "#0D1F3C" }}
                     >
-                      {trade.status.charAt(0).toUpperCase() + trade.status.slice(1)}
+                      {trade.status === "pending_commissioner"
+                        ? "Pending Review"
+                        : trade.status.charAt(0).toUpperCase() + trade.status.slice(1)}
                     </span>
-                    {trade.status === "pending" && (
-                      <p style={{ color: "#C8102E" }} className="text-xs font-medium">
+                    {(trade.status === "pending" || trade.status === "pending_commissioner") && (
+                      <p style={{ color: statusColor.text }} className="text-xs font-medium">
                         {formatTimeRemaining(trade.expiresAt)}
                       </p>
                     )}
@@ -381,6 +442,31 @@ export function TradesTab({
                 </div>
 
                 {/* Action Buttons */}
+                {trade.status === "pending_commissioner" && isCommissioner && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleApprove(trade.id)}
+                      className="flex-1 px-4 py-2 rounded font-semibold text-sm transition"
+                      style={{
+                        backgroundColor: "#7FBF6B",
+                        color: "#0D1F3C",
+                      }}
+                    >
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => handleReject(trade.id)}
+                      className="flex-1 px-4 py-2 rounded font-semibold text-sm transition"
+                      style={{
+                        backgroundColor: "#C8102E",
+                        color: "#0D1F3C",
+                      }}
+                    >
+                      Decline
+                    </button>
+                  </div>
+                )}
+
                 {trade.status === "pending" && trade.receiverId === session?.user?.id && (
                   <div className="flex gap-2">
                     <button

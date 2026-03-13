@@ -38,7 +38,7 @@ export async function POST(
       where: { id: tradeId },
       include: {
         league: {
-          select: { id: true, name: true },
+          select: { id: true, name: true, commissionerId: true },
         },
         owner: {
           select: { id: true, name: true },
@@ -53,15 +53,23 @@ export async function POST(
       throw new NotFoundError("Trade not found");
     }
 
-    // Only the receiver can reject
-    if (user.id !== trade.receiverId) {
-      throw new AuthorizationError("Only the trade receiver can reject this trade");
+    const isCommissioner = user.id === trade.league.commissionerId;
+    const isReceiver = user.id === trade.receiverId;
+
+    // Only commissioner or receiver can reject
+    if (!isCommissioner && !isReceiver) {
+      throw new AuthorizationError("Only the commissioner or receiver can reject this trade");
     }
 
-    // Trade must be pending
-    if (trade.status !== "pending") {
+    // Commissioner can reject pending_commissioner, receiver can reject pending
+    const tradeStatusStr = trade.status as string;
+    if (isCommissioner && tradeStatusStr === "pending_commissioner") {
+      // Commissioner rejection is OK
+    } else if (isReceiver && trade.status === "pending") {
+      // Receiver rejection is OK
+    } else {
       throw new ConflictError(
-        `This trade has already been ${trade.status}`
+        `This trade cannot be rejected in its current state (${trade.status})`
       );
     }
 
@@ -94,25 +102,58 @@ export async function POST(
       timestamp: Date.now(),
     });
 
-    // Send push notification to owner
+    // Send push notifications based on who rejected
     try {
-      await sendPushToUser(trade.ownerId, trade.leagueId, {
-        title: "Trade rejected",
-        body: `${trade.receiver.name} rejected your trade proposal.`,
-        icon: "/icon-192x192.png",
-        badge: "/badge-72x72.png",
-        tag: "trade-rejected",
-        leagueId: trade.leagueId,
-        eventType: "trade",
-        data: {
-          tradeId: updatedTrade.id,
-          type: "rejected",
-        },
-      });
+      if (isCommissioner) {
+        // Commissioner rejected pending_commissioner trade
+        await sendPushToUser(trade.ownerId, trade.leagueId, {
+          title: "Trade declined",
+          body: "Your trade proposal was declined by the commissioner.",
+          icon: "/icon-192x192.png",
+          badge: "/badge-72x72.png",
+          tag: "trade-rejected",
+          leagueId: trade.leagueId,
+          eventType: "trade",
+          data: {
+            tradeId: updatedTrade.id,
+            type: "rejected",
+          },
+        });
+      } else {
+        // Receiver rejected pending trade
+        await sendPushToUser(trade.ownerId, trade.leagueId, {
+          title: "Trade rejected",
+          body: `${trade.receiver.name} rejected your trade proposal.`,
+          icon: "/icon-192x192.png",
+          badge: "/badge-72x72.png",
+          tag: "trade-rejected",
+          leagueId: trade.leagueId,
+          eventType: "trade",
+          data: {
+            tradeId: updatedTrade.id,
+            type: "rejected",
+          },
+        });
+
+        // Also notify commissioner that receiver rejected
+        await sendPushToUser(trade.league.commissionerId, trade.leagueId, {
+          title: "Trade rejected",
+          body: `${trade.receiver.name} rejected the trade with ${trade.owner.name}.`,
+          icon: "/icon-192x192.png",
+          badge: "/badge-72x72.png",
+          tag: "trade-rejected",
+          leagueId: trade.leagueId,
+          eventType: "trade",
+          data: {
+            tradeId: updatedTrade.id,
+            type: "rejected",
+          },
+        });
+      }
     } catch (pushError) {
       logger.error("Error sending trade rejection push notification", {
         leagueId: trade.leagueId,
-        ownerId: trade.ownerId,
+        rejectedBy: user.id,
         error: pushError,
       });
     }
