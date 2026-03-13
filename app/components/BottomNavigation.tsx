@@ -17,7 +17,7 @@ export function BottomNavigation() {
     {
       id: "scores",
       label: "Scores",
-      path: "/dashboard",
+      path: "/scores",
       icon: (isActive) => (
         <svg
           className="w-6 h-6"
@@ -77,8 +77,8 @@ export function BottomNavigation() {
   ];
 
   const isActive = (path: string) => {
-    if (path === "/dashboard") {
-      return pathname === "/dashboard" || pathname === "/";
+    if (path === "/scores") {
+      return pathname === "/scores";
     }
     return pathname === path;
   };

@@ -10,25 +10,23 @@ const SEASON_END = new Date("2026-09-28"); // Up to but not including this date
 
 // Map team IDs to MLB abbreviations (includes WBC teams for spring training)
 const TEAM_ABBREV_MAP: Record<number, string> = {
-  // MLB Teams
+  // MLB Teams (official MLB team IDs)
   108: "LAA", // Los Angeles Angels
   109: "ARI", // Arizona Diamondbacks
   110: "BAL", // Baltimore Orioles
   111: "BOS", // Boston Red Sox
   112: "CHC", // Chicago Cubs
   113: "CIN", // Cincinnati Reds
-  114: "CLE", // Cleveland Guardians
-  115: "COL", // Colorado Rockies
+  114: "MIL", // Milwaukee Brewers
+  115: "PIT", // Pittsburgh Pirates
   116: "DET", // Detroit Tigers
   117: "HOU", // Houston Astros
   118: "KC",  // Kansas City Royals
-  119: "LAD", // Los Angeles Dodgers
-  120: "WSH", // Washington Nationals
+  119: "SEA", // Seattle Mariners
+  120: "NYY", // New York Yankees
   121: "NYM", // New York Mets
   133: "OAK", // Oakland Athletics
-  134: "PIT", // Pittsburgh Pirates
   135: "SD",  // San Diego Padres
-  136: "SEA", // Seattle Mariners
   137: "SF",  // San Francisco Giants
   138: "STL", // St. Louis Cardinals
   139: "TB",  // Tampa Bay Rays
@@ -39,8 +37,7 @@ const TEAM_ABBREV_MAP: Record<number, string> = {
   144: "ATL", // Atlanta Braves
   145: "CWS", // Chicago White Sox
   146: "MIA", // Miami Marlins
-  147: "NYY", // New York Yankees
-  158: "MIL", // Milwaukee Brewers
+  159: "CLE", // Cleveland Guardians
   // World Baseball Classic Teams (Spring Training)
   776: "BRA", // Brazil
   784: "CAN", // Canada
@@ -210,12 +207,8 @@ async function handleGameSync() {
           // Status mapping
           const status = mapStatus(game.status.abstractGameState);
 
-          // Format startTime as "H:MM AM/PM" local time
-          const startTime = gameDate.toLocaleString("en-US", {
-            hour: "numeric",
-            minute: "2-digit",
-            hour12: true,
-          });
+          // Store startTime as ISO string for frontend parsing
+          const startTime = gameDate.toISOString();
 
           // BUG FIX #3: Use officialDate from API (Eastern time date for schedule queries)
           // Format must be YYYY-MM-DD to match games/today query filter

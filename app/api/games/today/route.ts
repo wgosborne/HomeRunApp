@@ -11,6 +11,8 @@ export interface ApiGame {
   id: string;
   homeTeam: string;
   awayTeam: string;
+  homeTeamLogo: string;
+  awayTeamLogo: string;
   homeScore: number;
   awayScore: number;
   status: string;
@@ -163,7 +165,16 @@ export async function GET() {
     // Get player team map (uses cached MLB leaders)
     const playerTeamMap = await getPlayerTeamMap();
 
-    // Build response with userPlayerCount for each game
+    // Fetch all teams and create logo map
+    const teams = await prisma.team.findMany({
+      select: {
+        abbreviation: true,
+        logo: true,
+      },
+    });
+    const logoMap = new Map(teams.map((t) => [t.abbreviation, t.logo]));
+
+    // Build response with userPlayerCount and logos for each game
     const response: ApiGame[] = games.map((game) => {
       // Count how many of user's players are in this game
       let userPlayerCount = 0;
@@ -178,6 +189,8 @@ export async function GET() {
         id: game.id,
         homeTeam: game.homeTeam,
         awayTeam: game.awayTeam,
+        homeTeamLogo: logoMap.get(game.homeTeam) || "",
+        awayTeamLogo: logoMap.get(game.awayTeam) || "",
         homeScore: game.homeScore,
         awayScore: game.awayScore,
         status: game.status,
