@@ -7,6 +7,7 @@ import Link from "next/link";
 import { PlayerAvatar } from "@/app/components/PlayerAvatar";
 import { NotificationDropdown } from "@/app/components/NotificationDropdown";
 import { UserMenu } from "@/app/components/UserMenu";
+import { BottomNavigation } from "@/app/components/BottomNavigation";
 
 interface League {
   id: string;
@@ -921,7 +922,7 @@ export default function DashboardPage() {
       <Header onBellClick={() => {}} />
 
       {/* Main content */}
-      <div className="dashboard-content" style={{ paddingBottom: "32px", paddingLeft: "16px", paddingRight: "16px", position: "relative", zIndex: 1 }}>
+      <div className="dashboard-content" style={{ paddingBottom: "120px", paddingLeft: "16px", paddingRight: "16px", position: "relative", zIndex: 1 }}>
         {/* Featured game section */}
         {featuredGame && (
           <>
@@ -1070,6 +1071,8 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
+
+      <BottomNavigation />
     </main>
   );
 }
