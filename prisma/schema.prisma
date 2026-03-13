@@ -260,6 +260,22 @@ model LeagueSettings {
 }
 
 // ============================================================================
+// Team: MLB team registry (30 teams)
+// ============================================================================
+model Team {
+  id                    String       @id @default(cuid())
+  mlbId                 Int          @unique
+  name                  String
+  city                  String
+  abbreviation          String       @unique
+  logo                  String       // Cloudinary CDN URL for team logo
+  createdAt             DateTime     @default(now())
+
+  @@index([mlbId])
+  @@index([abbreviation])
+}
+
+// ============================================================================
 // Game: Live MLB games synced daily
 // ============================================================================
 model Game {
@@ -283,6 +299,39 @@ model Game {
   @@index([gameDate])
   @@index([status])
   @@index([gameType])
+}
+
+// ============================================================================
+// Player: Persistent MLB player registry with seasonal stats
+// ============================================================================
+model Player {
+  id                    String    @id @default(cuid())
+  mlbId                 Int       @unique
+  fullName              String
+  position              String?
+  teamName              String?
+  teamId                Int?
+  jerseyNumber          String?
+  headshot              String?
+  homeruns              Int       @default(0)
+  gamesPlayed           Int       @default(0)
+  battingAverage        Float?
+  ops                   Float?
+  homerunsLast14Days    Int       @default(0)
+  gamesPlayedLast14Days Int       @default(0)
+  height                String?
+  weight                Int?
+  college               String?
+  bats                  String?
+  throws                String?
+  bioSyncedAt           DateTime?
+  lastStatsUpdatedAt    DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([mlbId])
+  @@index([homeruns])
+  @@index([bioSyncedAt])
 }
 
 // ============================================================================
