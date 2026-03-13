@@ -113,6 +113,18 @@ async function handleGameSync() {
   try {
     const now = new Date();
 
+    // Early exit: if outside 11am to 1am ET game window, skip immediately
+    const easternTime = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
+    const easternHour = easternTime.getHours();
+    if (easternHour >= 1 && easternHour < 11) {
+      logger.info("Outside game window, skipping", { hour: easternHour });
+      console.log(`[CRON-SYNC-GAMES] Outside game window (hour ${easternHour}), exiting early`);
+      return NextResponse.json({
+        message: "outside game window",
+        synced: 0,
+      }, { status: 200 });
+    }
+
     // Season gate: return early if outside 2026-02-20 to 2026-09-27
     if (now < SEASON_START || now >= SEASON_END) {
       logger.info("Outside season bounds, skipping", {

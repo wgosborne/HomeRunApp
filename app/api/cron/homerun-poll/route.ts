@@ -13,6 +13,19 @@ const logger = createLogger("cron-homerun-poll");
  */
 async function handleHomerungPoll() {
   try {
+    // Early exit: if outside 11am to 1am ET game window, skip immediately
+    const now = new Date();
+    const easternTime = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
+    const easternHour = easternTime.getHours();
+    if (easternHour >= 1 && easternHour < 11) {
+      logger.info("Outside game window, skipping", { hour: easternHour });
+      console.log(`[CRON-HOMERUN-POLL] Outside game window (hour ${easternHour}), exiting early`);
+      return NextResponse.json({
+        message: "outside game window",
+        processed: 0,
+        skipped: 0,
+      }, { status: 200 });
+    }
 
     let processedCount = 0;
     let skippedCount = 0;
