@@ -42,7 +42,7 @@ export async function GET(
 
     // Extract current play state
     const liveData = data.liveData;
-    if (!liveData) {
+    if (!liveData || !liveData.linescore) {
       return NextResponse.json({
         first: false,
         second: false,
@@ -51,18 +51,13 @@ export async function GET(
       });
     }
 
-    const basesLoaded = liveData.basesLoaded || {
-      first: false,
-      second: false,
-      third: false,
-    };
-
-    const outs = liveData.linescore?.currentInningOuts || 0;
+    const offense = liveData.linescore.offense || {};
+    const outs = liveData.linescore.outs ?? 0;
 
     const state: BaserunnerState = {
-      first: basesLoaded.first || false,
-      second: basesLoaded.second || false,
-      third: basesLoaded.third || false,
+      first: !!offense.first,
+      second: !!offense.second,
+      third: !!offense.third,
       outs,
     };
 

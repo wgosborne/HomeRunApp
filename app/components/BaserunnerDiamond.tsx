@@ -46,19 +46,19 @@ export function BaserunnerDiamond({ first, second, third, outs }: BaserunnerDiam
       {/* Outs display */}
       <div
         style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: "2px",
           fontFamily: "'Exo 2', sans-serif",
-          fontSize: "11px",
-          fontWeight: 700,
-          color: "rgba(255,255,255,0.7)",
-          textAlign: "center",
-          minWidth: "24px",
+          minWidth: "28px",
         }}
       >
         <div style={{ fontSize: "16px", fontWeight: 800, color: "white", lineHeight: "1" }}>
-          {outs}
+          {outs ?? "-"}
         </div>
         <div style={{ fontSize: "8px", color: "rgba(255,255,255,0.5)", letterSpacing: "0.5px" }}>
-          OUT{outs !== 1 ? "S" : ""}
+          {(outs ?? 0) !== 1 ? "OUTS" : "OUT"}
         </div>
       </div>
     </div>
