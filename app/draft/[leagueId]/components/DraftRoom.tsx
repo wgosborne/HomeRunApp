@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { pusherClient } from "@/lib/pusher-client";
+import { LoadingScreen } from "@/app/components/LoadingScreen";
 import { DraftTimer } from "./DraftTimer";
 import { PlayerSearch } from "./PlayerSearch";
 import { DevPanel } from "./DevPanel";
@@ -81,12 +82,15 @@ export function DraftRoom({ leagueId, userId }: DraftRoomProps) {
     }
   }, [leagueId]);
 
-  // Initial load
+  // Initial load - wait for fetchStatus to complete before clearing loading state
   useEffect(() => {
-    fetchStatus();
-    setLoading(false);
-    // Reset content loaded state when fresh load occurs
-    setAllContentLoaded(false);
+    const load = async () => {
+      await fetchStatus();
+      setLoading(false);
+      // Reset content loaded state when fresh load occurs
+      setAllContentLoaded(false);
+    };
+    load();
   }, [fetchStatus]);
 
   // Polling: refresh status every 20 seconds
@@ -291,7 +295,7 @@ export function DraftRoom({ leagueId, userId }: DraftRoomProps) {
   };
 
   if (loading) {
-    return <div className="text-center py-8 text-gray-600">Loading draft room...</div>;
+    return <LoadingScreen />;
   }
 
   if (error) {

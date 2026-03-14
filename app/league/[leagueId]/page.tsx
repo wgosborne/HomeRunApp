@@ -8,6 +8,7 @@ import { pusherClient } from "@/lib/pusher-client";
 import { NotificationBell } from "@/app/components/NotificationBell";
 import { TabNavigation, type TabItem } from "@/app/components/TabNavigation";
 import { PlayerAvatar } from "@/app/components/PlayerAvatar";
+import { LoadingScreen } from "@/app/components/LoadingScreen";
 import { TradesTab } from "./components/TradesTab";
 
 interface League {
@@ -2358,44 +2359,7 @@ export default function LeagueHomePage() {
 
   // Show loading if leagueId isn't available yet (iOS Safari timing issue)
   if (!leagueId) {
-    return (
-      <main
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundImage: "url(/design-inspiration/CubsFireworkField.jpg)",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundAttachment: "fixed",
-          position: "relative",
-        }}
-        className="noise-texture"
-      >
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: "rgba(15, 25, 35, 0.75)",
-            backdropFilter: "blur(2px)",
-            pointerEvents: "none",
-          }}
-        />
-        <p
-          style={{
-            color: "rgba(255,255,255,0.8)",
-            position: "relative",
-            zIndex: 1,
-          }}
-        >
-          Loading...
-        </p>
-      </main>
-    );
+    return <LoadingScreen />;
   }
 
   const [league, setLeague] = useState<League | null>(null);

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { LoadingScreen } from "@/app/components/LoadingScreen";
 
 const shadowStack = `
   0 2px 0 rgba(255,255,255,0.05) inset,
@@ -27,44 +28,7 @@ export default function CreateLeaguePage() {
   }
 
   if (status !== "authenticated") {
-    return (
-      <div
-        style={{
-          minHeight: "100vh",
-          backgroundImage: "url(/design-inspiration/CubsFireworkField.jpg)",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundAttachment: "fixed",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          position: "relative",
-        }}
-      >
-        {/* Semi-opaque overlay */}
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: "rgba(15, 25, 35, 0.75)",
-            backdropFilter: "blur(2px)",
-            pointerEvents: "none",
-          }}
-        />
-        <div
-          style={{
-            color: "rgba(255,255,255,0.8)",
-            position: "relative",
-            zIndex: 1,
-          }}
-        >
-          Loading...
-        </div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {

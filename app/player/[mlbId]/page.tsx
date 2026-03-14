@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { PlayerAvatar } from "@/app/components/PlayerAvatar";
+import { LoadingScreen } from "@/app/components/LoadingScreen";
 
 interface HomerunEvent {
   playerName: string;
@@ -126,36 +127,7 @@ export default function PlayerDetailPage() {
   }, [mlbId, leagueId, status, router]);
 
   if (status === "loading" || loading) {
-    return (
-      <div
-        style={{
-          minHeight: "100vh",
-          backgroundImage: 'url(/design-inspiration/CubsFireworkField.jpg)',
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundAttachment: "fixed",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          position: "relative",
-        }}
-      >
-        {/* Semi-opaque overlay */}
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: "rgba(15, 25, 35, 0.75)",
-            backdropFilter: "blur(2px)",
-            pointerEvents: "none",
-          }}
-        />
-        <div style={{ color: "rgba(255,255,255,0.8)", position: "relative", zIndex: 1 }}>Loading...</div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   if (error || !player) {

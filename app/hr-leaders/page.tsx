@@ -6,6 +6,7 @@ import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { BottomNavigation } from "@/app/components/BottomNavigation";
 import { PlayerAvatar } from "@/app/components/PlayerAvatar";
+import { LoadingScreen } from "@/app/components/LoadingScreen";
 
 interface Player {
   id: string;
@@ -177,37 +178,7 @@ export default function HRLeadersPage() {
   }, [playerRows, search]);
 
   if (status === "loading" || loading) {
-    return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundImage: 'url(/design-inspiration/CubsFireworkField.jpg)',
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundAttachment: "fixed",
-          position: "relative",
-        }}
-      >
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: "rgba(15, 25, 35, 0.75)",
-            backdropFilter: "blur(2px)",
-            pointerEvents: "none",
-          }}
-        />
-        <div style={{ textAlign: "center", color: "rgba(255,255,255,0.8)", position: "relative", zIndex: 1 }}>
-          <div style={{ fontSize: "24px", marginBottom: "12px" }}>Loading...</div>
-        </div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   return (

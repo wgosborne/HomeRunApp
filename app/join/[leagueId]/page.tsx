@@ -3,6 +3,7 @@
 import { useSession, signIn } from "next-auth/react";
 import { useRouter, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { LoadingScreen } from "@/app/components/LoadingScreen";
 
 interface League {
   id: string;
@@ -151,7 +152,7 @@ export default function JoinLeaguePage() {
   };
 
   if (status === "loading" || loading) {
-    return <div className="p-8 text-center">Loading...</div>;
+    return <LoadingScreen />;
   }
 
   if (!league) {

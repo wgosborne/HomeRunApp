@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { pusherClient } from "@/lib/pusher-client";
 import { PlayerAvatar } from "@/app/components/PlayerAvatar";
 
 interface RosterEntry {
@@ -39,70 +40,82 @@ export function DraftTeamsRoster({
   currentPickerId,
 }: DraftTeamsRosterProps) {
   const [teams, setTeams] = useState<TeamRoster[]>([]);
-  const [expandedTeam, setExpandedTeam] = useState<string | null>(
-    currentPickerId || null
+  const [expandedTeams, setExpandedTeams] = useState<Set<string>>(
+    new Set(currentPickerId ? [currentPickerId] : [])
   );
   const [loading, setLoading] = useState(true);
 
+  // Fetch rosters for all members
+  const fetchAllRosters = useCallback(async () => {
+    try {
+      const initialTeams = members.map((member) => ({
+        userId: member.userId,
+        userName: member.userName,
+        teamName: member.teamName,
+        roster: [] as RosterEntry[],
+        isLoading: true,
+      }));
+
+      const rosterPromises = members.map((member) =>
+        fetch(`/api/leagues/${leagueId}/roster?userId=${member.userId}`)
+          .then((res) => res.json())
+          .then((roster) => ({
+            userId: member.userId,
+            roster: roster || [],
+          }))
+          .catch(() => ({
+            userId: member.userId,
+            roster: [],
+          }))
+      );
+
+      const rosters = await Promise.all(rosterPromises);
+
+      // Update teams with fetched rosters
+      const updatedTeams = initialTeams.map((team) => {
+        const rosterData = rosters.find((r) => r.userId === team.userId);
+        return {
+          ...team,
+          roster: rosterData?.roster || [],
+          isLoading: false,
+        };
+      });
+
+      setTeams(updatedTeams);
+      setLoading(false);
+    } catch (error) {
+      console.error("Failed to fetch rosters", error);
+      setLoading(false);
+    }
+  }, [leagueId, members]);
+
+  // Initial fetch on mount
   useEffect(() => {
-    // Initialize teams with empty rosters
-    const initialTeams = members.map((member) => ({
-      userId: member.userId,
-      userName: member.userName,
-      teamName: member.teamName,
-      roster: [],
-      isLoading: true,
-    }));
-    setTeams(initialTeams);
-
-    // Fetch rosters for all members
-    const fetchAllRosters = async () => {
-      try {
-        const rosterPromises = members.map((member) =>
-          fetch(`/api/leagues/${leagueId}/roster?userId=${member.userId}`)
-            .then((res) => res.json())
-            .then((roster) => ({
-              userId: member.userId,
-              roster: roster || [],
-            }))
-            .catch(() => ({
-              userId: member.userId,
-              roster: [],
-            }))
-        );
-
-        const rosters = await Promise.all(rosterPromises);
-
-        // Update teams with fetched rosters
-        const updatedTeams = initialTeams.map((team) => {
-          const rosterData = rosters.find((r) => r.userId === team.userId);
-          return {
-            ...team,
-            roster: rosterData?.roster || [],
-            isLoading: false,
-          };
-        });
-
-        setTeams(updatedTeams);
-      } catch (error) {
-        console.error("Failed to fetch rosters", error);
-        setTeams(initialTeams.map((t) => ({ ...t, isLoading: false })));
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchAllRosters();
-    // Only fetch once when component mounts - don't refetch on every parent render
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [leagueId]);
+  }, [fetchAllRosters]);
 
-  // Update expanded team when currentPickerId changes
+  // Add current picker to expanded teams when it changes
   useEffect(() => {
     if (currentPickerId) {
-      setExpandedTeam(currentPickerId);
+      setExpandedTeams((prev) => new Set([...prev, currentPickerId]));
     }
   }, [currentPickerId]);
+
+  // Subscribe to Pusher pick-made events to refetch rosters
+  useEffect(() => {
+    const channel = pusherClient.subscribe(`draft-${leagueId}`);
+
+    const handlePickMade = (data: any) => {
+      console.log("[DRAFT-TEAMS-ROSTER] Pick made, refetching rosters:", data);
+      fetchAllRosters();
+    };
+
+    channel.bind("pick-made", handlePickMade);
+
+    return () => {
+      channel.unbind("pick-made", handlePickMade);
+    };
+  }, [leagueId, fetchAllRosters]);
 
   return (
     <div
@@ -171,13 +184,19 @@ export function DraftTeamsRoster({
         ) : (
           teams.map((team) => (
             <div key={team.userId} style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
-              {/* Team Header - Accordion Toggle */}
+              {/* Team Header - Toggle Expansion */}
               <button
-                onClick={() =>
-                  setExpandedTeam(
-                    expandedTeam === team.userId ? null : team.userId
-                  )
-                }
+                onClick={() => {
+                  setExpandedTeams((prev) => {
+                    const newSet = new Set(prev);
+                    if (newSet.has(team.userId)) {
+                      newSet.delete(team.userId);
+                    } else {
+                      newSet.add(team.userId);
+                    }
+                    return newSet;
+                  });
+                }}
                 style={{
                   width: "100%",
                   padding: "16px",
@@ -185,7 +204,7 @@ export function DraftTeamsRoster({
                   background:
                     team.userId === currentPickerId
                       ? "linear-gradient(145deg, rgba(204,52,51,0.2), rgba(204,52,51,0.1))"
-                      : expandedTeam === team.userId
+                      : expandedTeams.has(team.userId)
                         ? "rgba(204,52,51,0.1)"
                         : "transparent",
                   border: "none",
@@ -197,12 +216,12 @@ export function DraftTeamsRoster({
                   gap: "12px",
                 }}
                 onMouseEnter={(e) => {
-                  if (team.userId !== currentPickerId && expandedTeam !== team.userId) {
+                  if (team.userId !== currentPickerId && !expandedTeams.has(team.userId)) {
                     (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.04)";
                   }
                 }}
                 onMouseLeave={(e) => {
-                  if (team.userId !== currentPickerId && expandedTeam !== team.userId) {
+                  if (team.userId !== currentPickerId && !expandedTeams.has(team.userId)) {
                     (e.currentTarget as HTMLButtonElement).style.background = "transparent";
                   }
                 }}
@@ -248,7 +267,7 @@ export function DraftTeamsRoster({
                   </span>
                     <span
                       className={`transform transition-transform ${
-                        expandedTeam === team.userId ? "rotate-180" : ""
+                        expandedTeams.has(team.userId) ? "rotate-180" : ""
                       }`}
                     >
                       ▼
@@ -271,7 +290,7 @@ export function DraftTeamsRoster({
               </button>
 
               {/* Team Roster - Expanded Content */}
-              {expandedTeam === team.userId && (
+              {expandedTeams.has(team.userId) && (
                 <div
                   style={{
                     backgroundColor: "rgba(0,0,0,0.15)",
