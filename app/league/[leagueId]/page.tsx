@@ -2492,6 +2492,13 @@ export default function LeagueHomePage() {
     }
   }, [activeTab, leagueId]);
 
+  // Redirect from draft tab if draft is complete
+  useEffect(() => {
+    if (activeTab === "draft" && league && league.draftStatus === "complete") {
+      setActiveTab("leaderboard");
+    }
+  }, [league?.draftStatus, activeTab]);
+
   useEffect(() => {
     // Delay Pusher subscription to avoid blocking initial render on mobile
     const timer = setTimeout(() => {
@@ -2835,7 +2842,9 @@ export default function LeagueHomePage() {
             [
               { id: "leaderboard", label: "Leaderboard" },
               { id: "myteam", label: "My Team" },
-              { id: "draft", label: "Draft" },
+              ...(league.draftStatus === "pending" || league.draftStatus === "active"
+                ? [{ id: "draft", label: "Draft" }]
+                : []),
               { id: "trades", label: "Trades" },
               { id: "players", label: "Players" },
               { id: "settings", label: "Settings" },
