@@ -26,6 +26,7 @@ interface MLBPlayer {
   position: string;
   team: string;
   homeRuns?: number;
+  homeRuns2025?: number;
   rank?: number;
 }
 
@@ -89,99 +90,57 @@ interface MLBGameFeedResponse {
   };
 }
 
-// Simple in-memory cache with 5-minute TTL
-const cache: Record<
-  string,
-  {
-    data: MLBPlayer[];
-    timestamp: number;
-  }
-> = {};
-
 // Jersey number cache (player ID -> jersey number)
 const jerseyNumberCache: Record<number, number | null> = {};
-
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-
-async function fetchMLBLeaders(): Promise<MLBPlayer[]> {
-  const cacheKey = "mlb-leaders-2026";
-  const now = Date.now();
-
-  // Check cache
-  if (cache[cacheKey] && now - cache[cacheKey].timestamp < CACHE_TTL) {
-    logger.debug("Using cached MLB leaders");
-    return cache[cacheKey].data;
-  }
-
-  try {
-    const enableSpringTraining = process.env.NEXT_PUBLIC_ENABLE_SPRING_TRAINING === 'true';
-    const gameType = enableSpringTraining ? 'S' : 'R';
-
-    // Set 10-second timeout for MLB API call
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
-
-    const response = await fetch(
-      `https://statsapi.mlb.com/api/v1/stats?stats=season&season=2026&gameType=${gameType}&group=hitting&sportId=1&limit=1000`,
-      {
-        headers: {
-          "User-Agent": "FantasyBaseball/1.0",
-        },
-        signal: controller.signal,
-      }
-    );
-
-    clearTimeout(timeout);
-
-    if (!response.ok) {
-      logger.debug(`Failed to fetch 2026 leaders`, { status: response.status, gameType });
-      return [];
-    }
-
-    const data = (await response.json()) as { stats?: Array<{ splits: Array<{ player: { id: number; fullName: string }; team: { name: string }; stat: { homeRuns: number } }> }> };
-
-    if (!data.stats?.[0]?.splits || data.stats[0].splits.length === 0) {
-      logger.debug(`No leaders data for 2026 season (gameType=${gameType})`);
-      return [];
-    }
-
-    const players: MLBPlayer[] = data.stats[0].splits
-      .map((split, index) => ({
-        id: split.player.id.toString(),
-        mlbId: split.player.id,
-        name: split.player.fullName,
-        position: "OF", // Default position for home run leaders
-        team: split.team.name,
-        homeRuns: split.stat.homeRuns || 0,
-        rank: index + 1,
-      }))
-      .sort((a, b) => b.homeRuns - a.homeRuns);
-
-    // Cache the result
-    cache[cacheKey] = {
-      data: players,
-      timestamp: now,
-    };
-
-    logger.info("Fetched MLB leaders", { gameType, count: players.length });
-    return players;
-  } catch (error) {
-    logger.debug(`Failed to fetch MLB leaders`, { error });
-    return [];
-  }
-}
 
 export async function getAvailablePlayers(
   excludePlayerIds: string[]
 ): Promise<MLBPlayer[]> {
-  const allPlayers = await fetchMLBLeaders();
+  try {
+    // Import prisma dynamically to avoid circular dependency issues
+    const { prisma } = await import("@/lib/prisma");
 
-  // Filter out already-drafted players
-  const available = allPlayers.filter(
-    (player) => !excludePlayerIds.includes(player.id)
-  );
+    // Convert excludePlayerIds (strings) to numbers for comparison with mlbId
+    const excludedMlbIds = new Set(
+      excludePlayerIds.map((id) => {
+        const num = parseInt(id, 10);
+        return isNaN(num) ? undefined : num;
+      }).filter((id) => id !== undefined) as number[]
+    );
 
-  return available;
+    // Query all players from database, ordered by 2025 homeruns (desc) then fullName (asc)
+    const players = await prisma.player.findMany({
+      orderBy: [
+        { homeruns2025: "desc" },
+        { fullName: "asc" },
+      ],
+    });
+
+    // Filter out drafted players and map to MLBPlayer shape
+    const available: MLBPlayer[] = players
+      .filter((player) => !excludedMlbIds.has(player.mlbId))
+      .map((player, index) => ({
+        id: player.mlbId.toString(),
+        mlbId: player.mlbId,
+        name: player.fullName,
+        position: player.position || "OF",
+        team: player.teamName || "Unknown",
+        homeRuns: player.homeruns,
+        homeRuns2025: player.homeruns2025,
+        rank: index + 1,
+      }));
+
+    logger.info("Retrieved available players from database", {
+      total: players.length,
+      available: available.length,
+      excluded: excludedMlbIds.size,
+    });
+
+    return available;
+  } catch (error) {
+    logger.error("Failed to get available players from database", { error });
+    return [];
+  }
 }
 
 export async function getNextBestPlayer(
@@ -192,15 +151,33 @@ export async function getNextBestPlayer(
 }
 
 export async function getPlayerDetails(playerId: string): Promise<MLBPlayer | null> {
-  // First try cached leaders (works during season)
-  const allPlayers = await fetchMLBLeaders();
-  const foundPlayer = allPlayers.find((player) => player.id === playerId);
-  if (foundPlayer) {
-    return foundPlayer;
-  }
-
-  // Fallback: fetch directly from MLB people endpoint (works year-round)
   try {
+    // Parse playerId as MLB ID number
+    const mlbId = parseInt(playerId, 10);
+    if (isNaN(mlbId)) {
+      return null;
+    }
+
+    // Import prisma dynamically
+    const { prisma } = await import("@/lib/prisma");
+
+    // Try to find player in database first
+    const dbPlayer = await prisma.player.findUnique({
+      where: { mlbId },
+    });
+
+    if (dbPlayer) {
+      return {
+        id: dbPlayer.mlbId.toString(),
+        mlbId: dbPlayer.mlbId,
+        name: dbPlayer.fullName,
+        position: dbPlayer.position || "OF",
+        team: dbPlayer.teamName || "Unknown",
+        homeRuns: dbPlayer.homeruns,
+      };
+    }
+
+    // Fallback: fetch directly from MLB people endpoint (works year-round)
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
 
@@ -242,7 +219,7 @@ export async function getPlayerDetails(playerId: string): Promise<MLBPlayer | nu
       team: person.currentTeam?.name || "Unknown",
     };
   } catch (error) {
-    logger.debug("Failed to fetch player from MLB people endpoint", { playerId, error });
+    logger.debug("Failed to fetch player details", { playerId, error });
     return null;
   }
 }
@@ -299,26 +276,42 @@ export async function getPlayerJerseyNumber(mlbId: number): Promise<number | nul
 
 /**
  * Get a map of player ID to team abbreviation
- * Uses cached MLB leaders data, no extra API call
+ * Uses database players data
  * Returns team abbreviations extracted from team name (e.g., "New York Yankees" -> "NYY")
  */
 export async function getPlayerTeamMap(): Promise<Map<string, string>> {
-  const allPlayers = await fetchMLBLeaders();
-  const teamMap = new Map<string, string>();
+  try {
+    // Import prisma dynamically
+    const { prisma } = await import("@/lib/prisma");
 
-  for (const player of allPlayers) {
-    // Extract team abbreviation from full team name (e.g., "New York Yankees" -> "NYY")
-    const teamAbbrev = player.team
-      .split(" ")
-      .map((word) => word.charAt(0))
-      .join("")
-      .toUpperCase()
-      .slice(0, 3); // Limit to 3 chars for safety
+    const players = await prisma.player.findMany({
+      select: {
+        mlbId: true,
+        teamName: true,
+      },
+    });
 
-    teamMap.set(player.id, teamAbbrev);
+    const teamMap = new Map<string, string>();
+
+    for (const player of players) {
+      if (!player.teamName) continue;
+
+      // Extract team abbreviation from full team name (e.g., "New York Yankees" -> "NYY")
+      const teamAbbrev = player.teamName
+        .split(" ")
+        .map((word) => word.charAt(0))
+        .join("")
+        .toUpperCase()
+        .slice(0, 3); // Limit to 3 chars for safety
+
+      teamMap.set(player.mlbId.toString(), teamAbbrev);
+    }
+
+    return teamMap;
+  } catch (error) {
+    logger.error("Failed to get player team map from database", { error });
+    return new Map();
   }
-
-  return teamMap;
 }
 
 /**

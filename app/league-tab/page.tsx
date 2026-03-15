@@ -316,12 +316,11 @@ export default function LeagueTabPage() {
             right: 0,
             bottom: 0,
             background: "rgba(15, 25, 35, 0.75)",
-            backdropFilter: "blur(2px)",
             pointerEvents: "none",
           }}
         />
         <div style={{ textAlign: "center", color: "rgba(255,255,255,0.8)", position: "relative", zIndex: 1 }}>
-          <div style={{ fontSize: "24px", marginBottom: "12px" }}>Loading...</div>
+          <div style={{ fontSize: "15px", marginBottom: "12px", fontFamily: "'DM Sans', sans-serif" }}>Loading...</div>
         </div>
       </div>
     );

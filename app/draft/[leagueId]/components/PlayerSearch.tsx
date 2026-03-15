@@ -11,6 +11,7 @@ interface Player {
   position: string;
   team: string;
   homeRuns?: number;
+  homeRuns2025?: number;
   rank?: number;
 }
 
@@ -288,8 +289,20 @@ export function PlayerSearch({
                           color: "#6BAED6",
                         }}
                       >
-                        {player.homeRuns || 0} HR
+                        {player.homeRuns2025 || 0} HR
                       </div>
+                      {(player.homeRuns || 0) > 0 && (
+                        <div
+                          style={{
+                            fontFamily: "'DM Sans', sans-serif",
+                            fontSize: "11px",
+                            color: "rgba(107,174,214,0.6)",
+                            marginTop: "2px",
+                          }}
+                        >
+                          2026: {player.homeRuns || 0}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </button>

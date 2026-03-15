@@ -315,6 +315,7 @@ model Player {
   jerseyNumber          String?
   headshot              String?
   homeruns              Int       @default(0)
+  homeruns2025          Int       @default(0)
   gamesPlayed           Int       @default(0)
   battingAverage        Float?
   ops                   Float?

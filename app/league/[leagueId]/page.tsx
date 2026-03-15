@@ -531,21 +531,25 @@ function MyTeamTab({
   loading,
   standings,
   leagueId,
+  userId,
 }: {
   roster: RosterEntry[];
   loading: boolean;
   standings: StandingsEntry[];
   leagueId: string;
+  userId?: string;
 }) {
   const [totalHomeruns, setTotalHomeruns] = useState(0);
   const [userRank, setUserRank] = useState(0);
 
   useEffect(() => {
     setTotalHomeruns(roster.reduce((sum, p) => sum + p.homeruns, 0));
-    if (standings.length > 0) {
-      setUserRank(standings[0]?.rank || 0);
+    if (standings.length > 0 && userId) {
+      // Find the current user's rank in the standings
+      const userEntry = standings.find((entry) => entry.userId === userId);
+      setUserRank(userEntry?.rank || 0);
     }
-  }, [roster, standings]);
+  }, [roster, standings, userId]);
 
   if (loading) {
     return (
@@ -1823,7 +1827,7 @@ function SettingsTab({
         throw new Error(data.error || "Failed to delete league");
       }
 
-      router.push("/scores");
+      router.push("/league-tab");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete league");
     } finally {
@@ -1852,7 +1856,7 @@ function SettingsTab({
         throw new Error(data.error || "Failed to leave league");
       }
 
-      router.push("/scores");
+      router.push("/league-tab");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to leave league");
     } finally {
@@ -2615,7 +2619,7 @@ export default function LeagueHomePage() {
           position: "relative",
         }}
       >
-        <p style={{ color: "rgba(255,255,255,0.8)" }}>Loading...</p>
+        <p style={{ fontSize: "15px", color: "rgba(255,255,255,0.8)", fontFamily: "'DM Sans', sans-serif" }}>Loading...</p>
       </main>
     );
   }
@@ -2686,7 +2690,7 @@ export default function LeagueHomePage() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
         {/* Back Button */}
         <button
-          onClick={() => router.push("/scores")}
+          onClick={() => router.back()}
           className="mb-6 flex items-center transition min-h-[44px]"
           style={{
             color: "rgba(255,255,255,0.45)",
@@ -2835,6 +2839,7 @@ export default function LeagueHomePage() {
               loading={loading}
               standings={standings}
               leagueId={leagueId}
+              userId={session?.user?.id}
             />
           )}
           {activeTab === "draft" && (

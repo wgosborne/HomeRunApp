@@ -278,7 +278,7 @@ export default function PlayerDetailPage() {
                 letterSpacing: "1px",
               }}
             >
-              {player.streakStatus === "hot" ? "🔥 Hot" : "❄️ Cold"}
+              {player.streakStatus === "hot" ? "Hot" : "Cold"}
             </div>
           )}
 
@@ -843,7 +843,7 @@ export default function PlayerDetailPage() {
                         borderRadius: "4px",
                       }}
                     >
-                      {hr.isHomeGame ? "🏠 Home" : "✈️ Away"}
+                      {hr.isHomeGame ? "Home" : "Away"}
                     </div>
                   </div>
 

@@ -74,6 +74,12 @@ Multi-tenant fantasy baseball PWA with real-time homerun tracking. Users draft M
 | **Headshot** | `Player.headshot` OR MLB CDN (fallback to initials) |
 | **Homerun History** | `/api/players/[mlbId]/homeruns` → `HomerrunEvent` table (league-scoped) |
 | **Stats** | `Player.homeruns`, `battingAverage`, `ops`, `homerunsLast14Days` |
+| **Streak Status** | Calculated from recent homerun activity (see below) |
+
+**Streak Status Calculation (Player Details Page):**
+- **Hot:** ≥ 2 homeruns in last 7 days
+- **Cold:** 0 homeruns in last 14 days
+- **Neutral:** All other cases (default)
 
 ---
 
@@ -83,6 +89,12 @@ Multi-tenant fantasy baseball PWA with real-time homerun tracking. Users draft M
 | **All Homeruns Feed** | `/api/homeruns` (paginated) → `HomerrunEvent` table | ✅ Pusher broadcast |
 | **Player Info** | Player name, team, inning, date | From HR records |
 | **Sort Options** | By date, player, team | Client-side |
+| **Badge (Hot/Cold)** | Calculated from season vs 14-day homerun rates (see below) |
+
+**Badge Calculation (HR Leaders Page):**
+- **Hot Badge:** Recent 14-day homerun rate > Season homerun rate
+- **Cold Badge:** Recent 14-day homerun rate < Season homerun rate
+- **No Badge:** Rates are equal (or player has 0 HRs)
 
 ---
 
