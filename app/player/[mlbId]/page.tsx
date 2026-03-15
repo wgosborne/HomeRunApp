@@ -13,7 +13,6 @@ interface HomerunEvent {
   gameDate: string;
   inning: number;
   rbi: number;
-  leagueName: string;
   homeTeam: string | null;
   awayTeam: string | null;
   opponent: string | null;
@@ -859,45 +858,25 @@ export default function PlayerDetailPage() {
                     vs {hr.opponent || "Unknown"}
                   </div>
 
-                  {/* Inning and RBI and League */}
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    }}
-                  >
-                    <div style={{ display: "flex", gap: "12px" }}>
-                      <div
-                        style={{
-                          fontFamily: "'DM Sans', sans-serif",
-                          fontSize: "11px",
-                          color: "rgba(255,255,255,0.4)",
-                        }}
-                      >
-                        Inning {hr.inning}
-                      </div>
-                      <div
-                        style={{
-                          fontFamily: "'DM Sans', sans-serif",
-                          fontSize: "11px",
-                          color: "rgba(255,255,255,0.4)",
-                        }}
-                      >
-                        {hr.rbi} RBI{hr.rbi !== 1 ? "s" : ""}
-                      </div>
+                  {/* Inning and RBI */}
+                  <div style={{ display: "flex", gap: "12px" }}>
+                    <div
+                      style={{
+                        fontFamily: "'DM Sans', sans-serif",
+                        fontSize: "11px",
+                        color: "rgba(255,255,255,0.4)",
+                      }}
+                    >
+                      Inning {hr.inning}
                     </div>
                     <div
                       style={{
                         fontFamily: "'DM Sans', sans-serif",
-                        fontSize: "10px",
-                        color: "#CC3433",
-                        textTransform: "uppercase",
-                        letterSpacing: "1px",
-                        fontWeight: 600,
+                        fontSize: "11px",
+                        color: "rgba(255,255,255,0.4)",
                       }}
                     >
-                      {hr.leagueName}
+                      {hr.rbi} RBI{hr.rbi !== 1 ? "s" : ""}
                     </div>
                   </div>
                 </div>

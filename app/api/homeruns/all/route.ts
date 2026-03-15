@@ -81,6 +81,21 @@ export async function GET() {
       },
     });
 
+    // Fetch Player data for all homerun events to get current team (source of truth)
+    const playerIds = Array.from(new Set(allEvents.map((e) => e.mlbId).filter((id) => id !== null && id !== undefined) as number[]));
+    const playerMap = new Map<number, { teamName: string | null }>();
+
+    if (playerIds.length > 0) {
+      const players = await prisma.player.findMany({
+        where: { mlbId: { in: playerIds } },
+        select: { mlbId: true, teamName: true },
+      });
+
+      for (const player of players) {
+        playerMap.set(player.mlbId, { teamName: player.teamName });
+      }
+    }
+
     // Build response with league context
     const response: ApiHomerun[] = allEvents.map((event) => {
       // Check if this player is on the current user's roster
@@ -102,9 +117,13 @@ export async function GET() {
         leagueName = playerInUserLeague?.league.name || null;
       }
 
+      // Get team from Player table (current), fall back to event.team (what it was at time of HR)
+      const playerData = event.mlbId ? playerMap.get(event.mlbId) : null;
+      const mlbTeam = playerData?.teamName || event.team || "Unknown";
+
       return {
         playerName: event.playerName,
-        mlbTeam: event.team || "Unknown",
+        mlbTeam,
         mlbId: event.mlbId,
         hrNumber: event.jerseyNumber,
         game: `${event.homeTeam || ""} vs ${event.awayTeam || ""}`.trim(),

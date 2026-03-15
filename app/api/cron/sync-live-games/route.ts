@@ -8,54 +8,6 @@ const logger = createLogger("cron-sync-live-games");
 const SEASON_START = new Date("2026-02-20");
 const SEASON_END = new Date("2026-09-28"); // Up to but not including this date
 
-// Map team IDs to MLB abbreviations (includes WBC teams for spring training)
-const TEAM_ABBREV_MAP: Record<number, string> = {
-  // MLB Teams (official MLB team IDs)
-  108: "LAA", // Los Angeles Angels
-  109: "ARI", // Arizona Diamondbacks
-  110: "BAL", // Baltimore Orioles
-  111: "BOS", // Boston Red Sox
-  112: "CHC", // Chicago Cubs
-  113: "CIN", // Cincinnati Reds
-  114: "MIL", // Milwaukee Brewers
-  115: "PIT", // Pittsburgh Pirates
-  116: "DET", // Detroit Tigers
-  117: "HOU", // Houston Astros
-  118: "KC",  // Kansas City Royals
-  119: "SEA", // Seattle Mariners
-  120: "NYY", // New York Yankees
-  121: "NYM", // New York Mets
-  133: "OAK", // Oakland Athletics
-  135: "SD",  // San Diego Padres
-  137: "SF",  // San Francisco Giants
-  138: "STL", // St. Louis Cardinals
-  139: "TB",  // Tampa Bay Rays
-  140: "TEX", // Texas Rangers
-  141: "TOR", // Toronto Blue Jays
-  142: "MIN", // Minnesota Twins
-  143: "PHI", // Philadelphia Phillies
-  144: "ATL", // Atlanta Braves
-  145: "CWS", // Chicago White Sox
-  146: "MIA", // Miami Marlins
-  159: "CLE", // Cleveland Guardians
-  // World Baseball Classic Teams (Spring Training)
-  776: "BRA", // Brazil
-  784: "CAN", // Canada
-  792: "COL", // Colombia
-  798: "CUB", // Cuba
-  805: "DOM", // Dominican Republic
-  821: "GBR", // Great Britain
-  840: "ISR", // Israel
-  841: "ITA", // Italy
-  867: "MEX", // Mexico
-  878: "NED", // Netherlands
-  881: "NIC", // Nicaragua
-  890: "PAN", // Panama
-  897: "PUR", // Puerto Rico
-  940: "USA", // United States
-  944: "VEN", // Venezuela
-};
-
 interface MLBScheduleResponse {
   dates: Array<{
     games: Array<{
@@ -182,13 +134,9 @@ async function handleGameSync() {
     for (const dateGroup of data.dates || []) {
       for (const game of dateGroup.games || []) {
         try {
-          // Get team abbreviation from map, or use team ID as fallback
-          const homeTeamAbbrev =
-            TEAM_ABBREV_MAP[game.teams.home.team.id] ||
-            `T${game.teams.home.team.id}`;
-          const awayTeamAbbrev =
-            TEAM_ABBREV_MAP[game.teams.away.team.id] ||
-            `T${game.teams.away.team.id}`;
+          // Use full team names from MLB API (e.g., "Chicago White Sox") for consistency
+          const homeTeamName = game.teams.home.team.name || "Unknown";
+          const awayTeamName = game.teams.away.team.name || "Unknown";
 
           const homeTeamId = game.teams.home.team.id;
           const awayTeamId = game.teams.away.team.id;
@@ -234,8 +182,8 @@ async function handleGameSync() {
             },
             create: {
               id: game.gamePk.toString(),
-              homeTeam: homeTeamAbbrev,
-              awayTeam: awayTeamAbbrev,
+              homeTeam: homeTeamName,
+              awayTeam: awayTeamName,
               homeTeamId,
               awayTeamId,
               homeScore,

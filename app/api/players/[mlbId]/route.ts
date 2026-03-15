@@ -16,7 +16,6 @@ interface HomerrunEventResponse {
   gameDate: string;
   inning: number;
   rbi: number;
-  leagueName: string;
   homeTeam: string | null;
   awayTeam: string | null;
   opponent: string | null;
@@ -77,50 +76,66 @@ export async function GET(
       orderBy: { gameDate: "desc" },
     });
 
-    // Get homerun events filtered by league if provided (for history display)
+    // Get ALL homerun events (not filtered by league - show complete history)
     const homeruns = await prisma.homerrunEvent.findMany({
       where: {
         mlbId: mlbId,
-        ...(leagueId && { leagueId }), // Filter by league if provided
-      },
-      include: {
-        league: {
-          select: {
-            name: true,
-          },
-        },
       },
       orderBy: {
         gameDate: "desc",
       },
     });
 
-    // Try to get player info from cached homerun data first
-    let playerName = homeruns[0]?.playerName;
-    let mlbTeam = homeruns[0]?.team;
-    let position: string | null = null;
+    // Fetch game data for each homerun to determine home/away and get opponent team name
+    const gameMap = new Map<string, { homeTeam: string; awayTeam: string; homeTeamId: number; awayTeamId: number }>();
+    const uniqueGameIds = Array.from(new Set(homeruns.map((hr) => hr.gameId)));
 
-    // If not found in homeruns, fetch from MLB API cache
+    if (uniqueGameIds.length > 0) {
+      const games = await prisma.game.findMany({
+        where: { id: { in: uniqueGameIds } },
+        select: { id: true, homeTeam: true, awayTeam: true, homeTeamId: true, awayTeamId: true },
+      });
+
+      for (const game of games) {
+        gameMap.set(game.id, {
+          homeTeam: game.homeTeam,
+          awayTeam: game.awayTeam,
+          homeTeamId: game.homeTeamId,
+          awayTeamId: game.awayTeamId,
+        });
+      }
+    }
+
+    // Fetch all teams from Team table to map IDs to full names
+    const teams = await prisma.team.findMany({
+      select: { mlbId: true, name: true },
+    });
+    const teamMap = new Map<number, string>();
+    for (const team of teams) {
+      teamMap.set(team.mlbId, team.name);
+    }
+
+    // Get player info from Player table (source of truth for current team)
+    const player = await prisma.player.findUnique({
+      where: { mlbId },
+      select: { fullName: true, teamName: true, position: true, teamId: true },
+    });
+
+    let playerName = player?.fullName || homeruns[0]?.playerName;
+    let mlbTeam = player?.teamName || null; // Use Player.teamName (current), fall back to homerun data
+    let position = player?.position || null;
+
+    // If still missing info, fetch from MLB API as last resort
     if (!playerName) {
       try {
         const playerData = await getPlayerDetails(mlbId.toString());
         if (playerData) {
           playerName = playerData.name;
-          mlbTeam = playerData.team;
-          position = playerData.position;
+          if (!mlbTeam) mlbTeam = playerData.team;
+          if (!position) position = playerData.position;
         }
       } catch (error) {
-        logger.warn("Failed to fetch from MLB leaders", { error, mlbId });
-      }
-    } else if (!position) {
-      // Try to get position from MLB API even if we have name
-      try {
-        const playerData = await getPlayerDetails(mlbId.toString());
-        if (playerData) {
-          position = playerData.position;
-        }
-      } catch (error) {
-        logger.debug("Failed to fetch position from MLB API", { error, mlbId });
+        logger.warn("Failed to fetch from MLB API", { error, mlbId });
       }
     }
 
@@ -153,19 +168,46 @@ export async function GET(
         })
       : 'neutral';
 
-    const formattedHomeruns: HomerrunEventResponse[] = homeruns.map((hr) => ({
-      playerName: hr.playerName,
-      mlbId: hr.mlbId,
-      mlbTeam: hr.team,
-      gameDate: hr.gameDate.toISOString(),
-      inning: hr.inning,
-      rbi: hr.rbi,
-      leagueName: hr.league.name,
-      homeTeam: hr.homeTeam,
-      awayTeam: hr.awayTeam,
-      opponent: hr.team === hr.homeTeam ? hr.awayTeam : hr.homeTeam,
-      isHomeGame: hr.team === hr.homeTeam,
-    }));
+    const formattedHomeruns: HomerrunEventResponse[] = homeruns.map((hr) => {
+      // Get game data with team IDs and abbreviations
+      const gameData = gameMap.get(hr.gameId);
+
+      // Determine home/away by comparing numeric team IDs (reliable, does not depend on hr.team)
+      const isHome = gameData?.homeTeamId === player?.teamId;
+
+      // Get opponent team ID from game data
+      const opponentTeamId = isHome ? gameData?.awayTeamId : gameData?.homeTeamId;
+
+      // Look up full team name from Team table using the opponent team ID
+      const opponentTeamName = opponentTeamId !== undefined && opponentTeamId !== null ? teamMap.get(opponentTeamId) : null;
+
+      // Get the opponent abbreviation for fallback
+      const opponentAbbrev = isHome ? gameData?.awayTeam : gameData?.homeTeam;
+
+      // Display: use full name from Team table, fall back to abbreviation if not found
+      const opponent = opponentTeamName || opponentAbbrev || "Unknown";
+
+      // Home/away team names for display
+      const homeTeamName = gameData?.homeTeamId !== undefined && gameData?.homeTeamId !== null
+        ? teamMap.get(gameData.homeTeamId) || gameData?.homeTeam
+        : gameData?.homeTeam;
+      const awayTeamName = gameData?.awayTeamId !== undefined && gameData?.awayTeamId !== null
+        ? teamMap.get(gameData.awayTeamId) || gameData?.awayTeam
+        : gameData?.awayTeam;
+
+      return {
+        playerName: hr.playerName,
+        mlbId: hr.mlbId,
+        mlbTeam: player?.teamName || hr.team,
+        gameDate: hr.gameDate.toISOString(),
+        inning: hr.inning,
+        rbi: hr.rbi,
+        homeTeam: homeTeamName || "Unknown",
+        awayTeam: awayTeamName || "Unknown",
+        opponent: opponent,
+        isHomeGame: isHome,
+      };
+    });
 
     const response: PlayerDetailResponse = {
       mlbId,

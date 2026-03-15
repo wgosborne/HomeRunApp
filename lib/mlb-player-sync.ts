@@ -143,7 +143,20 @@ export async function syncPlayerBios(): Promise<{ created: number; skipped: numb
     created = result.count;
     skipped = people.length - created;
 
-    logger.info("Bio sync complete", { created, skipped, total: people.length });
+    // Part 2: Update teamId for existing players where it is null
+    // This handles cases where players were created before teamId was captured
+    let teamIdUpdated = 0;
+    for (const playerData of playersToCreate) {
+      if (playerData.teamId) {
+        const updateResult = await prisma.player.updateMany({
+          where: { mlbId: playerData.mlbId, teamId: null },
+          data: { teamId: playerData.teamId },
+        });
+        teamIdUpdated += updateResult.count;
+      }
+    }
+
+    logger.info("Bio sync complete", { created, skipped, teamIdUpdated, total: people.length });
     return { created, skipped };
   } catch (error) {
     logger.error("Error syncing player bios", { error });
