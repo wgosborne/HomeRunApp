@@ -29,23 +29,6 @@ interface MLBPlayer {
   rank?: number;
 }
 
-interface MLBLeaderboardResponse {
-  leagueLeaders: Array<{
-    leaderCategory: string;
-    leaders: Array<{
-      rank: number;
-      value: string;
-      person: {
-        id: number;
-        fullName: string;
-      };
-      team: {
-        name: string;
-      };
-    }>;
-  }>;
-}
-
 export interface HomerrunPlay {
   playByPlayId: string; // "${gamePk}-${atBatIndex}"
   gameId: string; // gamePk as string
@@ -130,106 +113,62 @@ async function fetchMLBLeaders(): Promise<MLBPlayer[]> {
     return cache[cacheKey].data;
   }
 
-  // Try 2026 first, then fall back to 2025 if not available
-  for (const season of [2026, 2025]) {
-    try {
-      // Set 10-second timeout for MLB API call
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10000);
+  try {
+    const enableSpringTraining = process.env.NEXT_PUBLIC_ENABLE_SPRING_TRAINING === 'true';
+    const gameType = enableSpringTraining ? 'S' : 'R';
 
-      const response = await fetch(
-        `https://statsapi.mlb.com/api/v1/stats/leaders?leaderCategories=homeRuns&season=${season}&sportId=1&limit=500`,
-        {
-          headers: {
-            "User-Agent": "FantasyBaseball/1.0",
-          },
-          signal: controller.signal,
-        }
-      );
+    // Set 10-second timeout for MLB API call
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
 
-      clearTimeout(timeout);
-
-      if (!response.ok) {
-        logger.debug(`Season ${season} not available`, { status: response.status });
-        continue;
+    const response = await fetch(
+      `https://statsapi.mlb.com/api/v1/stats?stats=season&season=2026&gameType=${gameType}&group=hitting&sportId=1&limit=1000`,
+      {
+        headers: {
+          "User-Agent": "FantasyBaseball/1.0",
+        },
+        signal: controller.signal,
       }
+    );
 
-      const data = (await response.json()) as MLBLeaderboardResponse;
+    clearTimeout(timeout);
 
-      // Parse response and transform to our format
-      // The API returns leagueLeaders array with leaders inside
-      const leagueLeader = data.leagueLeaders?.[0];
-      if (!leagueLeader?.leaders || leagueLeader.leaders.length === 0) {
-        logger.debug(`No leaders data for season ${season}`);
-        continue;
-      }
-
-      const players: MLBPlayer[] = leagueLeader.leaders
-        .map((leader) => {
-          const homeRuns = parseInt(leader.value, 10) || 0;
-
-          return {
-            id: leader.person.id.toString(),
-            mlbId: leader.person.id,
-            name: leader.person.fullName,
-            position: "OF", // Default position for home run leaders
-            team: leader.team.name,
-            homeRuns,
-            rank: leader.rank,
-          };
-        });
-
-      // Cache the result
-      cache[cacheKey] = {
-        data: players,
-        timestamp: now,
-      };
-
-      logger.info("Fetched MLB leaders", { season, count: players.length });
-      return players;
-    } catch (error) {
-      logger.debug(`Failed to fetch MLB leaders for season ${season}`, { error });
-      continue;
+    if (!response.ok) {
+      logger.debug(`Failed to fetch 2026 leaders`, { status: response.status, gameType });
+      return [];
     }
+
+    const data = (await response.json()) as { stats?: Array<{ splits: Array<{ player: { id: number; fullName: string }; team: { name: string }; stat: { homeRuns: number } }> }> };
+
+    if (!data.stats?.[0]?.splits || data.stats[0].splits.length === 0) {
+      logger.debug(`No leaders data for 2026 season (gameType=${gameType})`);
+      return [];
+    }
+
+    const players: MLBPlayer[] = data.stats[0].splits
+      .map((split, index) => ({
+        id: split.player.id.toString(),
+        mlbId: split.player.id,
+        name: split.player.fullName,
+        position: "OF", // Default position for home run leaders
+        team: split.team.name,
+        homeRuns: split.stat.homeRuns || 0,
+        rank: index + 1,
+      }))
+      .sort((a, b) => b.homeRuns - a.homeRuns);
+
+    // Cache the result
+    cache[cacheKey] = {
+      data: players,
+      timestamp: now,
+    };
+
+    logger.info("Fetched MLB leaders", { gameType, count: players.length });
+    return players;
+  } catch (error) {
+    logger.debug(`Failed to fetch MLB leaders`, { error });
+    return [];
   }
-
-  // If both 2026 and 2025 failed, check cache
-  if (cache[cacheKey]) {
-    logger.info("Returning stale cached MLB leaders due to fetch error");
-    return cache[cacheKey].data;
-  }
-
-  // Final fallback: return test data for development
-  logger.info("Falling back to test data - MLB API not available");
-  const testPlayers: MLBPlayer[] = [
-    { id: "592450", mlbId: 592450, name: "Aaron Judge", position: "OF", team: "New York Yankees", homeRuns: 25, rank: 1 },
-    { id: "621006", mlbId: 621006, name: "Juan Soto", position: "OF", team: "New York Mets", homeRuns: 24, rank: 2 },
-    { id: "605141", mlbId: 605141, name: "Mookie Betts", position: "OF", team: "Los Angeles Dodgers", homeRuns: 23, rank: 3 },
-    { id: "656941", mlbId: 656941, name: "Kyle Schwarber", position: "OF", team: "Philadelphia Phillies", homeRuns: 22, rank: 4 },
-    { id: "545361", mlbId: 545361, name: "Mike Trout", position: "OF", team: "Los Angeles Angels", homeRuns: 21, rank: 5 },
-    { id: "660271", mlbId: 660271, name: "Shohei Ohtani", position: "OF", team: "Los Angeles Dodgers", homeRuns: 20, rank: 6 },
-    { id: "592995", mlbId: 592995, name: "Brent Rooker", position: "DH", team: "Minnesota Twins", homeRuns: 19, rank: 7 },
-    { id: "521692", mlbId: 521692, name: "Salvador Perez", position: "C", team: "Kansas City Royals", homeRuns: 18, rank: 8 },
-    { id: "607208", mlbId: 607208, name: "Trea Turner", position: "SS", team: "Philadelphia Phillies", homeRuns: 17, rank: 9 },
-    { id: "596019", mlbId: 596019, name: "Francisco Lindor", position: "SS", team: "New York Mets", homeRuns: 16, rank: 10 },
-    { id: "514888", mlbId: 514888, name: "Jose Altuve", position: "2B", team: "Houston Astros", homeRuns: 15, rank: 11 },
-    { id: "646240", mlbId: 646240, name: "Rafael Devers", position: "3B", team: "Boston Red Sox", homeRuns: 14, rank: 12 },
-    { id: "543685", mlbId: 543685, name: "Anthony Rendon", position: "3B", team: "Los Angeles Angels", homeRuns: 13, rank: 13 },
-    { id: "608369", mlbId: 608369, name: "Corey Seager", position: "SS", team: "Texas Rangers", homeRuns: 12, rank: 14 },
-    { id: "543807", mlbId: 543807, name: "George Springer", position: "OF", team: "Toronto Blue Jays", homeRuns: 11, rank: 15 },
-    { id: "543466", mlbId: 543466, name: "Kyle Higashioka", position: "C", team: "New York Yankees", homeRuns: 10, rank: 16 },
-    { id: "543760", mlbId: 543760, name: "Marcus Semien", position: "2B", team: "Texas Rangers", homeRuns: 9, rank: 17 },
-    { id: "683002", mlbId: 683002, name: "Gunnar Henderson", position: "SS", team: "Baltimore Orioles", homeRuns: 8, rank: 18 },
-    { id: "641598", mlbId: 641598, name: "Mitch Garver", position: "C", team: "Texas Rangers", homeRuns: 7, rank: 19 },
-    { id: "621566", mlbId: 621566, name: "Matt Olson", position: "1B", team: "Atlanta Braves", homeRuns: 6, rank: 20 },
-  ];
-
-  cache[cacheKey] = {
-    data: testPlayers,
-    timestamp: now,
-  };
-
-  return testPlayers;
 }
 
 export async function getAvailablePlayers(

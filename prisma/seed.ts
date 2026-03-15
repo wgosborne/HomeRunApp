@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { fetch2026SeasonStats } from "../lib/mlb-player-sync";
 
 const prisma = new PrismaClient();
 
@@ -28,65 +29,6 @@ interface MLBPlayerDetail {
   name: string;
   position: string;
   team: string;
-}
-
-interface MLBLeaderboardResponse {
-  leagueLeaders: Array<{
-    leaders: Array<{
-      rank: number;
-      value: string;
-      person: {
-        id: number;
-        fullName: string;
-      };
-      team: {
-        name: string;
-      };
-    }>;
-  }>;
-}
-
-async function fetch2026HomerunLeaders(): Promise<
-  Array<{ mlbId: number; name: string; team: string; homeruns: number }>
-> {
-  try {
-    const enableSpringTraining = process.env.NEXT_PUBLIC_ENABLE_SPRING_TRAINING === "true";
-    const gameType = enableSpringTraining ? "S" : "R";
-
-    console.log(`Fetching 2026 homerun leaders (gameType=${gameType})...`);
-
-    const response = await fetch(
-      `https://statsapi.mlb.com/api/v1/stats/leaders?leaderCategories=homeRuns&season=2026&leaderGameTypes=${gameType}&sportId=1&limit=500`,
-      {
-        headers: { "User-Agent": "FantasyBaseball/1.0" },
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch homerun leaders: ${response.status}`);
-    }
-
-    const data = (await response.json()) as MLBLeaderboardResponse;
-    const leagueLeader = data.leagueLeaders?.[0];
-
-    if (!leagueLeader?.leaders || leagueLeader.leaders.length === 0) {
-      console.log("No 2026 homerun leaders yet - season may not have started");
-      return [];
-    }
-
-    const leaders = leagueLeader.leaders.map((leader) => ({
-      mlbId: leader.person.id,
-      name: leader.person.fullName,
-      team: leader.team.name,
-      homeruns: parseInt(leader.value, 10) || 0,
-    }));
-
-    console.log(`Fetched ${leaders.length} players with 2026 homerun stats`);
-    return leaders;
-  } catch (error) {
-    console.error("Failed to fetch 2026 homerun leaders:", error);
-    return [];
-  }
 }
 
 async function fetchAllMLBPlayers(): Promise<MLBPlayerDetail[]> {
@@ -242,9 +184,9 @@ async function main() {
 
   console.log(`Seeding ${playersToSeed.length} players into database...`);
 
-  // Fetch 2026 homerun leaders for stats
-  const homerunLeaders = await fetch2026HomerunLeaders();
-  const hrMap = new Map(homerunLeaders.map((h) => [h.mlbId, h.homeruns]));
+  // Fetch 2026 season stats for stats
+  const seasonStats = await fetch2026SeasonStats();
+  const statsMap = new Map(seasonStats.map((s) => [s.mlbId, s]));
 
   // Clear existing players to ensure clean slate
   await prisma.player.deleteMany();
@@ -257,27 +199,30 @@ async function main() {
   for (let i = 0; i < playersToSeed.length; i += batchSize) {
     const batch = playersToSeed.slice(i, i + batchSize);
     const batchResults = await Promise.all(
-      batch.map((player) =>
-        prisma.player.create({
+      batch.map((player) => {
+        const stat = statsMap.get(player.mlbId);
+        return prisma.player.create({
           data: {
             mlbId: player.mlbId,
             fullName: player.name,
             position: player.position,
             teamName: player.team,
-            homeruns: hrMap.get(player.mlbId) || 0, // Use 2026 actual homerun count
-            gamesPlayed: 0, // Will be updated by cron
+            homeruns: stat?.homeruns || 0,
+            gamesPlayed: stat?.gamesPlayed || 0,
             homerunsLast14Days: 0,
             gamesPlayedLast14Days: 0,
-            battingAverage: 0,
+            battingAverage: stat?.battingAverage || 0,
+            ops: stat?.ops || 0,
+            // Bio fields left null for bio sync to fill in
           },
-        })
-      )
+        });
+      })
     );
     createdCount += batchResults.length;
     console.log(`  Created ${createdCount}/${playersToSeed.length} players`);
   }
 
-  console.log(`✓ Seeded ${createdCount} players with 2026 stats`);
+  console.log(`✓ Seeded ${createdCount} players with 2026 season stats`);
 
   console.log("Creating seed data...");
 

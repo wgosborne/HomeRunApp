@@ -37,24 +37,6 @@ interface MLBTeamsResponse {
   }>;
 }
 
-interface MLBPlayerStat {
-  player: {
-    id: number;
-  };
-  stat: {
-    homeRuns: number;
-    gamesPlayed: number;
-    avg: string;
-    ops: string;
-  };
-}
-
-interface MLBStatsResponse {
-  stats: Array<{
-    splits: MLBPlayerStat[];
-  }>;
-}
-
 /**
  * Sync MLB player bios from statsapi.mlb.com
  * Only sets bio fields if they haven't been synced before (bioSyncedAt is null)
@@ -169,42 +151,57 @@ export async function syncPlayerBios(): Promise<{ created: number; skipped: numb
   }
 }
 
-interface MLBLeaderboardResponse {
-  leagueLeaders: Array<{
-    leaders: Array<{
-      value: string;
-      person: {
+interface MLBSeasonStatsResponse {
+  stats: Array<{
+    splits: Array<{
+      player: {
         id: number;
         fullName: string;
       };
       team: {
         name: string;
       };
+      position: {
+        abbreviation: string;
+      };
+      stat: {
+        homeRuns: number;
+        gamesPlayed: number;
+        avg: string;
+        ops: string;
+      };
     }>;
   }>;
 }
 
+interface PlayerSeasonStat {
+  mlbId: number;
+  fullName: string;
+  teamName: string;
+  position: string;
+  homeruns: number;
+  gamesPlayed: number;
+  battingAverage: number;
+  ops: number;
+}
+
 /**
- * Update seasonal and 14-day homerun stats for all players
- * When NEXT_PUBLIC_ENABLE_SPRING_TRAINING is true, calculates stats from HomerrunEvent records
- * Otherwise fetches official MLB season stats
+ * Fetch 2026 season stats from MLB API
+ * Respects NEXT_PUBLIC_ENABLE_SPRING_TRAINING flag for game type selection
+ * Returns players sorted by homeruns descending
  */
-export async function updatePlayerStats(): Promise<{ updated: number }> {
+export async function fetch2026SeasonStats(): Promise<PlayerSeasonStat[]> {
   try {
     const enableSpringTraining = process.env.NEXT_PUBLIC_ENABLE_SPRING_TRAINING === "true";
+    const gameType = enableSpringTraining ? "S" : "R";
 
-    if (enableSpringTraining) {
-      logger.info("Spring training enabled - calculating stats from HomerrunEvent records");
-      return updateStatsFromHomerrunEvents();
-    }
+    logger.info("Fetching 2026 season stats", { gameType });
 
-    // Fetch 2026 homerun leaders from MLB API
-    const gameType = "R"; // Regular season
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30000);
 
-    const leadersResponse = await fetch(
-      `https://statsapi.mlb.com/api/v1/stats/leaders?leaderCategories=homeRuns&season=2026&leaderGameTypes=${gameType}&sportId=1&limit=500`,
+    const response = await fetch(
+      `https://statsapi.mlb.com/api/v1/stats?stats=season&season=2026&gameType=${gameType}&group=hitting&sportId=1&limit=1000`,
       {
         headers: {
           "User-Agent": "FantasyBaseball/1.0",
@@ -215,132 +212,72 @@ export async function updatePlayerStats(): Promise<{ updated: number }> {
 
     clearTimeout(timeout);
 
-    if (!leadersResponse.ok) {
-      logger.error("Failed to fetch 2026 homerun leaders", { status: leadersResponse.status });
+    if (!response.ok) {
+      logger.error("Failed to fetch 2026 season stats", { status: response.status });
+      return [];
+    }
+
+    const data = (await response.json()) as MLBSeasonStatsResponse;
+
+    if (!data.stats?.[0]?.splits) {
+      logger.info("No season stats available yet");
+      return [];
+    }
+
+    const players = data.stats[0].splits.map((split) => ({
+      mlbId: split.player.id,
+      fullName: split.player.fullName,
+      teamName: split.team.name,
+      position: split.position.abbreviation || "OF",
+      homeruns: split.stat.homeRuns || 0,
+      gamesPlayed: split.stat.gamesPlayed || 0,
+      battingAverage: parseFloat(split.stat.avg) || 0,
+      ops: parseFloat(split.stat.ops) || 0,
+    }));
+
+    // Sort by homeruns descending
+    players.sort((a, b) => b.homeruns - a.homeruns);
+
+    logger.info("Fetched 2026 season stats", { count: players.length });
+    return players;
+  } catch (error) {
+    logger.error("Error fetching 2026 season stats", { error });
+    return [];
+  }
+}
+
+/**
+ * Update seasonal stats for all players from MLB API
+ * Always fetches from the official MLB stats endpoint
+ * Respects NEXT_PUBLIC_ENABLE_SPRING_TRAINING flag for game type selection
+ */
+export async function updatePlayerStats(): Promise<{ updated: number }> {
+  try {
+    // Fetch 2026 season stats (fetch2026SeasonStats handles the gameType flag)
+    const seasonStats = await fetch2026SeasonStats();
+
+    if (seasonStats.length === 0) {
+      logger.info("No season stats to update");
       return { updated: 0 };
     }
 
-    const leadersData = (await leadersResponse.json()) as MLBLeaderboardResponse;
-    const leagueLeader = leadersData.leagueLeaders?.[0];
-
-    if (!leagueLeader?.leaders) {
-      logger.info("No 2026 homerun leaders yet - season may not have started");
-      return { updated: 0 };
-    }
-
-    // Build map of mlbId -> homeruns
-    const homerunMap = new Map<number, number>();
-    for (const leader of leagueLeader.leaders) {
-      homerunMap.set(leader.person.id, parseInt(leader.value, 10) || 0);
-    }
-
-    // Fetch official season stats from MLB API for other fields
-    const controllerSeason = new AbortController();
-    const timeoutSeason = setTimeout(() => controllerSeason.abort(), 30000);
-
-    const seasonResponse = await fetch(
-      "https://statsapi.mlb.com/api/v1/stats?stats=season&group=hitting&season=2026&sportId=1&limit=2000",
-      {
-        headers: {
-          "User-Agent": "FantasyBaseball/1.0",
-        },
-        signal: controllerSeason.signal,
-      }
-    );
-
-    clearTimeout(timeoutSeason);
-
-    if (!seasonResponse.ok) {
-      logger.error("Failed to fetch season stats", { status: seasonResponse.status });
-      return { updated: 0 };
-    }
-
-    const seasonData = (await seasonResponse.json()) as MLBStatsResponse;
-    const seasonStats = new Map<number, { homeruns: number; gamesPlayed: number; avg: number; ops: number }>();
-
-    if (seasonData.stats?.[0]?.splits) {
-      for (const split of seasonData.stats[0].splits) {
-        const mlbId = split.player.id;
-        const avg = parseFloat(split.stat.avg) || 0;
-        const ops = parseFloat(split.stat.ops) || 0;
-        // Use homeruns from the leaders endpoint if available, otherwise use stat
-        const homeruns = homerunMap.get(mlbId) ?? split.stat.homeRuns ?? 0;
-
-        seasonStats.set(mlbId, {
-          homeruns,
-          gamesPlayed: split.stat.gamesPlayed || 0,
-          avg,
-          ops,
-        });
-      }
-    }
-
-    // Fetch 14-day stats
-    const today = new Date();
-    const fourteenDaysAgo = new Date(today);
-    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
-
-    const formatDate = (date: Date) => date.toISOString().split("T")[0];
-    const startDate = formatDate(fourteenDaysAgo);
-    const endDate = formatDate(today);
-
-    const controller2 = new AbortController();
-    const timeout2 = setTimeout(() => controller2.abort(), 30000);
-
-    const recentResponse = await fetch(
-      `https://statsapi.mlb.com/api/v1/stats?stats=byDateRange&group=hitting&season=2026&sportId=1&startDate=${startDate}&endDate=${endDate}&limit=2000`,
-      {
-        headers: {
-          "User-Agent": "FantasyBaseball/1.0",
-        },
-        signal: controller2.signal,
-      }
-    );
-
-    clearTimeout(timeout2);
-
-    const recentStats = new Map<number, { homeruns: number; gamesPlayed: number }>();
-
-    if (recentResponse.ok) {
-      const recentData = (await recentResponse.json()) as MLBStatsResponse;
-      if (recentData.stats?.[0]?.splits) {
-        for (const split of recentData.stats[0].splits) {
-          const mlbId = split.player.id;
-          recentStats.set(mlbId, {
-            homeruns: split.stat.homeRuns || 0,
-            gamesPlayed: split.stat.gamesPlayed || 0,
-          });
-        }
-      }
-    } else {
-      logger.warn("Failed to fetch 14-day stats", { status: recentResponse.status });
-    }
-
-    // Update all players in the database
-    const allPlayers = await prisma.player.findMany();
+    // Update existing players with new stats (don't overwrite bio data)
     let updated = 0;
+    for (const playerStat of seasonStats) {
+      const result = await prisma.player.updateMany({
+        where: { mlbId: playerStat.mlbId },
+        data: {
+          homeruns: playerStat.homeruns,
+          gamesPlayed: playerStat.gamesPlayed,
+          battingAverage: playerStat.battingAverage,
+          ops: playerStat.ops,
+          teamName: playerStat.teamName,
+          position: playerStat.position,
+        },
+      });
+      updated += result.count;
+    }
 
-    await prisma.$transaction(
-      allPlayers.map((player) => {
-        const season = seasonStats.get(player.mlbId);
-        const recent = recentStats.get(player.mlbId);
-
-        return prisma.player.update({
-          where: { id: player.id },
-          data: {
-            homeruns: season?.homeruns ?? 0,
-            gamesPlayed: season?.gamesPlayed ?? 0,
-            battingAverage: season?.avg ?? 0,
-            ops: season?.ops ?? 0,
-            homerunsLast14Days: recent?.homeruns ?? 0,
-            gamesPlayedLast14Days: recent?.gamesPlayed ?? 0,
-            lastStatsUpdatedAt: new Date(),
-          },
-        });
-      })
-    );
-
-    updated = allPlayers.length;
     logger.info("Stats update complete", { updated });
     return { updated };
   } catch (error) {
@@ -349,82 +286,3 @@ export async function updatePlayerStats(): Promise<{ updated: number }> {
   }
 }
 
-/**
- * Calculate stats from HomerrunEvent records (for spring training mode)
- */
-async function updateStatsFromHomerrunEvents(): Promise<{ updated: number }> {
-  try {
-    // Get all homerun events
-    const homeruns = await prisma.homerrunEvent.findMany({
-      select: { mlbId: true, gameDate: true },
-    });
-
-    // Count homeruns and dates per player
-    const playerStats = new Map<number, { homeruns: number; gameDates: Set<string> }>();
-
-    for (const hr of homeruns) {
-      if (!hr.mlbId) continue;
-
-      const gameDate = hr.gameDate.toISOString().split("T")[0];
-      const existing = playerStats.get(hr.mlbId) || { homeruns: 0, gameDates: new Set<string>() };
-      existing.homeruns++;
-      existing.gameDates.add(gameDate);
-      playerStats.set(hr.mlbId, existing);
-    }
-
-    // Get last 14 days
-    const today = new Date();
-    const fourteenDaysAgo = new Date(today);
-    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
-
-    const recentHomeruns = await prisma.homerrunEvent.findMany({
-      where: {
-        gameDate: {
-          gte: fourteenDaysAgo,
-        },
-      },
-      select: { mlbId: true, gameDate: true },
-    });
-
-    const recentPlayerStats = new Map<number, { homeruns: number; gameDates: Set<string> }>();
-
-    for (const hr of recentHomeruns) {
-      if (!hr.mlbId) continue;
-
-      const gameDate = hr.gameDate.toISOString().split("T")[0];
-      const existing = recentPlayerStats.get(hr.mlbId) || { homeruns: 0, gameDates: new Set<string>() };
-      existing.homeruns++;
-      existing.gameDates.add(gameDate);
-      recentPlayerStats.set(hr.mlbId, existing);
-    }
-
-    // Update all players
-    const allPlayers = await prisma.player.findMany();
-    let updated = 0;
-
-    await prisma.$transaction(
-      allPlayers.map((player) => {
-        const stats = playerStats.get(player.mlbId);
-        const recent = recentPlayerStats.get(player.mlbId);
-
-        return prisma.player.update({
-          where: { id: player.id },
-          data: {
-            homeruns: stats?.homeruns ?? 0,
-            gamesPlayed: stats?.gameDates.size ?? 0,
-            homerunsLast14Days: recent?.homeruns ?? 0,
-            gamesPlayedLast14Days: recent?.gameDates.size ?? 0,
-            lastStatsUpdatedAt: new Date(),
-          },
-        });
-      })
-    );
-
-    updated = allPlayers.length;
-    logger.info("Spring training stats update complete", { updated, totalHRs: homeruns.length });
-    return { updated };
-  } catch (error) {
-    logger.error("Error calculating stats from homerun events", { error });
-    return { updated: 0 };
-  }
-}
