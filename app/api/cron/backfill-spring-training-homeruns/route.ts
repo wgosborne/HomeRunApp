@@ -106,6 +106,13 @@ async function handleBackfill(startDate: string, endDate: string) {
               continue;
             }
 
+            // Look up player team from database (source of truth)
+            const playerRecord = await prisma.player.findUnique({
+              where: { mlbId: homerun.mlbId },
+              select: { teamName: true }
+            });
+            const teamDisplay = playerRecord?.teamName || homerun.team || "Unknown";
+
             // Fetch jersey number if we have mlbId
             let jerseyNumber: number | null = null;
             if (homerun.mlbId) {
@@ -165,7 +172,7 @@ async function handleBackfill(startDate: string, endDate: string) {
                   playerName: homerun.playerName,
                   homeruns: updatedSpot.homeruns,
                   inning: homerun.inning,
-                  team: homerun.team,
+                  team: teamDisplay,
                   gameId: homerun.gameId,
                   timestamp: homerun.gameDate.getTime(),
                 });
@@ -174,7 +181,7 @@ async function handleBackfill(startDate: string, endDate: string) {
                 try {
                   await sendPushToUser(spot.userId, spot.leagueId, {
                     title: `${homerun.playerName} hit a homerun!`,
-                    body: `${homerun.playerName} (${homerun.team}) hit a homerun in the ${homerun.inning}${getOrdinalSuffix(homerun.inning)} inning. You now have ${updatedSpot.homeruns} homerun${updatedSpot.homeruns === 1 ? '' : 's'}.`,
+                    body: `${homerun.playerName} (${teamDisplay}) hit a homerun in the ${homerun.inning}${getOrdinalSuffix(homerun.inning)} inning. You now have ${updatedSpot.homeruns} homerun${updatedSpot.homeruns === 1 ? '' : 's'}.`,
                     icon: '/icon-192x192.png',
                     badge: '/badge-72x72.png',
                     tag: 'homerun-alert',
@@ -183,7 +190,7 @@ async function handleBackfill(startDate: string, endDate: string) {
                     eventType: 'homerun',
                     data: {
                       inning: homerun.inning,
-                      team: homerun.team,
+                      team: teamDisplay,
                       totalHomeruns: updatedSpot.homeruns,
                     },
                   });
@@ -301,6 +308,25 @@ async function handleBackfill(startDate: string, endDate: string) {
  * Usage: /api/cron/backfill-spring-training-homeruns?startDate=2026-02-24&endDate=2026-03-07
  */
 export async function GET(request: NextRequest) {
+  // Guard 1: Check if spring training is enabled
+  if (process.env.NEXT_PUBLIC_ENABLE_SPRING_TRAINING !== "true") {
+    logger.warn("Backfill endpoint called when spring training is disabled");
+    return NextResponse.json(
+      { error: "Endpoint disabled - spring training is not active" },
+      { status: 403 }
+    );
+  }
+
+  // Guard 2: Check if we've passed opening day
+  const openingDay = new Date("2026-03-25");
+  if (new Date() >= openingDay) {
+    logger.warn("Backfill endpoint called after opening day - rejecting");
+    return NextResponse.json(
+      { error: "Endpoint disabled after opening day" },
+      { status: 403 }
+    );
+  }
+
   // Default to start of Spring Training (late Feb) through today
   const searchParams = request.nextUrl.searchParams;
   const startDate = searchParams.get("startDate") || "2026-02-24";

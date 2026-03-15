@@ -292,6 +292,88 @@ export async function updatePlayerStats(): Promise<{ updated: number }> {
     }
 
     logger.info("Stats update complete", { updated });
+
+    // Pass 2: Calculate and update 14-day stats (regardless of spring training flag)
+    try {
+      const fourteenDaysAgo = new Date();
+      fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+
+      // Get homerun events for the last 14 days
+      const homerunEvents = await prisma.homerrunEvent.findMany({
+        where: {
+          gameDate: {
+            gte: fourteenDaysAgo,
+          },
+          mlbId: {
+            not: null,
+          },
+        },
+        select: {
+          mlbId: true,
+        },
+      });
+
+      // Count homeruns per player
+      const homerunMap = new Map<number, number>();
+      for (const event of homerunEvents) {
+        if (event.mlbId !== null) {
+          homerunMap.set(event.mlbId, (homerunMap.get(event.mlbId) || 0) + 1);
+        }
+      }
+
+      // Get all players with teamIds
+      const players = await prisma.player.findMany({
+        where: {
+          teamId: {
+            not: null,
+          },
+        },
+        select: {
+          mlbId: true,
+          teamId: true,
+        },
+      });
+
+      // For each player, count games played in last 14 days
+      let last14Updated = 0;
+      for (const player of players) {
+        const homerunsLast14 = homerunMap.get(player.mlbId) || 0;
+
+        // Get distinct games where this player's team played in last 14 days
+        const games = await prisma.game.findMany({
+          where: {
+            gameDate: {
+              gte: fourteenDaysAgo,
+            },
+            OR: [
+              { homeTeamId: player.teamId },
+              { awayTeamId: player.teamId },
+            ],
+          },
+          select: {
+            id: true,
+          },
+        });
+
+        const gamesPlayedLast14 = games.length;
+
+        // Update player with 14-day stats
+        await prisma.player.update({
+          where: { mlbId: player.mlbId },
+          data: {
+            homerunsLast14Days: homerunsLast14,
+            gamesPlayedLast14Days: gamesPlayedLast14,
+          },
+        });
+
+        last14Updated++;
+      }
+
+      logger.info("14-day stats update complete", { playersUpdated: last14Updated });
+    } catch (error) {
+      logger.error("Error updating 14-day stats", { error });
+    }
+
     return { updated };
   } catch (error) {
     logger.error("Error updating player stats", { error });
