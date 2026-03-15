@@ -4,10 +4,10 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { pusherClient } from "@/lib/pusher-client";
 import { LoadingScreen } from "@/app/components/LoadingScreen";
-import { DraftTimer } from "./DraftTimer";
 import { PlayerSearch } from "./PlayerSearch";
 import { DevPanel } from "./DevPanel";
 import { DraftTeamsRoster } from "./DraftTeamsRoster";
+import { DraftOrderTab } from "./DraftOrderTab";
 
 interface Player {
   id: string;
@@ -62,7 +62,8 @@ export function DraftRoom({ leagueId, userId }: DraftRoomProps) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [playersLoaded, setPlayersLoaded] = useState(false);
   const [allContentLoaded, setAllContentLoaded] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"picks" | "rosters" | "order">("picks");
+  const [displayTime, setDisplayTime] = useState(0);
   const [autopickFiredForPick, setAutopickFiredForPick] = useState<number | null>(null); // Track which pick triggered autopick
 
   // Fetch draft status
@@ -217,6 +218,30 @@ export function DraftRoom({ leagueId, userId }: DraftRoomProps) {
       setAllContentLoaded(true);
     }
   }, [playersLoaded, status]);
+
+  // Client-side timer countdown (local state between server updates)
+  useEffect(() => {
+    if (!status?.isDraftActive) {
+      return;
+    }
+
+    // Initialize display time when status changes
+    setDisplayTime(status.timeRemainingSeconds);
+    console.log(`[TIMER] Initialized with ${status.timeRemainingSeconds}s`);
+
+    // Countdown every second locally
+    const interval = setInterval(() => {
+      setDisplayTime((prev) => {
+        const nextTime = prev - 1;
+        if (nextTime === 0) {
+          console.log("[TIMER] Countdown reached 0");
+        }
+        return nextTime >= 0 ? nextTime : 0;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [status?.timeRemainingSeconds, status?.isDraftActive]);
 
   // Notify service worker that user is actively drafting
   useEffect(() => {
@@ -397,40 +422,6 @@ export function DraftRoom({ leagueId, userId }: DraftRoomProps) {
               {status?.memberCount} teams • {status?.totalPicks} total picks
             </p>
           </div>
-
-          {/* Sidebar Toggle (Mobile Only) */}
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            style={{
-              background: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(255,255,255,0.08)",
-              borderRadius: "8px",
-              padding: "8px",
-              color: "rgba(255,255,255,0.7)",
-              cursor: "pointer",
-              minHeight: "44px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              transition: "background 0.2s",
-            }}
-            className="lg:hidden"
-            aria-label="Toggle sidebar"
-          >
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 6h16M4 12h16M4 18h16"
-              />
-            </svg>
-          </button>
         </div>
 
         {/* Decorative line at bottom */}
@@ -443,12 +434,150 @@ export function DraftRoom({ leagueId, userId }: DraftRoomProps) {
         />
       </div>
 
+      {/* Persistent Banner - Always visible above tabs */}
+      {!isDraftComplete && status && allContentLoaded && (
+        <div
+          style={{
+            backgroundColor: "rgba(255,255,255,0.02)",
+            borderBottom: "1px solid rgba(255,255,255,0.07)",
+            padding: "16px 18px",
+            display: "flex",
+            alignItems: "center",
+            gap: "24px",
+          }}
+        >
+          {/* Current Picker Info */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div
+              style={{
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: "12px",
+                color: "rgba(255,255,255,0.4)",
+                marginBottom: "4px",
+              }}
+            >
+              Current Picker
+            </div>
+            <div
+              style={{
+                fontFamily: "'Exo 2', sans-serif",
+                fontSize: "16px",
+                fontWeight: 700,
+                color: isCurrentPicker ? "#CC3433" : "white",
+              }}
+            >
+              {status.currentPickerName}
+            </div>
+          </div>
+
+          {/* Timer */}
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: "4px",
+            }}
+          >
+            <div
+              style={{
+                fontFamily: "'Courier Prime', monospace",
+                fontSize: "32px",
+                fontWeight: 800,
+                color:
+                  displayTime <= 10
+                    ? "#CC3433"
+                    : displayTime <= 20
+                      ? "#FBBF24"
+                      : "#6BAED6",
+                textShadow: `0 0 12px ${
+                  displayTime <= 10
+                    ? "#CC343340"
+                    : displayTime <= 20
+                      ? "#FBBF2440"
+                      : "#6BAED640"
+                }`,
+              }}
+            >
+              {displayTime}
+            </div>
+            <div
+              style={{
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: "11px",
+                color: "rgba(255,255,255,0.3)",
+              }}
+            >
+              seconds
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tab Navigation */}
+      {!isDraftComplete && (
+        <div
+          style={{
+            backgroundColor: "rgba(255,255,255,0.01)",
+            borderBottom: "1px solid rgba(255,255,255,0.07)",
+            display: "flex",
+            paddingLeft: "18px",
+            paddingRight: "18px",
+          }}
+        >
+          {(["picks", "rosters", "order"] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              style={{
+                flex: "0 0 auto",
+                padding: "16px 24px",
+                backgroundColor: "transparent",
+                border: "none",
+                cursor: "pointer",
+                fontFamily: "'Exo 2', sans-serif",
+                fontSize: "14px",
+                fontWeight: 700,
+                textTransform: "uppercase",
+                letterSpacing: "1px",
+                color:
+                  activeTab === tab
+                    ? "white"
+                    : "rgba(255,255,255,0.4)",
+                borderBottom:
+                  activeTab === tab
+                    ? "2px solid #CC3433"
+                    : "2px solid transparent",
+                transition: "all 0.2s",
+              }}
+              onMouseEnter={(e) => {
+                if (activeTab !== tab) {
+                  (e.currentTarget as HTMLButtonElement).style.color =
+                    "rgba(255,255,255,0.6)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (activeTab !== tab) {
+                  (e.currentTarget as HTMLButtonElement).style.color =
+                    "rgba(255,255,255,0.4)";
+                }
+              }}
+            >
+              {tab === "picks"
+                ? "Available Players"
+                : tab === "rosters"
+                  ? "Rosters"
+                  : "Order"}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Main Content */}
       <div
         style={{
-          maxWidth: "1200px",
-          margin: "0 auto",
-          padding: "32px 16px",
+          maxWidth: "100%",
+          padding: "16px 18px",
         }}
       >
         {isDraftComplete && (
@@ -457,143 +586,92 @@ export function DraftRoom({ leagueId, userId }: DraftRoomProps) {
               backgroundColor: "rgba(34,197,94,0.1)",
               border: "1px solid rgba(34,197,94,0.3)",
               borderRadius: "12px",
-              padding: "16px",
+              padding: "40px",
+              textAlign: "center",
               marginBottom: "24px",
             }}
           >
             <div
               style={{
                 fontFamily: "'Exo 2', sans-serif",
-                fontWeight: 700,
+                fontSize: "32px",
+                fontWeight: 800,
+                marginBottom: "8px",
                 color: "#86efac",
+                textShadow: "0 0 12px rgba(34,197,94,0.5)",
               }}
             >
               Draft Complete!
             </div>
-          </div>
-        )}
-
-        {submitError && (
-          <div
-            style={{
-              backgroundColor: "rgba(204,52,51,0.1)",
-              border: "1px solid rgba(204,52,51,0.3)",
-              borderRadius: "12px",
-              padding: "16px",
-              marginBottom: "24px",
-            }}
-          >
-            <div
+            <p
               style={{
                 fontFamily: "'DM Sans', sans-serif",
                 fontSize: "14px",
-                color: "#fca5a5",
+                color: "rgba(255,255,255,0.6)",
+                marginBottom: "24px",
               }}
             >
-              {submitError}
-            </div>
+              All {status?.completedPicks} picks have been made. Great draft!
+            </p>
+            <button
+              onClick={() => router.push(`/league/${leagueId}`)}
+              style={{
+                fontFamily: "'Exo 2', sans-serif",
+                fontSize: "14px",
+                fontWeight: 700,
+                paddingTop: "12px",
+                paddingBottom: "12px",
+                paddingLeft: "24px",
+                paddingRight: "24px",
+                backgroundColor: "#CC3433",
+                color: "white",
+                border: "none",
+                borderRadius: "8px",
+                cursor: "pointer",
+                boxShadow: "0 3px 10px rgba(204,52,51,0.5), 0 1px 0 rgba(255,255,255,0.15) inset",
+                minHeight: "44px",
+                transition: "transform 0.1s",
+              }}
+              onMouseDown={(e) => {
+                (e.target as HTMLButtonElement).style.transform = "translateY(2px)";
+              }}
+              onMouseUp={(e) => {
+                (e.target as HTMLButtonElement).style.transform = "translateY(0)";
+              }}
+            >
+              View League
+            </button>
           </div>
         )}
 
-        <div className="lg:grid-cols-3" style={{ display: "grid", gridTemplateColumns: "1fr", gap: "24px" }}>
-          {/* Main Area - Player Selection or Current Picker Info */}
-          <div className="lg:col-span-2" style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-            {!isDraftComplete ? (
-              <>
-                {/* Current Picker Info */}
+        {!isDraftComplete && (
+          <>
+            {submitError && (
+              <div
+                style={{
+                  backgroundColor: "rgba(204,52,51,0.1)",
+                  border: "1px solid rgba(204,52,51,0.3)",
+                  borderRadius: "12px",
+                  padding: "16px",
+                  marginBottom: "24px",
+                }}
+              >
                 <div
                   style={{
-                    borderRadius: "20px",
-                    padding: "20px",
-                    background: "linear-gradient(145deg, #0e2a6e 0%, #1a3f9c 55%, #0f2660 100%)",
-                    boxShadow: `
-                      0 2px 0 rgba(255,255,255,0.06) inset,
-                      0 -2px 0 rgba(0,0,0,0.4) inset,
-                      0 8px 16px rgba(0,0,0,0.4),
-                      0 16px 40px rgba(14,51,134,0.45),
-                      0 32px 64px rgba(14,51,134,0.2),
-                      0 1px 0 rgba(255,255,255,0.04)
-                    `,
+                    fontFamily: "'DM Sans', sans-serif",
+                    fontSize: "14px",
+                    color: "#fca5a5",
                   }}
                 >
-                  <div
-                    style={{
-                      fontFamily: "'Exo 2', sans-serif",
-                      fontSize: "11px",
-                      fontWeight: 700,
-                      letterSpacing: "3px",
-                      textTransform: "uppercase",
-                      color: "rgba(255,255,255,0.28)",
-                      textShadow: "0 0 16px rgba(204,52,51,0.35), 0 0 32px rgba(204,52,51,0.15)",
-                      marginBottom: "8px",
-                    }}
-                  >
-                    Current Picker
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "'Exo 2', sans-serif",
-                      fontSize: "32px",
-                      fontWeight: 800,
-                      color: isCurrentPicker ? "#CC3433" : "white",
-                      marginBottom: "4px",
-                      textShadow: isCurrentPicker ? "0 0 12px rgba(204,52,51,0.6)" : "0 2px 8px rgba(0,0,0,0.5)",
-                    }}
-                  >
-                    {status?.currentPickerName}
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "'DM Sans', sans-serif",
-                      fontSize: "14px",
-                      color: "rgba(255,255,255,0.6)",
-                    }}
-                  >
-                    {isCurrentPicker ? "It's your turn to pick!" : "Waiting for their selection..."}
-                  </div>
+                  {submitError}
                 </div>
+              </div>
+            )}
 
-                {/* Timer - Only show after all content is loaded */}
-                {allContentLoaded ? (
-                  <div
-                    style={{
-                      borderRadius: "20px",
-                      padding: "20px",
-                      backgroundColor: "rgba(255,255,255,0.04)",
-                      border: "1px solid rgba(255,255,255,0.07)",
-                      boxShadow:
-                        "0 4px 12px rgba(0,0,0,0.35), 0 8px 24px rgba(0,0,0,0.2), 0 1px 0 rgba(255,255,255,0.06) inset",
-                    }}
-                  >
-                    <DraftTimer
-                      timeRemainingSeconds={status?.timeRemainingSeconds || 0}
-                      isCurrentPicker={isCurrentPicker}
-                    />
-                  </div>
-                ) : (
-                  <div
-                    style={{
-                      borderRadius: "20px",
-                      padding: "20px",
-                      backgroundColor: "rgba(255,255,255,0.04)",
-                      border: "1px solid rgba(255,255,255,0.07)",
-                      textAlign: "center",
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontFamily: "'DM Sans', sans-serif",
-                        fontSize: "14px",
-                        color: "rgba(255,255,255,0.4)",
-                      }}
-                    >
-                      Loading draft content...
-                    </div>
-                  </div>
-                )}
-
-                {/* Player Search - Full Width on Mobile */}
-                {isCurrentPicker && (
+            {/* PICKS TAB */}
+            {activeTab === "picks" && (
+              <div style={{ maxWidth: "800px", margin: "0 auto" }}>
+                {isCurrentPicker ? (
                   <div>
                     <PlayerSearch
                       leagueId={leagueId}
@@ -603,13 +681,11 @@ export function DraftRoom({ leagueId, userId }: DraftRoomProps) {
                       onLoadingComplete={handlePlayersLoaded}
                     />
                   </div>
-                )}
-
-                {!isCurrentPicker && (
+                ) : (
                   <div
                     style={{
                       borderRadius: "20px",
-                      padding: "20px",
+                      padding: "40px",
                       backgroundColor: "rgba(255,255,255,0.04)",
                       border: "1px solid rgba(255,255,255,0.07)",
                       textAlign: "center",
@@ -637,196 +713,46 @@ export function DraftRoom({ leagueId, userId }: DraftRoomProps) {
                     </div>
                   </div>
                 )}
-              </>
-            ) : (
-              <div
-                style={{
-                  borderRadius: "20px",
-                  padding: "40px",
-                  backgroundColor: "rgba(34,197,94,0.1)",
-                  border: "1px solid rgba(34,197,94,0.3)",
-                  textAlign: "center",
-                }}
-              >
-                <div
-                  style={{
-                    fontFamily: "'Exo 2', sans-serif",
-                    fontSize: "32px",
-                    fontWeight: 800,
-                    marginBottom: "8px",
-                    color: "#86efac",
-                    textShadow: "0 0 12px rgba(34,197,94,0.5)",
-                  }}
-                >
-                  Draft Complete!
-                </div>
-                <p
-                  style={{
-                    fontFamily: "'DM Sans', sans-serif",
-                    fontSize: "14px",
-                    color: "rgba(255,255,255,0.6)",
-                    marginBottom: "24px",
-                  }}
-                >
-                  All {status?.completedPicks} picks have been made. Great draft!
-                </p>
-                <button
-                  onClick={() => router.push(`/league/${leagueId}`)}
-                  style={{
-                    fontFamily: "'Exo 2', sans-serif",
-                    fontSize: "14px",
-                    fontWeight: 700,
-                    paddingTop: "12px",
-                    paddingBottom: "12px",
-                    paddingLeft: "24px",
-                    paddingRight: "24px",
-                    backgroundColor: "#CC3433",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "8px",
-                    cursor: "pointer",
-                    boxShadow: "0 3px 10px rgba(204,52,51,0.5), 0 1px 0 rgba(255,255,255,0.15) inset",
-                    minHeight: "44px",
-                    transition: "transform 0.1s",
-                  }}
-                  onMouseDown={(e) => {
-                    (e.target as HTMLButtonElement).style.transform = "translateY(2px)";
-                  }}
-                  onMouseUp={(e) => {
-                    (e.target as HTMLButtonElement).style.transform = "translateY(0)";
-                  }}
-                >
-                  View League
-                </button>
               </div>
             )}
-          </div>
 
-          {/* Sidebar - Collapsible on Mobile */}
-          <div
-            className={`${
-              sidebarOpen ? "block" : "hidden"
-            } lg:block space-y-4 sm:space-y-6`}
-          >
-            {/* Team Rosters */}
-            {status && (
-              <DraftTeamsRoster
-                leagueId={leagueId}
-                members={status.members}
-                currentPickerId={status.currentPickerId}
-              />
+            {/* ROSTERS TAB */}
+            {activeTab === "rosters" && status && (
+              <div style={{ maxWidth: "800px", margin: "0 auto" }}>
+                <DraftTeamsRoster
+                  leagueId={leagueId}
+                  members={status.members}
+                  currentPickerId={status.currentPickerId}
+                />
+              </div>
             )}
 
-            {/* Members List */}
-            {status && (
-              <div
-                style={{
-                  borderRadius: "20px",
-                  overflow: "hidden",
-                  backgroundColor: "rgba(255,255,255,0.04)",
-                  border: "1px solid rgba(255,255,255,0.07)",
-                  boxShadow:
-                    "0 4px 12px rgba(0,0,0,0.35), 0 8px 24px rgba(0,0,0,0.2), 0 1px 0 rgba(255,255,255,0.06) inset",
-                }}
-              >
+            {/* ORDER TAB */}
+            {activeTab === "order" && status && (
+              <div style={{ maxWidth: "800px", margin: "0 auto" }}>
                 <div
                   style={{
-                    padding: "16px",
-                    borderBottom: "1px solid rgba(255,255,255,0.07)",
-                    backgroundColor: "rgba(0,0,0,0.2)",
+                    borderRadius: "20px",
+                    overflow: "hidden",
+                    backgroundColor: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(255,255,255,0.07)",
+                    boxShadow:
+                      "0 4px 12px rgba(0,0,0,0.35), 0 8px 24px rgba(0,0,0,0.2), 0 1px 0 rgba(255,255,255,0.06) inset",
                   }}
                 >
-                  <h3
-                    style={{
-                      fontFamily: "'Exo 2', sans-serif",
-                      fontSize: "11px",
-                      fontWeight: 700,
-                      letterSpacing: "3px",
-                      textTransform: "uppercase",
-                      color: "rgba(255,255,255,0.28)",
-                      textShadow: "0 0 16px rgba(204,52,51,0.35), 0 0 32px rgba(204,52,51,0.15)",
-                      margin: 0,
-                    }}
-                  >
-                    Managers ({status.members.length})
-                  </h3>
-                </div>
-
-                <div
-                  style={{
-                    maxHeight: "384px",
-                    overflowY: "auto",
-                  }}
-                >
-                  {status.members.map((member) => (
-                    <div
-                      key={member.userId}
-                      style={{
-                        padding: "16px",
-                        borderBottom: "1px solid rgba(255,255,255,0.07)",
-                        background:
-                          member.userId === status.currentPickerId
-                            ? "linear-gradient(145deg, rgba(204,52,51,0.2), rgba(204,52,51,0.1))"
-                            : "transparent",
-                        transition: "background 0.2s",
-                        cursor: "default",
-                      }}
-                      onMouseEnter={(e) => {
-                        if (member.userId !== status.currentPickerId) {
-                          (e.currentTarget as HTMLDivElement).style.background =
-                            "rgba(255,255,255,0.04)";
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (member.userId !== status.currentPickerId) {
-                          (e.currentTarget as HTMLDivElement).style.background = "transparent";
-                        }
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontFamily: "'Exo 2', sans-serif",
-                          fontWeight: 700,
-                          fontSize: "14px",
-                          color:
-                            member.userId === status.currentPickerId
-                              ? "#CC3433"
-                              : "white",
-                          marginBottom: "4px",
-                        }}
-                      >
-                        {member.userName}
-                      </div>
-                      <div
-                        style={{
-                          fontFamily: "'DM Sans', sans-serif",
-                          fontSize: "12px",
-                          color: "rgba(255,255,255,0.4)",
-                          marginBottom: "8px",
-                        }}
-                      >
-                        {member.teamName}
-                      </div>
-                      {member.userId === status.currentPickerId && (
-                        <div
-                          style={{
-                            fontFamily: "'Exo 2', sans-serif",
-                            fontSize: "11px",
-                            fontWeight: 700,
-                            color: "#CC3433",
-                            textShadow: "0 0 8px rgba(204,52,51,0.4)",
-                          }}
-                        >
-                          🎯 Currently picking
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                  <DraftOrderTab
+                    leagueId={leagueId}
+                    currentPickNumber={status.currentPickNumber}
+                    completedPicks={status.completedPicks}
+                    totalPicks={status.totalPicks}
+                    memberCount={status.memberCount}
+                    members={status.members}
+                  />
                 </div>
               </div>
             )}
-          </div>
-        </div>
+          </>
+        )}
       </div>
     </div>
   );

@@ -153,7 +153,7 @@ export function DraftTeamsRoster({
 
       <div
         style={{
-          maxHeight: "400px",
+          maxHeight: "60vh",
           overflowY: "auto",
         }}
       >
