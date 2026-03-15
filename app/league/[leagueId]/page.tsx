@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useRouter, useParams } from "next/navigation";
@@ -2374,7 +2374,7 @@ export default function LeagueHomePage() {
   const [modalTeamName, setModalTeamName] = useState("");
   const [savingModalTeamName, setSavingModalTeamName] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
-  const [teamNameModalShown, setTeamNameModalShown] = useState(false);
+  const teamNameModalShownRef = useRef(false);
 
   // Reset state when leagueId changes
   useEffect(() => {
@@ -2384,7 +2384,7 @@ export default function LeagueHomePage() {
     setLoading(true);
     setActiveTab("leaderboard");
     setShowTeamNameModal(false);
-    setTeamNameModalShown(false);
+    teamNameModalShownRef.current = false; // Reset ref for new league
   }, [leagueId]);
 
   useEffect(() => {
@@ -2533,7 +2533,7 @@ export default function LeagueHomePage() {
           (m: any) => m.userId === session?.user?.id,
         );
         if (
-          !teamNameModalShown &&
+          !teamNameModalShownRef.current &&
           !isCommissioner &&
           userMembership &&
           userMembership.teamName &&
@@ -2551,7 +2551,7 @@ export default function LeagueHomePage() {
               if (secondsAgo < 60) {
                 setModalTeamName(userMembership.teamName);
                 setShowTeamNameModal(true);
-                setTeamNameModalShown(true);
+                teamNameModalShownRef.current = true; // Immediately mark as shown
               }
             }
           } catch (error) {
@@ -2661,6 +2661,8 @@ export default function LeagueHomePage() {
 
       // Close modal and refresh league data (don't reload page)
       setShowTeamNameModal(false);
+      // Mark modal as shown so it doesn't appear again in this session
+      teamNameModalShownRef.current = true;
       // Force refresh of league data to show updated team name
       await fetchLeague();
     } catch (err) {
@@ -2976,7 +2978,10 @@ export default function LeagueHomePage() {
 
             <div style={{ display: "flex", gap: "12px" }}>
               <button
-                onClick={() => setShowTeamNameModal(false)}
+                onClick={() => {
+                  setShowTeamNameModal(false);
+                  teamNameModalShownRef.current = true;
+                }}
                 disabled={savingModalTeamName}
                 style={{
                   flex: 1,
