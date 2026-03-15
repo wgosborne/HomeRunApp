@@ -137,6 +137,87 @@ async function main() {
   });
   console.log("all-mlb league ready");
 
+  console.log("Seeding MLB players...");
+
+  // Seed players with real team assignments
+  const teamMap = new Map(mlbTeams.map(t => [t.abbreviation, t]));
+  const playerTeamAssignments: { [key: string]: string } = {
+    "Aaron Judge": "NYY",
+    "Juan Soto": "NYM",
+    "Bryce Harper": "PHI",
+    "Mookie Betts": "LAD",
+    "Kyle Schwarber": "PHI",
+    "Mike Trout": "LAA",
+    "Shohei Ohtani": "LAD",
+    "Brent Rooker": "TB",
+    "Salvador Perez": "KC",
+    "Trea Turner": "PHI",
+    "Francisco Lindor": "CLE",
+    "Jose Altuve": "HOU",
+    "Rafael Devers": "BOS",
+    "Anthony Rendon": "LAA",
+    "Corey Seager": "TEX",
+    "George Springer": "TOR",
+    "Kyle Higashioka": "NYY",
+    "Marcus Semien": "TEX",
+    "Gunnar Henderson": "BAL",
+    "Sonny Gray": "STL",
+    "Clayton Kershaw": "LAD",
+    "Max Scherzer": "NYM",
+    "Justin Verlander": "HOU",
+    "Jacob deGrom": "NYM",
+    "Gerrit Cole": "NYY",
+    "Juan Sotos": "NYM",
+    "Mitch Garver": "TB",
+    "Austin Barnes": "LAD",
+    "Anthony Volpe": "NYY",
+    "Bobby Witt Jr.": "KC",
+    "Juan Carlos Rodon": "NYY",
+    "Blake Snell": "SD",
+    "Zack Wheeler": "PHI",
+    "Brandon Woodruff": "MIL",
+    "Sandy Alcantara": "MIA",
+    "Chris Martin": "ATL",
+    "Kyle Hendricks": "CHC",
+    "Julio Urias": "LAD",
+    "Nicholas Castellanos": "CHC",
+    "Kyle Mulins": "BAL",
+    "Yandy Diaz": "TB",
+    "Austin Hays": "BAL",
+    "Anthony Maceo": "SD",
+    "Matt Olson": "ATL",
+    "Freddie Freeman": "LAD",
+    "Paul Goldschmidt": "STL",
+    "Cody Bellinger": "LAD",
+    "Xander Bogaerts": "SD",
+  };
+
+  const createdPlayers = await Promise.all(
+    mlbPlayers.map(async (player) => {
+      const teamAbbr = playerTeamAssignments[player.name] || "NYY";
+      const team = teamMap.get(teamAbbr);
+
+      return prisma.player.upsert({
+        where: { mlbId: parseInt(player.statsApiId) },
+        update: {},
+        create: {
+          mlbId: parseInt(player.statsApiId),
+          fullName: player.name,
+          position: player.position,
+          teamName: team?.name || "Unknown",
+          teamId: team?.mlbId || 120,
+          homeruns: Math.floor(Math.random() * 40) + 5, // Random 5-45 HRs
+          gamesPlayed: Math.floor(Math.random() * 162) + 1,
+          homerunsLast14Days: Math.floor(Math.random() * 5),
+          gamesPlayedLast14Days: Math.floor(Math.random() * 14) + 1,
+          battingAverage: Math.random() * 0.15 + 0.25,
+        },
+      });
+    })
+  );
+
+  console.log(`Created ${createdPlayers.length} players`);
+
   console.log("Creating seed data...");
 
   // Create test users
