@@ -108,6 +108,7 @@ npx prisma studio                       # Database UI
 
 **Libraries:**
 - `lib/mlb-stats.ts` — MLB API (games, homeruns, players)
+- `lib/player-utils.ts` — Player utility functions (hot/cold streak calculation)
 - `lib/pusher-*.ts` — Real-time channels & broadcasts
 - `lib/push-service.ts` — Web Push notifications
 - `public/sw.js` — Service Worker (offline, push handling)
