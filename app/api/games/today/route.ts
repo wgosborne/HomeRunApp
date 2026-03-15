@@ -54,21 +54,7 @@ export async function GET() {
 
     const today = getOfficialDateET();
 
-    // Helper to get yesterday/tomorrow dates
-    const getDateOffset = (days: number): string => {
-      const d = new Date();
-      d.setDate(d.getDate() + days);
-      return d.toLocaleDateString("en-CA", {
-        timeZone: "America/New_York",
-      });
-    };
-
-    const yesterday = getDateOffset(-1);
-    const tomorrow = getDateOffset(1);
-
-    // Query priority: Live (today) > Final (today) > Preview (today) > Final (yesterday) > Preview (tomorrow)
-    // Goal: Return exactly 9 games total
-
+    // Query all games for today: Live > Upcoming (by startTime) > Final
     // 1. Get all Live games from today
     const liveGames = await prisma.game.findMany({
       where: {
@@ -80,70 +66,29 @@ export async function GET() {
       },
     });
 
-    let allGames = [...liveGames];
-    const remaining = 9 - allGames.length;
+    // 2. Get all Preview games from today (soonest first)
+    const previewGames = await prisma.game.findMany({
+      where: {
+        officialDate: today,
+        status: "Preview",
+      },
+      orderBy: {
+        gameDate: "asc",
+      },
+    });
 
-    // 2. Get Final games from today (most recent first)
-    if (remaining > 0) {
-      const finalToday = await prisma.game.findMany({
-        where: {
-          officialDate: today,
-          status: "Final",
-        },
-        orderBy: {
-          gameDate: "desc",
-        },
-        take: remaining,
-      });
-      allGames.push(...finalToday);
-    }
+    // 3. Get all Final games from today (most recent first)
+    const finalGames = await prisma.game.findMany({
+      where: {
+        officialDate: today,
+        status: "Final",
+      },
+      orderBy: {
+        gameDate: "desc",
+      },
+    });
 
-    // 3. Get Preview games from today (soonest first)
-    if (allGames.length < 9) {
-      const previewToday = await prisma.game.findMany({
-        where: {
-          officialDate: today,
-          status: "Preview",
-        },
-        orderBy: {
-          gameDate: "asc",
-        },
-        take: 9 - allGames.length,
-      });
-      allGames.push(...previewToday);
-    }
-
-    // 4. If still need more games, get Finals from yesterday
-    if (allGames.length < 9) {
-      const finalYesterday = await prisma.game.findMany({
-        where: {
-          officialDate: yesterday,
-          status: "Final",
-        },
-        orderBy: {
-          gameDate: "desc",
-        },
-        take: 9 - allGames.length,
-      });
-      allGames.push(...finalYesterday);
-    }
-
-    // 5. If still need more games, get Previews from tomorrow
-    if (allGames.length < 9) {
-      const previewTomorrow = await prisma.game.findMany({
-        where: {
-          officialDate: tomorrow,
-          status: "Preview",
-        },
-        orderBy: {
-          gameDate: "asc",
-        },
-        take: 9 - allGames.length,
-      });
-      allGames.push(...previewTomorrow);
-    }
-
-    const games = allGames;
+    const games = [...liveGames, ...previewGames, ...finalGames];
 
     if (games.length === 0) {
       logger.info("No games found");

@@ -115,30 +115,22 @@ const GameRow = ({ game, baserunnerState, loadingBaserunner }: GameRowProps) => 
     statusDisplay = game.inningHalf && game.inning ? `${game.inningHalf} ${game.inning}` : "Live";
   } else if (isFinal) {
     statusDisplay = "Final";
-  } else if (isUpcoming && game.startTime) {
-    const time = new Date(game.startTime);
-    if (!isNaN(time.getTime())) {
-      const hours = time.getHours();
-      const minutes = String(time.getMinutes()).padStart(2, "0");
-      const meridiem = hours >= 12 ? "PM" : "AM";
-      const displayHours = hours % 12 || 12;
-      statusDisplay = `${displayHours}:${minutes} ${meridiem}`;
-    } else {
-      statusDisplay = "TBD";
-    }
+  } else if (isUpcoming) {
+    statusDisplay = game.startTime || "TBD";
   }
 
   return (
     <>
       <div
         style={{
-          display: "flex",
+          display: "grid",
+          gridTemplateColumns: "1fr 40px 70px 80px",
           alignItems: "center",
-          justifyContent: "space-between",
           padding: "12px 16px",
           borderBottom: "1px solid rgba(255,255,255,0.07)",
           backgroundColor: "rgba(255,255,255,0.02)",
           transition: "background-color 0.2s",
+          gap: "20px",
         }}
         onMouseEnter={(e) => {
           (e.currentTarget as HTMLDivElement).style.backgroundColor = "rgba(255,255,255,0.04)";
@@ -147,123 +139,132 @@ const GameRow = ({ game, baserunnerState, loadingBaserunner }: GameRowProps) => 
           (e.currentTarget as HTMLDivElement).style.backgroundColor = "rgba(255,255,255,0.02)";
         }}
       >
-        {/* Away team logo + score */}
-        <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: "8px" }}>
-          <TeamLogo
-            name={awayAbbr}
-            logo={game.awayTeamLogo}
-            size="sm"
-          />
-          <div
-            style={{
-              fontFamily: "'Exo 2', sans-serif",
-              fontSize: "20px",
-              fontWeight: 800,
-              color: "#FFFFFF",
-              lineHeight: "1",
-            }}
-          >
-            {game.awayScore}
+        {/* Column 1: Teams stack (away on top, home on bottom) */}
+        <div style={{ display: "flex", flexDirection: "column", minWidth: 0, gap: "8px" }}>
+          {/* Away team row */}
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <TeamLogo
+              name={awayAbbr}
+              logo={game.awayTeamLogo}
+              size="sm"
+            />
+          </div>
+
+          {/* Home team row */}
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <TeamLogo
+              name={homeAbbr}
+              logo={game.homeTeamLogo}
+              size="sm"
+            />
           </div>
         </div>
 
-        {/* Home team logo + score */}
-        <div
-          style={{
-            flex: 1,
-            minWidth: 0,
-            paddingLeft: "16px",
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-          }}
-        >
-          <TeamLogo
-            name={homeAbbr}
-            logo={game.homeTeamLogo}
-            size="sm"
-          />
+        {/* Column 2: Scores (40px, right-aligned) - only for Live and Final */}
+        {(isLive || isFinal) ? (
           <div
             style={{
-              fontFamily: "'Exo 2', sans-serif",
-              fontSize: "20px",
-              fontWeight: 800,
-              color: "#FFFFFF",
-              lineHeight: "1",
+              display: "flex",
+              flexDirection: "column",
+              gap: "8px",
+              alignItems: "flex-end",
+              textAlign: "right",
+              marginRight: "12px",
             }}
           >
-            {game.homeScore}
+            <div
+              style={{
+                fontFamily: "'Exo 2', sans-serif",
+                fontSize: "18px",
+                fontWeight: 800,
+                color: "#FFFFFF",
+                lineHeight: "1",
+              }}
+            >
+              {game.awayScore}
+            </div>
+            <div
+              style={{
+                fontFamily: "'Exo 2', sans-serif",
+                fontSize: "18px",
+                fontWeight: 800,
+                color: "#FFFFFF",
+                lineHeight: "1",
+              }}
+            >
+              {game.homeScore}
+            </div>
           </div>
-        </div>
+        ) : null}
 
-        {/* Status/Diamond on right */}
-        <div
-          style={{
-            marginLeft: "16px",
-            textAlign: "right",
-            whiteSpace: "nowrap",
-            display: "flex",
-            alignItems: "center",
-            gap: "12px",
-            justifyContent: "flex-end",
-          }}
-        >
-          {isLive ? (
-            <>
-              {baserunnerState && !loadingBaserunner && (
-                <BaserunnerDiamond
-                  first={baserunnerState.first}
-                  second={baserunnerState.second}
-                  third={baserunnerState.third}
-                  outs={baserunnerState.outs}
-                />
-              )}
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                }}
-              >
-                <span
-                  className="pulse-live"
-                  style={{
-                    display: "inline-block",
-                    width: "6px",
-                    height: "6px",
-                    borderRadius: "50%",
-                    backgroundColor: "#CC3433",
-                  }}
-                />
-                <span
-                  style={{
-                    fontFamily: "'DM Sans', sans-serif",
-                    fontSize: "11px",
-                    fontWeight: 700,
-                    color: "#CC3433",
-                    textTransform: "uppercase",
-                    letterSpacing: "1px",
-                    minWidth: "50px",
-                  }}
-                >
-                  {statusDisplay}
-                </span>
-              </div>
-            </>
-          ) : (
+        {/* Column 3: Diamond + outs (70px, centered) - Live games only */}
+        {isLive ? (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            {baserunnerState && !loadingBaserunner && (
+              <BaserunnerDiamond
+                first={baserunnerState.first}
+                second={baserunnerState.second}
+                third={baserunnerState.third}
+                outs={baserunnerState.outs}
+              />
+            )}
+          </div>
+        ) : null}
+
+        {/* Column 4: Live status text (80px, right-aligned) - or merged columns 3-4 for Upcoming/Final */}
+        {isLive ? (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              justifyContent: "flex-end",
+            }}
+          >
+            <span
+              className="pulse-live"
+              style={{
+                display: "inline-block",
+                width: "6px",
+                height: "6px",
+                borderRadius: "50%",
+                backgroundColor: "#CC3433",
+              }}
+            />
             <span
               style={{
                 fontFamily: "'DM Sans', sans-serif",
                 fontSize: "11px",
-                color: isFinal ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.4)",
+                fontWeight: 700,
+                color: "#CC3433",
                 textTransform: "uppercase",
-                letterSpacing: "0.5px",
+                letterSpacing: "1px",
               }}
             >
               {statusDisplay}
             </span>
-          )}
-        </div>
+          </div>
+        ) : (
+          <span
+            style={{
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: "11px",
+              color: "rgba(255,255,255,0.4)",
+              textTransform: "uppercase",
+              letterSpacing: "0.5px",
+              gridColumn: "3 / 5",
+              textAlign: "right",
+            }}
+          >
+            {statusDisplay}
+          </span>
+        )}
       </div>
     </>
   );
@@ -299,31 +300,11 @@ export default function ScoresPage() {
       }
       const allGames = await res.json();
 
-      // Sort: Live > Upcoming (by startTime) > Finals
-      const sorted = allGames.sort((a: ApiGame, b: ApiGame) => {
-        const statusOrder: Record<string, number> = {
-          Live: 0,
-          Preview: 1,
-          Final: 2,
-        };
-        const orderDiff = (statusOrder[a.status] || 3) - (statusOrder[b.status] || 3);
-
-        if (orderDiff !== 0) return orderDiff;
-
-        // Within same status, sort by start time (upcoming) or descending for finals
-        if (a.status === "Preview") {
-          return new Date(a.startTime || 0).getTime() - new Date(b.startTime || 0).getTime();
-        } else if (a.status === "Final") {
-          return new Date(b.startTime || 0).getTime() - new Date(a.startTime || 0).getTime();
-        }
-
-        return 0;
-      });
-
-      setGames(sorted || []);
+      // API returns games in correct order: Live > Preview > Final
+      setGames(allGames || []);
 
       // Fetch baserunner state for live games
-      const liveGames = sorted.filter((g: ApiGame) => g.status === "Live");
+      const liveGames = (allGames || []).filter((g: ApiGame) => g.status === "Live");
       if (liveGames.length > 0) {
         await Promise.all(
           liveGames.map(async (game: ApiGame) => {

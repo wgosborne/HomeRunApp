@@ -230,6 +230,7 @@ async function handleGameSync() {
               inningHalf,
               officialDate,
               gameType: game.gameType,
+              startTime,
             },
             create: {
               id: game.gamePk.toString(),
