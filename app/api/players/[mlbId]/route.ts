@@ -71,7 +71,13 @@ export async function GET(
     // Get leagueId from query params if provided
     const leagueId = request.nextUrl.searchParams.get("leagueId");
 
-    // Get homerun events for this player
+    // Get ALL homerun events for this player (not filtered by league) for accurate total
+    const allHomeruns = await prisma.homerrunEvent.findMany({
+      where: { mlbId: mlbId },
+      orderBy: { gameDate: "desc" },
+    });
+
+    // Get homerun events filtered by league if provided (for history display)
     const homeruns = await prisma.homerrunEvent.findMany({
       where: {
         mlbId: mlbId,
@@ -167,7 +173,8 @@ export async function GET(
       mlbTeam: mlbTeam || null,
       position: position || null,
       homeruns: formattedHomeruns,
-      totalHomeruns: homeruns.length,
+      // Use Player.homeruns (MLB API source of truth) if available, else count from allHomeruns
+      totalHomeruns: playerStats?.homeruns ?? allHomeruns.length,
       streakStatus,
     };
 

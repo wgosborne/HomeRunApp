@@ -77,7 +77,7 @@ export async function GET(
       }
     }
 
-    // Fetch roster spots for target user, sorted by homeruns descending
+    // Fetch roster spots for target user
     const rosterSpots = await prisma.rosterSpot.findMany({
       where: {
         leagueId,
@@ -86,12 +86,25 @@ export async function GET(
       orderBy: { homeruns: "desc" },
     });
 
+    // Fetch player homerun data for all mlbIds in this roster
+    const mlbIds = rosterSpots.map(s => s.mlbId).filter((id): id is number => id !== null);
+    const playerHRMap = new Map<number, number>();
+
+    if (mlbIds.length > 0) {
+      const players = await prisma.player.findMany({
+        where: { mlbId: { in: mlbIds } },
+        select: { mlbId: true, homeruns: true },
+      });
+      players.forEach(p => playerHRMap.set(p.mlbId, p.homeruns));
+    }
+
     const roster: RosterEntry[] = rosterSpots.map((spot) => ({
       playerId: spot.playerId,
       playerName: spot.playerName,
       position: spot.position,
       mlbId: spot.mlbId,
-      homeruns: spot.homeruns,
+      // Use Player.homeruns (source of truth from MLB API) if available, otherwise fall back to RosterSpot.homeruns
+      homeruns: (spot.mlbId && playerHRMap.has(spot.mlbId)) ? playerHRMap.get(spot.mlbId)! : spot.homeruns,
       points: spot.points,
       draftedRound: spot.draftedRound,
       draftedPickNumber: spot.draftedPickNumber,
