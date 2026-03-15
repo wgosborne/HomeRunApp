@@ -125,6 +125,7 @@ export default function HRLeadersPage() {
   const [yourMlbIds, setYourMlbIds] = useState<Set<number>>(new Set());
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [isEmpty, setIsEmpty] = useState(false);
 
   // Fetch players on mount
   useEffect(() => {
@@ -142,6 +143,7 @@ export default function HRLeadersPage() {
           const data = await response.json();
           setPlayers(data.players);
           setYourMlbIds(new Set(data.yourMlbIds));
+          setIsEmpty(data.isEmpty || false);
         }
       } catch (error) {
         console.error("Error fetching players:", error);
@@ -237,7 +239,18 @@ export default function HRLeadersPage() {
 
         {/* Players List */}
         <div style={{ marginBottom: "24px" }}>
-          {filteredPlayers.length === 0 ? (
+          {isEmpty ? (
+            <div
+              style={{
+                textAlign: "center",
+                padding: "40px 24px",
+                color: "rgba(255,255,255,0.5)",
+                fontSize: "14px",
+              }}
+            >
+              Season hasn't started yet
+            </div>
+          ) : filteredPlayers.length === 0 ? (
             <div
               style={{
                 textAlign: "center",

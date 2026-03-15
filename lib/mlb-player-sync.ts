@@ -169,6 +169,21 @@ export async function syncPlayerBios(): Promise<{ created: number; skipped: numb
   }
 }
 
+interface MLBLeaderboardResponse {
+  leagueLeaders: Array<{
+    leaders: Array<{
+      value: string;
+      person: {
+        id: number;
+        fullName: string;
+      };
+      team: {
+        name: string;
+      };
+    }>;
+  }>;
+}
+
 /**
  * Update seasonal and 14-day homerun stats for all players
  * When NEXT_PUBLIC_ENABLE_SPRING_TRAINING is true, calculates stats from HomerrunEvent records
@@ -183,12 +198,13 @@ export async function updatePlayerStats(): Promise<{ updated: number }> {
       return updateStatsFromHomerrunEvents();
     }
 
-    // Fetch official season stats from MLB API
+    // Fetch 2026 homerun leaders from MLB API
+    const gameType = "R"; // Regular season
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30000);
 
-    const seasonResponse = await fetch(
-      "https://statsapi.mlb.com/api/v1/stats?stats=season&group=hitting&season=2026&sportId=1&limit=2000",
+    const leadersResponse = await fetch(
+      `https://statsapi.mlb.com/api/v1/stats/leaders?leaderCategories=homeRuns&season=2026&leaderGameTypes=${gameType}&sportId=1&limit=500`,
       {
         headers: {
           "User-Agent": "FantasyBaseball/1.0",
@@ -198,6 +214,41 @@ export async function updatePlayerStats(): Promise<{ updated: number }> {
     );
 
     clearTimeout(timeout);
+
+    if (!leadersResponse.ok) {
+      logger.error("Failed to fetch 2026 homerun leaders", { status: leadersResponse.status });
+      return { updated: 0 };
+    }
+
+    const leadersData = (await leadersResponse.json()) as MLBLeaderboardResponse;
+    const leagueLeader = leadersData.leagueLeaders?.[0];
+
+    if (!leagueLeader?.leaders) {
+      logger.info("No 2026 homerun leaders yet - season may not have started");
+      return { updated: 0 };
+    }
+
+    // Build map of mlbId -> homeruns
+    const homerunMap = new Map<number, number>();
+    for (const leader of leagueLeader.leaders) {
+      homerunMap.set(leader.person.id, parseInt(leader.value, 10) || 0);
+    }
+
+    // Fetch official season stats from MLB API for other fields
+    const controllerSeason = new AbortController();
+    const timeoutSeason = setTimeout(() => controllerSeason.abort(), 30000);
+
+    const seasonResponse = await fetch(
+      "https://statsapi.mlb.com/api/v1/stats?stats=season&group=hitting&season=2026&sportId=1&limit=2000",
+      {
+        headers: {
+          "User-Agent": "FantasyBaseball/1.0",
+        },
+        signal: controllerSeason.signal,
+      }
+    );
+
+    clearTimeout(timeoutSeason);
 
     if (!seasonResponse.ok) {
       logger.error("Failed to fetch season stats", { status: seasonResponse.status });
@@ -212,9 +263,11 @@ export async function updatePlayerStats(): Promise<{ updated: number }> {
         const mlbId = split.player.id;
         const avg = parseFloat(split.stat.avg) || 0;
         const ops = parseFloat(split.stat.ops) || 0;
+        // Use homeruns from the leaders endpoint if available, otherwise use stat
+        const homeruns = homerunMap.get(mlbId) ?? split.stat.homeRuns ?? 0;
 
         seasonStats.set(mlbId, {
-          homeruns: split.stat.homeRuns || 0,
+          homeruns,
           gamesPlayed: split.stat.gamesPlayed || 0,
           avg,
           ops,
