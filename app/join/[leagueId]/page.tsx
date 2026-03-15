@@ -215,7 +215,7 @@ export default function JoinLeaguePage() {
           </p>
 
           <button
-            onClick={() => router.push("/dashboard")}
+            onClick={() => router.push("/scores")}
             className="w-full flex items-center justify-center gap-3 transition-all duration-200"
             style={{
               padding: "20px 28px",

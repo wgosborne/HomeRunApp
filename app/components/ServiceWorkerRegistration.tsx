@@ -11,6 +11,9 @@ export function ServiceWorkerRegistration() {
     // Only register service worker in browser environment
     if (typeof window === 'undefined') return;
 
+    // Skip service worker registration in development to avoid stale cache during dev
+    if (process.env.NODE_ENV === 'development') return;
+
     // Check if browser supports service workers
     if (!('serviceWorker' in navigator)) {
       console.warn('[SW] Service Workers not supported in this browser');

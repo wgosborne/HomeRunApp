@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { createLogger } from "@/lib/logger";
 import { getPlayerDetails } from "@/lib/mlb-stats";
 
+export const dynamic = 'force-dynamic';
+
 const logger = createLogger("players");
 
 interface HomerrunEventResponse {

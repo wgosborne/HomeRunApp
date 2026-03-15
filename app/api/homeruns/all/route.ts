@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { handleError, AuthenticationError } from "@/lib/errors";
 import { createLogger } from "@/lib/logger";
 
+export const dynamic = 'force-dynamic';
+
 const logger = createLogger("homeruns.all");
 
 export interface ApiHomerun {

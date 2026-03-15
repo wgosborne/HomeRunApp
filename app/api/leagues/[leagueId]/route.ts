@@ -5,6 +5,8 @@ import { handleError, NotFoundError, AuthorizationError, ValidationError } from 
 import { createLogger } from "@/lib/logger";
 import { pusherServer } from "@/lib/pusher-server";
 
+export const dynamic = 'force-dynamic';
+
 const logger = createLogger("leagues.[leagueId]");
 
 // GET /api/leagues/[leagueId] - Get single league details

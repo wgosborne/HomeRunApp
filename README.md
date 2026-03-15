@@ -1,6 +1,6 @@
 # Fantasy Homerun Tracker PWA
 
-Multi-tenant fantasy baseball league management PWA. Create/join leagues, draft MLB players, track live homeruns, propose 1:1 trades, compete on leaderboards. Mobile-first (iOS 16.4+, Android Chrome). **Weeks 1-6 complete. Week 7 (Design & Testing) in progress. Launch target: April 2026.**
+Multi-tenant fantasy baseball league management PWA. Create/join leagues, draft MLB players, track live homeruns, propose 1:1 trades, compete on leaderboards. Mobile-first (iOS 16.4+, Android Chrome). **Week 8 complete. Production-ready. Launch: March 25, 2026 (opening day).**
 
 ---
 
@@ -12,107 +12,119 @@ npm run dev
 # Runs on http://localhost:3001
 ```
 
-**Test flow:** Sign in → Create league → Invite others → Start draft → Pick players → Track homeruns → Propose trades
+**Test flow:** Sign in → Create league → Invite others → Start draft → Pick players → Track homeruns → Propose trades → End season
+
+---
+
+## Features (All Complete)
+
+- ✅ **Week 1:** Google OAuth + multi-tenant leagues
+- ✅ **Week 2:** 10-round snake draft (60 sec/pick) with real-time Pusher + auto-pick cron
+- ✅ **Week 3:** Live homerun polling (5 min) + leaderboard + roster tracking
+- ✅ **Week 4:** Native Web Push notifications (homerun alerts, draft turns, trades)
+- ✅ **Week 5:** PWA offline support (cached data + service worker)
+- ✅ **Week 6:** Trading system (1:1 swaps, 48-hour expiration)
+- ✅ **Week 7:** Design polish + player detail pages + profile + all homeruns feed
+- ✅ **Week 8:** End-of-season feature (crown winners, lock trades, champion banner)
 
 ---
 
 ## Tech Stack
 
-- **Frontend:** Next.js 16.1.6 + React 19.2 + TypeScript (strict)
-- **Backend:** Next.js API Routes + Prisma 6.19.2
+- **Frontend:** Next.js 16 + React 19 + TypeScript (strict)
+- **Backend:** Next.js API Routes + Prisma 6
 - **Database:** Neon Postgres (free tier)
 - **Auth:** NextAuth.js v5 + Google OAuth
 - **Real-Time:** Pusher Channels (free tier)
-- **Notifications:** Native Web Push API
-- **PWA:** next-pwa v5 + Service Worker
+- **Notifications:** Native Web Push API + Service Worker
+- **PWA:** next-pwa v5 (offline, install prompt, headshots)
 - **MLB Data:** statsapi.mlb.com (5-15s lag)
-- **Deploy:** Vercel Pro ($20/month for cron)
+- **Deployment:** Vercel Pro ($20/mo for cron)
 
 ---
 
-## Features (Weeks 1-6 Complete)
+## Cron Jobs (5 Running)
 
-- ✅ Week 1: Google OAuth + multi-tenant leagues
-- ✅ Week 2: 10-round snake draft (60 sec/pick) with real-time Pusher + auto-pick cron
-- ✅ Week 3: Live homerun polling (5 min intervals) + leaderboard + roster tracking
-- ✅ Week 4: Native Web Push notifications (homerun alerts, draft turns, trade events)
-- ✅ Week 5: PWA with offline support (cached standings/roster + service worker)
-- ✅ Week 6: Trading system (1:1 player swaps, accept/reject, 48-hour expiration)
+| Job | Schedule | Purpose |
+|-----|----------|---------|
+| `sync-live-games` | Every 2 min | Fetch today's MLB schedule (Game table) |
+| `homerun-poll` | Every 5 min | Detect homeruns, broadcast + notify |
+| `sync-player-stats` | Nightly (7 UTC) | Refresh 1000+ players' seasonal stats |
+| `draft-timeout` | Every 1 min | Auto-pick after 60s (skip if no drafts) |
+| `trade-expire` | Every 5 min | Expire trades at 48h deadline |
+
+All crons have early-exit guards. See `Handoffs/07-how-it-works.md` for details.
 
 ---
 
-## Key Architectural Decisions
+## Key Architecture
 
 | Decision | Rationale |
 |----------|-----------|
 | **Server-side timer** | Prevents client desync in draft countdown |
 | **DraftStatus enum** | Explicit state machine (pending→active→paused→complete) |
-| **OAuth invite cookie** | Unauthenticated users can join, auto-auth on callback |
-| **Dual Pusher channels** | `draft-{leagueId}` for picks, `league-{leagueId}` for homeruns/trades |
-| **Idempotent homerun detection** | Unique `playByPlayId` constraint (safe to retry) |
-| **Auto-pick cron (1 min)** | Checks if 60s elapsed since `currentPickStartedAt` |
-| **1:1 trade swaps** | MVP simplified (no multi-player, no veto voting) |
-| **48-hour hard expiration** | Cron auto-expires, no manual extension |
-| **Native Web Push** | Works Android/Chrome; iOS Safari falls back to in-app |
-| **Multi-tenant isolation** | Prisma middleware enforces league scoping |
+| **Multi-tenant scoping** | Prisma middleware enforces league isolation |
+| **Dual Pusher channels** | `draft-{id}` for picks, `league-{id}` for homeruns/trades |
+| **Idempotent homerun detection** | Unique `playByPlayId` constraint |
+| **Season-end lock** | Blocks trades when `seasonEndedAt` is set |
+| **Native Web Push** | Works Android/Chrome; iOS fallback hidden |
+| **5-sec polling fallback** | Complements Pusher for reliability |
 
 ---
 
-## API Endpoints (28+ Live)
+## API Endpoints (40+)
 
-**Leagues:** POST/GET `/api/leagues`, GET/POST `/api/leagues/[id]`, POST `/api/leagues/[id]/join`
+**Leagues:** Create, list, join, standings, roster, end-season
+**Draft:** Start, status, pick, available, pause, resume, reset, auto-pick
+**Trades:** Propose, accept, reject, list, expire (48h)
+**Homeruns:** Poll, broadcast, notify
+**Notifications:** Subscribe, unsubscribe, test
+**User:** Profile, update name
+**Cron:** All 5 jobs above
 
-**Draft:** POST/GET `/api/draft/[leagueId]/*` (start, status, pick, available, pause, resume, reset, autopick)
-
-**Standings:** GET `/api/leagues/[leagueId]/standings`, GET `/api/leagues/[leagueId]/roster[?userId]`
-
-**Trades:** POST/GET `/api/trades/[leagueId]`, POST `/api/trades/[leagueId]/[id]/{accept,reject}`
-
-**Cron:** POST `/api/cron/{draft-timeout,homerun-poll,trade-expire}` (requires `CRON_SECRET`)
-
-**Notifications:** POST `/api/notifications/{subscribe,unsubscribe,test}`
-
-See `CLAUDE.md` for full endpoint reference.
+See `CLAUDE.md` for full reference.
 
 ---
 
-## Testing & Build Status
+## Testing & Status
 
-**Build:** ✅ `npm run build` succeeds (Turbopack optimized, ~25s)
+**Build:** ✅ `npm run build` (TypeScript strict, ~25s)
 
-**TypeScript:** ✅ `npx tsc --noEmit` passes strict mode
+**Tests:** ✅ `npm run test` (240+ tests passing)
 
-**Manual Tests (All Pass 2026-02-28):**
-- ✅ Google OAuth login → direct to dashboard (fixed double-signin flow)
-- ✅ Create/join leagues with invite cookie flow
-- ✅ 10-round draft with server-side timer + auto-pick on timeout
-- ✅ Player search and pick submission
-- ✅ Real-time Pusher broadcasts (draft events, homerun alerts, trade updates)
-- ✅ Standings leaderboard (ranked by total homeruns)
-- ✅ My Team roster with drafted round/pick metadata
-- ✅ Web Push subscription (Android/Chrome), homerun notifications, draft turn alerts
-- ✅ PWA manifest validation (icons 144/192/320/512px), install prompt, offline caching
-- ✅ Trade proposals, acceptance, rejection, 48-hour expiration
-- ✅ Duplicate trade prevention (only 1 active per user pair)
-- ✅ Service worker registration on app startup
-- ✅ OfflineIndicator shows connection status
-- ✅ Responsive design on mobile/tablet
+**Manual Tests (All Pass 2026-03-15):**
+- ✅ Google OAuth login + invite cookie
+- ✅ 10-round draft with auto-picks + timer
+- ✅ Real-time Pusher (draft, homeruns, trades)
+- ✅ Standings/roster with live updates
+- ✅ Web Push (homerun alerts, draft turns, trade proposals)
+- ✅ PWA install + offline caching
+- ✅ Trading (propose, accept, reject, 48h expire)
+- ✅ Player detail pages + headshots (MLB CDN)
+- ✅ User profile (edit name, leagues won)
+- ✅ All homeruns feed (multi-league, sortable)
+- ✅ End-of-season (winner calc, trade lock, banner)
+- ✅ Multi-league isolation (security verified)
 
-**Known Issues:** None critical. iOS Safari lacks Web Push API (PWA install still works).
+**Known Limitations:**
+- iOS Safari: No Web Push API (PWA install still works)
+- March 2026: Mock spring training games until March 25
+- MVP scope: 1:1 trades only (no multi-player, no veto)
 
 ---
 
 ## Environment Variables
 
-See `.env.example`. Required:
+Required (see `.env.example`):
 ```env
-DATABASE_URL=[Neon Postgres URL]
-NEXTAUTH_SECRET=[32+ char random]
+DATABASE_URL=[Neon Postgres]
+CRON_SECRET=[secure random]
+NEXTAUTH_SECRET=[secure random]
 NEXTAUTH_URL=http://localhost:3001
-GOOGLE_ID & GOOGLE_SECRET
-PUSHER_APP_ID, PUSHER_SECRET, NEXT_PUBLIC_PUSHER_APP_KEY
-CRON_SECRET=[change from default]
-WEB_PUSH_PUBLIC_KEY & WEB_PUSH_PRIVATE_KEY
+GOOGLE_CLIENT_ID & GOOGLE_CLIENT_SECRET
+NEXT_PUBLIC_PUSHER_KEY, PUSHER_SECRET, PUSHER_CLUSTER
+NEXT_PUBLIC_VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY
+NEXT_PUBLIC_ENABLE_SPRING_TRAINING=false (production)
 ```
 
 ---
@@ -120,33 +132,50 @@ WEB_PUSH_PUBLIC_KEY & WEB_PUSH_PRIVATE_KEY
 ## Useful Commands
 
 ```bash
-npm run dev                # Dev server (port 3001)
-npm run build              # Production build
-npx tsc --noEmit         # Type check
-npx prisma studio        # Database GUI (localhost:5555)
-npx prisma db seed       # Load test data (50+ MLB players)
-npx prisma db reset      # Reset DB (dev only)
+npm run dev                 # Dev server (http://localhost:3001)
+npm run build               # Production build
+npm run test                # Run 240+ tests
+npx tsc --noEmit           # Type check
+npx prisma studio          # Database GUI (localhost:5555)
+npx prisma db seed         # Load test data (1000+ MLB players)
+npx prisma migrate dev      # Create new migration
 ```
-
----
-
-## Known Limitations
-
-- **iOS Safari:** No Web Push API (PWA still works, fallback to in-app)
-- **MLB Data:** Only April-October (5-15s lag from live events)
-- **MVP Scope:** No multi-player trades, no veto voting, no salary cap, no international players
 
 ---
 
 ## Documentation
 
-- **`CLAUDE.md`** - Project snapshot + full feature list
+**Quick References:**
+- **`CLAUDE.md`** - Project snapshot (status, features, deployments)
+- **`Handoffs/07-how-it-works.md`** - Architecture (data sources, crons, flows)
+- **`Handoffs/05-test.md`** - Testing guide (manual flows, debugging)
+
+**Detailed Guides:**
 - **`Handoffs/01-requirements.md`** - Business requirements
 - **`Handoffs/02-architecture.md`** - System design + trade-offs
-- **`Handoffs/03-implementer.md`** - Implementation details (weeks 1-6)
-- **`Handoffs/04-designer.md`** - Design decisions (Week 7)
-- **`Handoffs/05-test.md`** - Test cases + results (Week 7)
+- **`Handoffs/03-implementer.md`** - Implementation details
+- **`Handoffs/04-designer.md`** - Design decisions
+- **`Handoffs/regular-season-deploy/OPENING_DAY_CUTOVER.md`** - March 25 launch procedure
 
 ---
 
-**Status:** All MVP features complete and tested. Week 7 (design polish + final QA) in progress. Ready for April 2026 launch.
+## Deployment
+
+**Status:** Production-ready (stage branch verified, main stable at Week 7).
+
+**March 25 Cutover:**
+1. Execute `OPENING_DAY_CUTOVER.md` (database cleanup, flag flip, verification)
+2. Deploy to production
+3. Monitor crons + Pusher broadcasts (48h)
+
+**Pre-Deploy Checklist:**
+- [ ] `npm run test` passes (240+ tests)
+- [ ] `npm run build` succeeds
+- [ ] All 17 migrations applied to production DB
+- [ ] Vercel cron jobs configured (vercel.json)
+- [ ] Env vars set (DATABASE_URL, CRON_SECRET, Pusher, VAPID)
+- [ ] `NEXT_PUBLIC_ENABLE_SPRING_TRAINING=false` (production)
+
+---
+
+**Status:** Week 8 complete + production-ready. Regular season launch March 25, 2026. See `CLAUDE.md` or `OPENING_DAY_CUTOVER.md` for next steps.

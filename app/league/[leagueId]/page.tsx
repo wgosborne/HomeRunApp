@@ -1823,7 +1823,7 @@ function SettingsTab({
         throw new Error(data.error || "Failed to delete league");
       }
 
-      router.push("/dashboard");
+      router.push("/scores");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete league");
     } finally {
@@ -1852,7 +1852,7 @@ function SettingsTab({
         throw new Error(data.error || "Failed to leave league");
       }
 
-      router.push("/dashboard");
+      router.push("/scores");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to leave league");
     } finally {
@@ -2559,11 +2559,11 @@ export default function LeagueHomePage() {
           }
         }
       } else if (res.status === 404 || res.status === 403) {
-        // League not found or no access - redirect to dashboard
+        // League not found or no access - redirect to scores
         console.warn(
-          `League ${leagueId} not found (${res.status}), redirecting to dashboard`,
+          `League ${leagueId} not found (${res.status}), redirecting to scores`,
         );
-        setTimeout(() => router.push("/dashboard"), 500);
+        setTimeout(() => router.push("/scores"), 500);
       } else {
         console.error(`Failed to fetch league: ${res.status}`);
       }
@@ -2684,7 +2684,7 @@ export default function LeagueHomePage() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
         {/* Back Button */}
         <button
-          onClick={() => router.push("/dashboard")}
+          onClick={() => router.push("/scores")}
           className="mb-6 flex items-center transition min-h-[44px]"
           style={{
             color: "rgba(255,255,255,0.45)",

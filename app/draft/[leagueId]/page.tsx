@@ -43,7 +43,7 @@ export default async function DraftPage({
   });
 
   if (!membership) {
-    redirect("/dashboard");
+    redirect("/scores");
   }
 
   return (

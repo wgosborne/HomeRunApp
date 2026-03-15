@@ -5,6 +5,8 @@ import { handleError, AuthenticationError } from "@/lib/errors";
 import { createLogger } from "@/lib/logger";
 import { getPlayerTeamMap } from "@/lib/mlb-stats";
 
+export const dynamic = 'force-dynamic';
+
 const logger = createLogger("games.today");
 
 export interface ApiGame {

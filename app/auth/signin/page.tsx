@@ -8,7 +8,7 @@ export default function SignInPage() {
 
   const handleSignIn = async () => {
     setIsLoading(true);
-    await signIn("google", { redirectTo: "/dashboard" });
+    await signIn("google", { redirectTo: "/scores" });
   };
 
   return (

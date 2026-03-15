@@ -7,6 +7,8 @@ import { handleError, ConflictError, AuthorizationError, ValidationError, NotFou
 import { createLogger } from "@/lib/logger";
 import { sendPushToUser } from "@/lib/push-service";
 
+export const dynamic = 'force-dynamic';
+
 const logger = createLogger("api-trades");
 
 // Trade window helper
