@@ -339,6 +339,9 @@ export async function updatePlayerStats(): Promise<{ updated: number }> {
       for (const player of players) {
         const homerunsLast14 = homerunMap.get(player.mlbId) || 0;
 
+        // Skip if teamId is null (should not happen due to where filter above, but TypeScript doesn't narrow it)
+        if (!player.teamId) continue;
+
         // Get distinct games where this player's team played in last 14 days
         const games = await prisma.game.findMany({
           where: {

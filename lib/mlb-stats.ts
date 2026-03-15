@@ -143,13 +143,6 @@ export async function getAvailablePlayers(
   }
 }
 
-export async function getNextBestPlayer(
-  excludePlayerIds: string[]
-): Promise<MLBPlayer | null> {
-  const available = await getAvailablePlayers(excludePlayerIds);
-  return available.length > 0 ? available[0] : null;
-}
-
 export async function getPlayerDetails(playerId: string): Promise<MLBPlayer | null> {
   try {
     // Parse playerId as MLB ID number
@@ -443,101 +436,5 @@ export async function fetchGameHomeruns(gamePk: number): Promise<HomerrunPlay[]>
   } catch (error) {
     logger.error("Failed to fetch game homeruns", { gamePk, error });
     return [];
-  }
-}
-
-/**
- * Fetch today's game for a specific team
- * Returns game details (opponent, home/away status, game state, score)
- */
-export interface TodaysGame {
-  opponent: string;
-  isHome: boolean;
-  status: "Pre-Game" | "In Progress" | "Final";
-  gameTime: string; // ISO 8601 datetime
-  homeScore: number | null;
-  awayScore: number | null;
-  currentInning: number | null;
-}
-
-export async function fetchTodaysGameForTeam(
-  teamName: string
-): Promise<TodaysGame | null> {
-  try {
-    const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
-
-    // Set 10-second timeout for MLB API call
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
-
-    const gameTypes = getAllowedGameTypes();
-    const response = await fetch(
-      `https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${today}&hydrate=team,linescore&gameType=${gameTypes}`,
-      {
-        headers: {
-          "User-Agent": "FantasyBaseball/1.0",
-        },
-        signal: controller.signal,
-      }
-    );
-
-    clearTimeout(timeout);
-
-    if (!response.ok) {
-      throw new Error(`MLB API error: ${response.statusText}`);
-    }
-
-    const data = (await response.json()) as {
-      dates?: Array<{
-        games?: Array<{
-          status: { abstractGameState: string };
-          gameDateTime: string;
-          teams: {
-            home: { team: { name: string }; score?: number };
-            away: { team: { name: string }; score?: number };
-          };
-          linescore?: {
-            currentInning?: number;
-            inningState?: string;
-          };
-        }>;
-      }>;
-    };
-
-    // Find the game for this team
-    const dateGroup = data.dates?.[0];
-    if (!dateGroup?.games) {
-      return null;
-    }
-
-    for (const game of dateGroup.games) {
-      const homeTeamName = game.teams?.home?.team?.name;
-      const awayTeamName = game.teams?.away?.team?.name;
-      const status = game.status?.abstractGameState;
-
-      const isHomeGame = homeTeamName === teamName;
-      const isAwayGame = awayTeamName === teamName;
-
-      if (!isHomeGame && !isAwayGame) {
-        continue; // Not this team's game
-      }
-
-      const opponent = isHomeGame ? awayTeamName : homeTeamName;
-
-      return {
-        opponent: opponent || "Unknown",
-        isHome: isHomeGame,
-        status: status as "Pre-Game" | "In Progress" | "Final",
-        gameTime: game.gameDateTime || "",
-        homeScore: game.teams?.home?.score ?? null,
-        awayScore: game.teams?.away?.score ?? null,
-        currentInning: game.linescore?.currentInning ?? null,
-      };
-    }
-
-    return null;
-  } catch (error) {
-    logger.debug("Failed to fetch today's game for team", { teamName, error });
-    return null;
   }
 }
