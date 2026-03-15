@@ -21,9 +21,9 @@ export function BottomNavigation() {
       icon: (isActive) => (
         <svg
           className="w-6 h-6"
-          fill={isActive ? "currentColor" : "none"}
+          fill="none"
           stroke="currentColor"
-          strokeWidth={isActive ? "0" : "2"}
+          strokeWidth={isActive ? "2.5" : "2"}
           viewBox="0 0 24 24"
         >
           <path
