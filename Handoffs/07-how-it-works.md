@@ -74,27 +74,33 @@ Multi-tenant fantasy baseball PWA with real-time homerun tracking. Users draft M
 | **Headshot** | `Player.headshot` OR MLB CDN (fallback to initials) |
 | **Homerun History** | `/api/players/[mlbId]/homeruns` → `HomerrunEvent` table (league-scoped) |
 | **Stats** | `Player.homeruns`, `battingAverage`, `ops`, `homerunsLast14Days` |
-| **Streak Status** | Calculated from recent homerun activity (see below) |
+| **Streak Status** | Calculated via `getHotColdStatus()` utility (see below) |
 
-**Streak Status Calculation (Player Details Page):**
-- **Hot:** ≥ 2 homeruns in last 7 days
-- **Cold:** 0 homeruns in last 14 days
-- **Neutral:** All other cases (default)
+**Hot/Cold Status Calculation (Standardized across app):**
+Uses `lib/player-utils.ts → getHotColdStatus()` function:
+- **Season Rate** = `homeruns / gamesPlayed`
+- **14-Day Rate** = `homerunsLast14Days / gamesPlayedLast14Days`
+- **Hot:** 14-day rate > season rate × 1.25 AND gamesPlayed ≥ 5
+- **Cold:** 14-day rate < season rate × 0.75 AND gamesPlayed ≥ 5
+- **Neutral:** All other cases, player has 0 HRs, or fewer than 5 games played
 
 ---
 
-### 📈 HR Leaders (`/homeruns`)
+### 📈 HR Leaders (`/hr-leaders`)
 | Data | Source | Real-time? |
 |------|--------|-----------|
 | **All Homeruns Feed** | `/api/homeruns` (paginated) → `HomerrunEvent` table | ✅ Pusher broadcast |
 | **Player Info** | Player name, team, inning, date | From HR records |
 | **Sort Options** | By date, player, team | Client-side |
-| **Badge (Hot/Cold)** | Calculated from season vs 14-day homerun rates (see below) |
+| **Badge (Hot/Cold)** | Calculated via `getHotColdStatus()` utility (standardized) |
 
-**Badge Calculation (HR Leaders Page):**
-- **Hot Badge:** Recent 14-day homerun rate > Season homerun rate
-- **Cold Badge:** Recent 14-day homerun rate < Season homerun rate
-- **No Badge:** Rates are equal (or player has 0 HRs)
+**Badge Calculation (Standardized via `lib/player-utils.ts`):**
+Uses the same `getHotColdStatus()` function as Player Details:
+- **Season Rate** = `homeruns / gamesPlayed`
+- **14-Day Rate** = `homerunsLast14Days / gamesPlayedLast14Days`
+- **Hot:** 14-day rate > season rate × 1.25 AND gamesPlayed ≥ 5
+- **Cold:** 14-day rate < season rate × 0.75 AND gamesPlayed ≥ 5
+- **Neutral:** All other cases, no badge displayed
 
 ---
 

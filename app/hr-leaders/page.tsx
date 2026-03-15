@@ -7,6 +7,7 @@ import Link from "next/link";
 import { BottomNavigation } from "@/app/components/BottomNavigation";
 import { PlayerAvatar } from "@/app/components/PlayerAvatar";
 import { LoadingScreen } from "@/app/components/LoadingScreen";
+import { getHotColdStatus } from "@/lib/player-utils";
 
 interface Player {
   id: string;
@@ -21,7 +22,7 @@ interface Player {
   gamesPlayedLast14Days: number;
 }
 
-type BadgeType = "HOT" | "COLD" | null;
+type BadgeType = 'hot' | 'cold' | 'neutral';
 
 interface PlayerRow extends Player {
   badge: BadgeType;
@@ -81,23 +82,23 @@ const Header = () => (
 );
 
 function calculateBadge(player: Player): BadgeType {
-  if (player.homeruns === 0) return null;
-
-  const seasonRate = player.homeruns / Math.max(1, player.gamesPlayed);
-  const recentRate = player.homerunsLast14Days / Math.max(1, player.gamesPlayedLast14Days);
-
-  if (recentRate > seasonRate) return "HOT";
-  if (recentRate < seasonRate) return "COLD";
-  return null;
+  return getHotColdStatus({
+    homeruns: player.homeruns,
+    gamesPlayed: player.gamesPlayed,
+    homerunsLast14Days: player.homerunsLast14Days,
+    gamesPlayedLast14Days: player.gamesPlayedLast14Days,
+  });
 }
 
 function BadgeComponent({ type }: { type: BadgeType }) {
-  if (!type) return null;
+  // Only show badge for hot/cold, not neutral
+  if (type === 'neutral') return null;
 
-  const isHot = type === "HOT";
+  const isHot = type === 'hot';
   const bgColor = isHot ? "rgba(204,52,51,0.2)" : "rgba(14,51,134,0.2)";
   const textColor = isHot ? "#CC3433" : "#6BAED6";
   const borderColor = isHot ? "rgba(204,52,51,0.4)" : "rgba(14,51,134,0.4)";
+  const displayText = isHot ? 'Hot' : 'Cold';
 
   return (
     <span
@@ -112,7 +113,7 @@ function BadgeComponent({ type }: { type: BadgeType }) {
         whiteSpace: "nowrap",
       }}
     >
-      {type}
+      {displayText}
     </span>
   );
 }

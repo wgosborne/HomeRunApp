@@ -3,6 +3,7 @@ import { getServerSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createLogger } from "@/lib/logger";
 import { getPlayerDetails } from "@/lib/mlb-stats";
+import { getHotColdStatus } from "@/lib/player-utils";
 
 export const dynamic = 'force-dynamic';
 
@@ -125,19 +126,26 @@ export async function GET(
       );
     }
 
-    // Calculate streak status
-    const now = new Date();
-    const hrs7 = homeruns.filter((hr) => {
-      const daysDiff = (now.getTime() - hr.gameDate.getTime()) / (1000 * 60 * 60 * 24);
-      return daysDiff <= 7;
-    });
-    const hrs14 = homeruns.filter((hr) => {
-      const daysDiff = (now.getTime() - hr.gameDate.getTime()) / (1000 * 60 * 60 * 24);
-      return daysDiff <= 14;
+    // Fetch player stats for streak calculation
+    const playerStats = await prisma.player.findUnique({
+      where: { id: mlbId.toString() },
+      select: {
+        homeruns: true,
+        gamesPlayed: true,
+        homerunsLast14Days: true,
+        gamesPlayedLast14Days: true,
+      },
     });
 
-    const streakStatus: "hot" | "neutral" | "cold" =
-      hrs7.length >= 2 ? "hot" : hrs14.length === 0 ? "cold" : "neutral";
+    // Calculate streak status using shared utility
+    const streakStatus = playerStats
+      ? getHotColdStatus({
+          homeruns: playerStats.homeruns || 0,
+          gamesPlayed: playerStats.gamesPlayed || 0,
+          homerunsLast14Days: playerStats.homerunsLast14Days || 0,
+          gamesPlayedLast14Days: playerStats.gamesPlayedLast14Days || 0,
+        })
+      : 'neutral';
 
     const formattedHomeruns: HomerrunEventResponse[] = homeruns.map((hr) => ({
       playerName: hr.playerName,
