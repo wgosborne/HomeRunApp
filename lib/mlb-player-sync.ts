@@ -201,7 +201,7 @@ export async function fetch2026SeasonStats(): Promise<PlayerSeasonStat[]> {
     const timeout = setTimeout(() => controller.abort(), 30000);
 
     const response = await fetch(
-      `https://statsapi.mlb.com/api/v1/stats?stats=season&season=2026&gameType=${gameType}&group=hitting&sportId=1&limit=1000`,
+      `https://statsapi.mlb.com/api/v1/stats?stats=season&season=2026&gameType=${gameType}&group=hitting&sportId=1&limit=1000&playerPool=All`,
       {
         headers: {
           "User-Agent": "FantasyBaseball/1.0",
