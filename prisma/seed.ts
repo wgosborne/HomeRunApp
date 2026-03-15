@@ -2,6 +2,90 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
+// MLB API endpoint types
+interface MLBTeamsResponse {
+  teams: Array<{
+    id: number;
+    name: string;
+    abbreviation: string;
+  }>;
+}
+
+interface MLBRosterResponse {
+  roster: Array<{
+    person: {
+      id: number;
+      fullName: string;
+    };
+    position: {
+      abbreviation: string;
+    };
+  }>;
+}
+
+interface MLBPlayerDetail {
+  mlbId: number;
+  name: string;
+  position: string;
+  team: string;
+}
+
+async function fetchAllMLBPlayers(): Promise<MLBPlayerDetail[]> {
+  try {
+    console.log("Fetching all MLB teams...");
+    const teamsResponse = await fetch(
+      "https://statsapi.mlb.com/api/v1/teams?sportId=1",
+      {
+        headers: { "User-Agent": "FantasyBaseball/1.0" },
+      }
+    );
+
+    if (!teamsResponse.ok) {
+      throw new Error(`Failed to fetch teams: ${teamsResponse.status}`);
+    }
+
+    const teamsData = (await teamsResponse.json()) as MLBTeamsResponse;
+    const teams = teamsData.teams;
+    console.log(`Found ${teams.length} MLB teams`);
+
+    const allPlayers: MLBPlayerDetail[] = [];
+
+    // Fetch roster for each team
+    for (const team of teams) {
+      try {
+        console.log(`  Fetching roster for ${team.name}...`);
+        const rosterResponse = await fetch(
+          `https://statsapi.mlb.com/api/v1/teams/${team.id}/roster?rosterType=active`,
+          {
+            headers: { "User-Agent": "FantasyBaseball/1.0" },
+          }
+        );
+
+        if (rosterResponse.ok) {
+          const rosterData = (await rosterResponse.json()) as MLBRosterResponse;
+          const teamPlayers = rosterData.roster.map((player) => ({
+            mlbId: player.person.id,
+            name: player.person.fullName,
+            position: player.position.abbreviation || "OF",
+            team: team.name,
+          }));
+
+          allPlayers.push(...teamPlayers);
+          console.log(`    Added ${teamPlayers.length} players`);
+        }
+      } catch (error) {
+        console.warn(`  Failed to fetch roster for ${team.name}`);
+      }
+    }
+
+    console.log(`Total players fetched: ${allPlayers.length}`);
+    return allPlayers;
+  } catch (error) {
+    console.error("Failed to fetch from MLB API, using fallback data");
+    return [];
+  }
+}
+
 // All 30 MLB teams with official data
 const mlbTeams = [
   { mlbId: 108, name: "Los Angeles Angels", city: "Los Angeles", abbreviation: "LAA", logo: "https://www.mlbstatic.com/team-logos/108.svg" },
@@ -31,60 +115,6 @@ const mlbTeams = [
   { mlbId: 145, name: "Chicago White Sox", city: "Chicago", abbreviation: "CWS", logo: "https://www.mlbstatic.com/team-logos/145.svg" },
   { mlbId: 146, name: "Miami Marlins", city: "Miami", abbreviation: "MIA", logo: "https://www.mlbstatic.com/team-logos/146.svg" },
   { mlbId: 159, name: "Cleveland Guardians", city: "Cleveland", abbreviation: "CLE", logo: "https://www.mlbstatic.com/team-logos/159.svg" },
-];
-
-// MLB players with real names and positions (2024 season top performers)
-const mlbPlayers = [
-  { name: "Aaron Judge", position: "OF", statsApiId: "592450" },
-  { name: "Juan Soto", position: "OF", statsApiId: "621006" },
-  { name: "Bryce Harper", position: "OF", statsApiId: "547180" },
-  { name: "Mookie Betts", position: "OF", statsApiId: "605141" },
-  { name: "Kyle Schwarber", position: "OF", statsApiId: "656941" },
-  { name: "Mike Trout", position: "OF", statsApiId: "545361" },
-  { name: "Shohei Ohtani", position: "OF", statsApiId: "660271" },
-  { name: "Brent Rooker", position: "DH", statsApiId: "592995" },
-  { name: "Salvador Perez", position: "C", statsApiId: "521692" },
-  { name: "Trea Turner", position: "SS", statsApiId: "607208" },
-  { name: "Francisco Lindor", position: "SS", statsApiId: "596019" },
-  { name: "Jose Altuve", position: "2B", statsApiId: "514888" },
-  { name: "Rafael Devers", position: "3B", statsApiId: "646240" },
-  { name: "Anthony Rendon", position: "3B", statsApiId: "543685" },
-  { name: "Corey Seager", position: "SS", statsApiId: "608369" },
-  { name: "George Springer", position: "OF", statsApiId: "543807" },
-  { name: "Kyle Higashioka", position: "C", statsApiId: "543466" },
-  { name: "Marcus Semien", position: "2B", statsApiId: "543760" },
-  { name: "Gunnar Henderson", position: "SS", statsApiId: "683002" },
-  { name: "Sonny Gray", position: "P", statsApiId: "543243" },
-  { name: "Clayton Kershaw", position: "P", statsApiId: "477132" },
-  { name: "Max Scherzer", position: "P", statsApiId: "453286" },
-  { name: "Justin Verlander", position: "P", statsApiId: "434378" },
-  { name: "Jacob deGrom", position: "P", statsApiId: "594798" },
-  { name: "Gerrit Cole", position: "P", statsApiId: "543037" },
-  { name: "Juan Sotos", position: "OF", statsApiId: "621006" },
-  { name: "Mitch Garver", position: "C", statsApiId: "641598" },
-  { name: "Kyle Schwarber", position: "OF", statsApiId: "656941" },
-  { name: "Austin Barnes", position: "C", statsApiId: "543374" },
-  { name: "Anthony Volpe", position: "SS", statsApiId: "683011" },
-  { name: "Bobby Witt Jr.", position: "SS", statsApiId: "677951" },
-  { name: "Juan Carlos Rodon", position: "P", statsApiId: "607074" },
-  { name: "Blake Snell", position: "P", statsApiId: "605483" },
-  { name: "Zack Wheeler", position: "P", statsApiId: "554430" },
-  { name: "Brandon Woodruff", position: "P", statsApiId: "605540" },
-  { name: "Sandy Alcantara", position: "P", statsApiId: "645261" },
-  { name: "Chris Martin", position: "P", statsApiId: "455119" },
-  { name: "Kyle Hendricks", position: "P", statsApiId: "447857" },
-  { name: "Julio Urias", position: "P", statsApiId: "628329" },
-  { name: "Nicholas Castellanos", position: "OF", statsApiId: "592206" },
-  { name: "Kyle Mulins", position: "3B", statsApiId: "623568" },
-  { name: "Yandy Diaz", position: "DH", statsApiId: "650490" },
-  { name: "Austin Hays", position: "OF", statsApiId: "669039" },
-  { name: "Anthony Maceo", position: "P", statsApiId: "656409" },
-  { name: "Matt Olson", position: "1B", statsApiId: "621566" },
-  { name: "Freddie Freeman", position: "1B", statsApiId: "518692" },
-  { name: "Paul Goldschmidt", position: "1B", statsApiId: "502671" },
-  { name: "Brent Rooker", position: "DH", statsApiId: "592995" },
-  { name: "Cody Bellinger", position: "OF", statsApiId: "641355" },
-  { name: "Xander Bogaerts", position: "SS", statsApiId: "593428" },
 ];
 
 async function main() {
@@ -137,88 +167,59 @@ async function main() {
   });
   console.log("all-mlb league ready");
 
-  console.log("Seeding MLB players...");
+  console.log("Seeding all MLB players...");
 
-  // Seed players with real team assignments
-  const teamMap = new Map(mlbTeams.map(t => [t.abbreviation, t]));
-  const playerTeamAssignments: { [key: string]: string } = {
-    "Aaron Judge": "NYY",
-    "Juan Soto": "NYM",
-    "Bryce Harper": "PHI",
-    "Mookie Betts": "LAD",
-    "Kyle Schwarber": "PHI",
-    "Mike Trout": "LAA",
-    "Shohei Ohtani": "LAD",
-    "Brent Rooker": "TB",
-    "Salvador Perez": "KC",
-    "Trea Turner": "PHI",
-    "Francisco Lindor": "CLE",
-    "Jose Altuve": "HOU",
-    "Rafael Devers": "BOS",
-    "Anthony Rendon": "LAA",
-    "Corey Seager": "TEX",
-    "George Springer": "TOR",
-    "Kyle Higashioka": "NYY",
-    "Marcus Semien": "TEX",
-    "Gunnar Henderson": "BAL",
-    "Sonny Gray": "STL",
-    "Clayton Kershaw": "LAD",
-    "Max Scherzer": "NYM",
-    "Justin Verlander": "HOU",
-    "Jacob deGrom": "NYM",
-    "Gerrit Cole": "NYY",
-    "Juan Sotos": "NYM",
-    "Mitch Garver": "TB",
-    "Austin Barnes": "LAD",
-    "Anthony Volpe": "NYY",
-    "Bobby Witt Jr.": "KC",
-    "Juan Carlos Rodon": "NYY",
-    "Blake Snell": "SD",
-    "Zack Wheeler": "PHI",
-    "Brandon Woodruff": "MIL",
-    "Sandy Alcantara": "MIA",
-    "Chris Martin": "ATL",
-    "Kyle Hendricks": "CHC",
-    "Julio Urias": "LAD",
-    "Nicholas Castellanos": "CHC",
-    "Kyle Mulins": "BAL",
-    "Yandy Diaz": "TB",
-    "Austin Hays": "BAL",
-    "Anthony Maceo": "SD",
-    "Matt Olson": "ATL",
-    "Freddie Freeman": "LAD",
-    "Paul Goldschmidt": "STL",
-    "Cody Bellinger": "LAD",
-    "Xander Bogaerts": "SD",
-  };
+  // Fetch all MLB players from API
+  const apiPlayers = await fetchAllMLBPlayers();
 
-  const createdPlayers = await Promise.all(
-    mlbPlayers.map(async (player) => {
-      const teamAbbr = playerTeamAssignments[player.name] || "NYY";
-      const team = teamMap.get(teamAbbr);
+  // Fallback to sample data if API unavailable
+  const fallbackPlayers: MLBPlayerDetail[] = [
+    { mlbId: 592450, name: "Aaron Judge", position: "OF", team: "New York Yankees" },
+    { mlbId: 621006, name: "Juan Soto", position: "OF", team: "New York Mets" },
+    { mlbId: 605141, name: "Mookie Betts", position: "OF", team: "Los Angeles Dodgers" },
+  ];
 
-      return prisma.player.upsert({
-        where: { mlbId: parseInt(player.statsApiId) },
-        update: {},
-        create: {
-          mlbId: parseInt(player.statsApiId),
-          fullName: player.name,
-          position: player.position,
-          teamName: team?.name || "Unknown",
-          teamId: team?.mlbId || 120,
-          homeruns: Math.floor(Math.random() * 40) + 5, // Random 5-45 HRs
-          gamesPlayed: Math.floor(Math.random() * 162) + 1,
-          homerunsLast14Days: Math.floor(Math.random() * 5),
-          gamesPlayedLast14Days: Math.floor(Math.random() * 14) + 1,
-          battingAverage: Math.random() * 0.15 + 0.25,
-        },
-      });
-    })
-  );
+  const playersToSeed = apiPlayers.length > 0 ? apiPlayers : fallbackPlayers;
 
-  console.log(`Created ${createdPlayers.length} players`);
+  console.log(`Seeding ${playersToSeed.length} players into database...`);
+
+  // Clear existing players to ensure clean slate
+  await prisma.player.deleteMany();
+  console.log("Cleared existing players");
+
+  // Create all players in batches to avoid overwhelming the database
+  const batchSize = 100;
+  let createdCount = 0;
+
+  for (let i = 0; i < playersToSeed.length; i += batchSize) {
+    const batch = playersToSeed.slice(i, i + batchSize);
+    const batchResults = await Promise.all(
+      batch.map((player) =>
+        prisma.player.create({
+          data: {
+            mlbId: player.mlbId,
+            fullName: player.name,
+            position: player.position,
+            teamName: player.team,
+            homeruns: Math.floor(Math.random() * 40) + 5,
+            gamesPlayed: Math.floor(Math.random() * 162) + 1,
+            homerunsLast14Days: Math.floor(Math.random() * 5),
+            gamesPlayedLast14Days: Math.floor(Math.random() * 14) + 1,
+            battingAverage: Math.random() * 0.15 + 0.25,
+          },
+        })
+      )
+    );
+    createdCount += batchResults.length;
+    console.log(`  Created ${createdCount}/${playersToSeed.length} players`);
+  }
+
+  console.log(`✓ Seeded ${createdCount} players`);
 
   console.log("Creating seed data...");
+
+  // Fetch some players from database for draft/roster seeding
+  const dbPlayers = await prisma.player.findMany({ take: 20 });
 
   // Create test users
   const users = await Promise.all([
@@ -320,17 +321,18 @@ async function main() {
 
   // Create sample draft picks for league1
   const draftPicks = await Promise.all(
-    mlbPlayers.slice(0, 12).map((player, idx) =>
+    dbPlayers.slice(0, 12).map((player, idx) =>
       prisma.draftPick.create({
         data: {
           leagueId: league1.id,
           userId: users[idx % users.length].id,
-          playerId: player.statsApiId,
-          playerName: player.name,
+          playerId: player.id,
+          playerName: player.fullName,
           position: player.position,
           round: Math.floor(idx / users.length) + 1,
           pickNumber: idx + 1,
           isPick: true,
+          mlbId: player.mlbId,
           pickedAt: new Date(Date.now() - 1000000 * (12 - idx)),
         },
       })
@@ -343,14 +345,15 @@ async function main() {
   await Promise.all(
     users.map((user) =>
       Promise.all(
-        mlbPlayers.slice(0, 5).map((player) =>
+        dbPlayers.slice(0, 5).map((player) =>
           prisma.rosterSpot.create({
             data: {
               leagueId: league1.id,
               userId: user.id,
-              playerId: player.statsApiId,
-              playerName: player.name,
+              playerId: player.id,
+              playerName: player.fullName,
               position: player.position,
+              mlbId: player.mlbId,
               homeruns: Math.floor(Math.random() * 15),
               points: Math.floor(Math.random() * 150),
               draftedRound: 1,
