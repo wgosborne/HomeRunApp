@@ -14,7 +14,7 @@ interface MLBScheduleResponse {
       gamePk: number;
       gameType: string;
       status: {
-        abstractGameState: "Pre-Game" | "In Progress" | "Final";
+        abstractGameState: "Pre-Game" | "In Progress" | "Live" | "Final";
       };
       gameDate: string;
       teams: {
@@ -49,7 +49,7 @@ interface MLBScheduleResponse {
  * Map game status from abstract game state
  */
 function mapStatus(abstractGameState: string): string {
-  if (abstractGameState === "In Progress") return "Live";
+  if (abstractGameState === "In Progress" || abstractGameState === "Live") return "Live";
   if (abstractGameState === "Final") return "Final";
   return "Preview";
 }
