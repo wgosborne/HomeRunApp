@@ -1,10 +1,22 @@
 "use client";
 
+import { useState, useEffect } from "react";
+
 /**
  * Consistent full-screen loading indicator used throughout the app
  * Features: Dark blurred background, centered text, 24px font
+ * 200ms delay prevents flash if data arrives quickly
  */
 export function LoadingScreen() {
+  const [show, setShow] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShow(true), 200);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (!show) return null;
+
   return (
     <div
       style={{

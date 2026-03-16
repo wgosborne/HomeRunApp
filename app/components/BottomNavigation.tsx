@@ -1,6 +1,8 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { setCached } from "@/lib/client-cache";
 
 interface NavItem {
   id: string;
@@ -12,6 +14,35 @@ interface NavItem {
 export function BottomNavigation() {
   const pathname = usePathname();
   const router = useRouter();
+
+  // Prefetch all tab data on mount (fire and forget)
+  useEffect(() => {
+    // Prefetch Scores data
+    fetch("/api/games/today")
+      .then((res) => res.ok && res.json())
+      .then((data) => {
+        if (data) setCached("scores-today", data);
+      })
+      .catch(() => {});
+
+    // Prefetch League data
+    fetch("/api/leagues")
+      .then((res) => res.ok && res.json())
+      .then((data) => {
+        if (data) setCached("leagues", data);
+      })
+      .catch(() => {});
+
+    // Prefetch HR Leaders (first 100 players)
+    fetch("/api/players?limit=100")
+      .then((res) => res.ok && res.json())
+      .then((data) => {
+        if (data) {
+          setCached("hr-leaders", { players: data.players, yourMlbIds: data.yourMlbIds });
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const navItems: NavItem[] = [
     {
