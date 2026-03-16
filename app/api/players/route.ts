@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession();
 
@@ -12,10 +12,16 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Fetch top 500 MLB players by homeruns (limits payload and improves performance)
+    // Support pagination for progressive loading
+    const searchParams = request.nextUrl.searchParams;
+    const limit = Math.min(parseInt(searchParams.get("limit") || "500"), 500);
+    const offset = parseInt(searchParams.get("offset") || "0");
+
+    // Fetch MLB players by homeruns with pagination
     const dbPlayers = await prisma.player.findMany({
       orderBy: { homeruns: "desc" },
-      take: 500,
+      take: limit,
+      skip: offset,
       select: {
         id: true,
         mlbId: true,

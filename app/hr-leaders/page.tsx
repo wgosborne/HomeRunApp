@@ -128,7 +128,7 @@ export default function HRLeadersPage() {
   const [loading, setLoading] = useState(true);
   const [isEmpty, setIsEmpty] = useState(false);
 
-  // Fetch players on mount
+  // Fetch players on mount with progressive loading
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/");
@@ -137,23 +137,47 @@ export default function HRLeadersPage() {
 
     if (status !== "authenticated") return;
 
+    let mounted = true;
+
     const fetchPlayers = async () => {
       try {
-        const response = await fetch("/api/players");
-        if (response.ok) {
-          const data = await response.json();
+        // First batch: fetch 100 players immediately
+        const response1 = await fetch("/api/players?limit=100");
+        if (response1.ok && mounted) {
+          const data = await response1.json();
           setPlayers(data.players);
           setYourMlbIds(new Set(data.yourMlbIds));
           setIsEmpty(data.isEmpty || false);
+          setLoading(false);
+
+          // If we got all players in first batch, we're done
+          if (data.players.length < 100) return;
+
+          // Second batch: fetch next 400 in background
+          const response2 = await fetch("/api/players?limit=400&offset=100");
+          if (response2.ok && mounted) {
+            const data2 = await response2.json();
+            setPlayers((prev) => [...prev, ...data2.players]);
+          }
+
+          // Third batch: fetch last 500 in background
+          const response3 = await fetch("/api/players?limit=500&offset=500");
+          if (response3.ok && mounted) {
+            const data3 = await response3.json();
+            setPlayers((prev) => [...prev, ...data3.players]);
+          }
         }
       } catch (error) {
         console.error("Error fetching players:", error);
-      } finally {
         setLoading(false);
       }
     };
 
     fetchPlayers();
+
+    return () => {
+      mounted = false;
+    };
   }, [status, router]);
 
   // Build player rows with badges (memoized)
