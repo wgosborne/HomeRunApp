@@ -9,6 +9,23 @@ export const dynamic = 'force-dynamic';
 
 const logger = createLogger("games.today");
 
+/**
+ * Normalize startTime to CT formatted string
+ * Handles mixed formats: ISO strings and pre-formatted strings
+ */
+const normalizeStartTime = (startTime: string | null): string | null => {
+  if (!startTime) return null;
+  // Already a clean formatted string (e.g. "11:05 AM") — pass through
+  if (!startTime.includes("T") && !startTime.includes("Z")) return startTime;
+  // ISO string — convert to CT
+  return new Date(startTime).toLocaleTimeString("en-US", {
+    timeZone: "America/Chicago",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+};
+
 export interface ApiGame {
   id: string;
   homeTeam: string;
@@ -146,7 +163,7 @@ export async function GET() {
         status: game.status,
         inning: game.inning,
         inningHalf: game.inningHalf,
-        startTime: game.startTime,
+        startTime: normalizeStartTime(game.startTime),
         gameType: game.gameType,
         userPlayerCount,
       };

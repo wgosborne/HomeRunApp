@@ -99,8 +99,9 @@ async function handleGameSync() {
     // Format: MM/DD/YYYY
     const [month, day, year] = easternDate.split("/");
     const mmddyyyy = `${month}/${day}/${year}`;
+    const todayET = `${year}-${month}-${day}`; // YYYY-MM-DD format for validation
 
-    logger.info("Syncing games for ET date", { mmddyyyy });
+    logger.info("Syncing games for ET date", { mmddyyyy, todayET });
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
@@ -155,8 +156,13 @@ async function handleGameSync() {
           // Status mapping
           const status = mapStatus(game.status.abstractGameState);
 
-          // Store startTime as ISO string for frontend parsing
-          const startTime = gameDate.toISOString();
+          // Store startTime as CT formatted string (e.g., "11:05 AM", "2:05 PM")
+          const startTime = gameDate.toLocaleTimeString("en-US", {
+            timeZone: "America/Chicago",
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true,
+          });
 
           // BUG FIX #3: Use officialDate from API (Eastern time date for schedule queries)
           // Format must be YYYY-MM-DD to match games/today query filter
@@ -165,6 +171,16 @@ async function handleGameSync() {
             // Fallback: convert mmddyyyy (MM/DD/YYYY) to YYYY-MM-DD
             const [m, d, y] = mmddyyyy.split("/");
             officialDate = `${y}-${m}-${d}`;
+          }
+
+          // Validation guard: skip games with mismatched officialDate
+          if (officialDate !== todayET) {
+            logger.info("Skipping game with mismatched officialDate", {
+              gamePk: game.gamePk,
+              officialDate,
+              todayET,
+            });
+            continue;
           }
 
           // BUG FIX #4: Upsert must update all fields in BOTH create and update blocks
@@ -208,7 +224,17 @@ async function handleGameSync() {
       }
     }
 
-    logger.info("Game sync completed", { synced: syncedCount });
+    // Cleanup: Mark stale Live games from previous days as Final
+    // This prevents old games from bleeding into today's view
+    const cleanupResult = await prisma.game.updateMany({
+      where: {
+        status: "Live",
+        officialDate: { lt: todayET },
+      },
+      data: { status: "Final" },
+    });
+
+    logger.info("Game sync completed", { synced: syncedCount, staleLiveGamesClosed: cleanupResult.count });
 
     return NextResponse.json({
       synced: syncedCount,
