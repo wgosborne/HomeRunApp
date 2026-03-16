@@ -9,6 +9,10 @@ import { BottomNavigation } from "@/app/components/BottomNavigation";
 import { TeamLogo } from "@/app/components/TeamLogo";
 import { BaserunnerDiamond } from "@/app/components/BaserunnerDiamond";
 import { LoadingScreen } from "@/app/components/LoadingScreen";
+import { getCached, setCached } from "@/lib/client-cache";
+
+const SCORES_CACHE_KEY = "scores-today";
+const SCORES_TTL_MS = 30 * 1000; // 30 seconds (games change during live play)
 
 
 
@@ -273,9 +277,12 @@ const GameRow = ({ game, baserunnerState, loadingBaserunner }: GameRowProps) => 
 export default function ScoresPage() {
   const { status } = useSession();
   const router = useRouter();
-  const [games, setGames] = useState<ApiGame[]>([]);
+
+  // Initialize from cache if available, otherwise empty
+  const cachedGames = getCached<ApiGame[]>(SCORES_CACHE_KEY, SCORES_TTL_MS);
+  const [games, setGames] = useState<ApiGame[]>(cachedGames || []);
   const [baserunnerStates, setBaserunnerStates] = useState<Record<string, BaserunnerState>>({});
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(cachedGames ? false : true);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -302,6 +309,7 @@ export default function ScoresPage() {
 
       // API returns games in correct order: Live > Preview > Final
       setGames(allGames || []);
+      setCached(SCORES_CACHE_KEY, allGames || []);
 
       // Fetch baserunner state for live games
       const liveGames = (allGames || []).filter((g: ApiGame) => g.status === "Live");
@@ -322,7 +330,9 @@ export default function ScoresPage() {
       }
     } catch (error) {
       console.error("Error fetching games:", error);
-      setGames([]);
+      if (!games.length) {
+        setGames([]);
+      }
     } finally {
       setLoading(false);
     }

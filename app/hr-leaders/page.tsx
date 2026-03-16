@@ -8,6 +8,10 @@ import { BottomNavigation } from "@/app/components/BottomNavigation";
 import { PlayerAvatar } from "@/app/components/PlayerAvatar";
 import { LoadingScreen } from "@/app/components/LoadingScreen";
 import { getHotColdStatus } from "@/lib/player-utils";
+import { getCached, setCached } from "@/lib/client-cache";
+
+const HR_LEADERS_CACHE_KEY = "hr-leaders";
+const HR_LEADERS_TTL_MS = 60 * 1000; // 60 seconds (player stats change slowly)
 
 interface Player {
   id: string;
@@ -122,10 +126,12 @@ export default function HRLeadersPage() {
   const { status } = useSession();
   const router = useRouter();
 
-  const [players, setPlayers] = useState<Player[]>([]);
-  const [yourMlbIds, setYourMlbIds] = useState<Set<number>>(new Set());
+  // Initialize from cache if available
+  const cachedData = getCached<{ players: Player[]; yourMlbIds: number[] }>(HR_LEADERS_CACHE_KEY, HR_LEADERS_TTL_MS);
+  const [players, setPlayers] = useState<Player[]>(cachedData?.players || []);
+  const [yourMlbIds, setYourMlbIds] = useState<Set<number>>(new Set(cachedData?.yourMlbIds || []));
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(cachedData ? false : true);
   const [isEmpty, setIsEmpty] = useState(false);
 
   // Fetch players on mount with progressive loading
@@ -148,6 +154,7 @@ export default function HRLeadersPage() {
           setPlayers(data.players);
           setYourMlbIds(new Set(data.yourMlbIds));
           setIsEmpty(data.isEmpty || false);
+          setCached(HR_LEADERS_CACHE_KEY, { players: data.players, yourMlbIds: data.yourMlbIds });
           setLoading(false);
 
           // If we got all players in first batch, we're done
@@ -157,14 +164,22 @@ export default function HRLeadersPage() {
           const response2 = await fetch("/api/players?limit=400&offset=100");
           if (response2.ok && mounted) {
             const data2 = await response2.json();
-            setPlayers((prev) => [...prev, ...data2.players]);
+            setPlayers((prev) => {
+              const updated = [...prev, ...data2.players];
+              setCached(HR_LEADERS_CACHE_KEY, { players: updated, yourMlbIds: data.yourMlbIds });
+              return updated;
+            });
           }
 
           // Third batch: fetch last 500 in background
           const response3 = await fetch("/api/players?limit=500&offset=500");
           if (response3.ok && mounted) {
             const data3 = await response3.json();
-            setPlayers((prev) => [...prev, ...data3.players]);
+            setPlayers((prev) => {
+              const updated = [...prev, ...data3.players];
+              setCached(HR_LEADERS_CACHE_KEY, { players: updated, yourMlbIds: data.yourMlbIds });
+              return updated;
+            });
           }
         }
       } catch (error) {
