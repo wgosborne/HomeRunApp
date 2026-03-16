@@ -2424,41 +2424,57 @@ export default function LeagueHomePage() {
     }
   }, [status, leagueId, session?.user?.id]);
 
+  // Fetch all data (standings + roster) on mount - enables instant tab switching
   useEffect(() => {
-    if (activeTab === "leaderboard") {
-      try {
-        fetchStandings();
-        const interval = setInterval(() => {
-          try {
-            fetchStandings();
-          } catch (error) {
-            console.error("Error in periodic fetchStandings:", error);
-          }
-        }, 20000);
-        return () => clearInterval(interval);
-      } catch (error) {
-        console.error("Error initializing standings:", error);
-      }
-    }
-  }, [activeTab, leagueId]);
+    if (status === "authenticated" && leagueId) {
+      const timer = setTimeout(() => {
+        // Fetch both standings and roster in parallel on mount
+        Promise.all([
+          (async () => {
+            try {
+              await fetchStandings();
+            } catch (error) {
+              console.error("Error fetching standings:", error);
+            }
+          })(),
+          (async () => {
+            try {
+              await fetchRoster();
+            } catch (error) {
+              console.error("Error fetching roster:", error);
+            }
+          })(),
+        ]).then(() => {
+          setLoading(false);
+        });
+      }, 100);
 
-  useEffect(() => {
-    if (activeTab === "myteam" || activeTab === "players") {
-      try {
-        fetchRoster();
-        const interval = setInterval(() => {
-          try {
-            fetchRoster();
-          } catch (error) {
-            console.error("Error in periodic fetchRoster:", error);
-          }
-        }, 20000);
-        return () => clearInterval(interval);
-      } catch (error) {
-        console.error("Error initializing roster:", error);
-      }
+      // Periodic refresh (standings and roster both)
+      const interval = setInterval(() => {
+        Promise.all([
+          (async () => {
+            try {
+              await fetchStandings();
+            } catch (error) {
+              console.error("Error in periodic fetchStandings:", error);
+            }
+          })(),
+          (async () => {
+            try {
+              await fetchRoster();
+            } catch (error) {
+              console.error("Error in periodic fetchRoster:", error);
+            }
+          })(),
+        ]);
+      }, 20000);
+
+      return () => {
+        clearTimeout(timer);
+        clearInterval(interval);
+      };
     }
-  }, [activeTab, leagueId]);
+  }, [status, leagueId]);
 
   // Redirect from draft tab if draft is complete
   useEffect(() => {
@@ -2499,11 +2515,15 @@ export default function LeagueHomePage() {
         const channel = pusherClient.subscribe(`league-${leagueId}`);
 
         const handleHomerun = () => {
-          if (activeTab === "leaderboard") {
-            fetchStandings();
-          } else if (activeTab === "myteam" || activeTab === "players") {
-            fetchRoster();
-          }
+          // Refresh both standings and roster on any homerun
+          Promise.all([
+            fetchStandings().catch((error) =>
+              console.error("Error refreshing standings:", error)
+            ),
+            fetchRoster().catch((error) =>
+              console.error("Error refreshing roster:", error)
+            ),
+          ]);
         };
 
         channel.bind("homerun", handleHomerun);
@@ -2517,7 +2537,7 @@ export default function LeagueHomePage() {
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [leagueId, activeTab]);
+  }, [leagueId]);
 
   const fetchLeague = async () => {
     try {
