@@ -3,7 +3,6 @@ import { SessionProvider } from "next-auth/react";
 import { ServiceWorkerRegistration } from "@/app/components/ServiceWorkerRegistration";
 import { InstallPrompt } from "@/app/components/InstallPrompt";
 import { OfflineIndicator } from "@/app/components/OfflineIndicator";
-import { DataPrefetcher } from "@/app/components/DataPrefetcher";
 import "@/app/globals.css";
 
 export const viewport: Viewport = {
@@ -81,7 +80,6 @@ export default function RootLayout({
       </head>
       <body>
         <SessionProvider>
-          <DataPrefetcher />
           <ServiceWorkerRegistration />
           <InstallPrompt />
           <OfflineIndicator />

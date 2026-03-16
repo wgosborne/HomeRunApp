@@ -131,23 +131,20 @@ export default function UnifiedScoresPage() {
   // Tab state
   const [activeTab, setActiveTab] = useState<'scores' | 'league' | 'hr-leaders'>('scores');
 
-  // Games state
-  const cachedGames = getCached<ApiGame[]>(SCORES_CACHE_KEY, 30 * 1000);
-  const [games, setGames] = useState<ApiGame[]>(cachedGames || []);
+  // Games state — start with empty/loading
+  const [games, setGames] = useState<ApiGame[]>([]);
   const [baserunnerStates, setBaserunnerStates] = useState<Record<string, BaserunnerState>>({});
-  const [scoresLoading, setScoresLoading] = useState(!cachedGames);
+  const [scoresLoading, setScoresLoading] = useState(true);
 
-  // Leagues state
-  const cachedLeagues = getCached<League[]>(LEAGUES_CACHE_KEY, 5 * 60 * 1000);
-  const [leagues, setLeagues] = useState<League[]>(cachedLeagues || []);
-  const [leaguesLoading, setLeaguesLoading] = useState(!cachedLeagues);
+  // Leagues state — start with empty/loading
+  const [leagues, setLeagues] = useState<League[]>([]);
+  const [leaguesLoading, setLeaguesLoading] = useState(true);
 
-  // HR Leaders state
-  const cachedHRData = getCached<{ players: Player[]; yourMlbIds: number[] }>(HR_LEADERS_CACHE_KEY, 5 * 60 * 1000);
-  const [players, setPlayers] = useState<Player[]>(cachedHRData?.players || []);
-  const [yourMlbIds, setYourMlbIds] = useState<Set<number>>(new Set(cachedHRData?.yourMlbIds || []));
+  // HR Leaders state — start with empty/loading
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [yourMlbIds, setYourMlbIds] = useState<Set<number>>(new Set());
   const [hrSearch, setHrSearch] = useState("");
-  const [hrLeadersLoading, setHrLeadersLoading] = useState(!cachedHRData);
+  const [hrLeadersLoading, setHrLeadersLoading] = useState(true);
   const [isEmpty, setIsEmpty] = useState(false);
 
   // Auth guard
@@ -157,105 +154,97 @@ export default function UnifiedScoresPage() {
     }
   }, [status, router]);
 
-  // Fetch all data in parallel on mount
+  // Fetch all data — read cache inside effect when prefetch may have completed
   useEffect(() => {
     if (status !== "authenticated") return;
 
     let mounted = true;
 
-    const fetchAllData = async () => {
-      const promises = [];
+    // Read cache INSIDE effect — this is when prefetch may have completed
+    const cachedGames = getCached<ApiGame[]>(SCORES_CACHE_KEY, 30 * 1000);
+    const cachedLeagues = getCached<League[]>(LEAGUES_CACHE_KEY, 5 * 60 * 1000);
+    const cachedHRData = getCached<{ players: Player[]; yourMlbIds: number[] }>(HR_LEADERS_CACHE_KEY, 5 * 60 * 1000);
 
-      // Fetch games if not cached
-      if (!cachedGames) {
-        promises.push(
-          fetch("/api/games/today")
-            .then((res) => res.ok ? res.json() : [])
-            .then((allGames) => {
-              if (mounted) {
-                setGames(allGames || []);
-                setCached(SCORES_CACHE_KEY, allGames || []);
-                setScoresLoading(false);
+    // Apply cached data immediately if available
+    if (cachedGames) {
+      setGames(cachedGames);
+      setScoresLoading(false);
+    }
+    if (cachedLeagues) {
+      setLeagues(cachedLeagues);
+      setLeaguesLoading(false);
+    }
+    if (cachedHRData) {
+      setPlayers(cachedHRData.players);
+      setYourMlbIds(new Set(cachedHRData.yourMlbIds));
+      setHrLeadersLoading(false);
+    }
 
-                // Fetch baserunner states for live games
-                const liveGames = (allGames || []).filter((g: ApiGame) => g.status === "Live");
-                if (liveGames.length > 0) {
-                  liveGames.forEach((game: ApiGame) => {
-                    fetch(`/api/games/${game.id}/live-feed`)
-                      .then((res) => res.ok ? res.json() : null)
-                      .then((state) => {
-                        if (state && mounted) {
-                          setBaserunnerStates((prev) => ({ ...prev, [game.id]: state }));
-                        }
-                      })
-                      .catch(() => {});
-                  });
-                }
-              }
-            })
-            .catch(() => {
-              if (mounted) setScoresLoading(false);
-            })
-        );
-      } else {
-        setScoresLoading(false);
-      }
+    // Always fetch fresh data in background regardless of cache
+    // Update state silently when fresh data arrives
+    fetch("/api/games/today")
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (data && mounted) {
+          setGames(data);
+          setScoresLoading(false);
+          setCached(SCORES_CACHE_KEY, data);
 
-      // Fetch leagues if not cached
-      if (!cachedLeagues) {
-        promises.push(
-          fetch("/api/leagues")
-            .then((res) => res.ok ? res.json() : [])
-            .then((data) => {
-              if (mounted) {
-                setLeagues(data);
-                setCached(LEAGUES_CACHE_KEY, data);
-                setLeaguesLoading(false);
-              }
-            })
-            .catch(() => {
-              if (mounted) setLeaguesLoading(false);
-            })
-        );
-      } else {
-        setLeaguesLoading(false);
-      }
+          // Fetch baserunner states for live games
+          const liveGames = (data || []).filter((g: ApiGame) => g.status === "Live");
+          if (liveGames.length > 0) {
+            liveGames.forEach((game: ApiGame) => {
+              fetch(`/api/games/${game.id}/live-feed`)
+                .then((res) => res.ok ? res.json() : null)
+                .then((state) => {
+                  if (state && mounted) {
+                    setBaserunnerStates((prev) => ({ ...prev, [game.id]: state }));
+                  }
+                })
+                .catch(() => {});
+            });
+          }
+        }
+      })
+      .catch(() => {
+        if (mounted) setScoresLoading(false);
+      });
 
-      // Fetch HR leaders if not cached
-      if (!cachedHRData) {
-        promises.push(
-          fetch("/api/players?limit=5000")
-            .then((res) => res.ok ? res.json() : { players: [], yourMlbIds: [], isEmpty: false })
-            .then((data) => {
-              if (mounted) {
-                setPlayers(data.players || []);
-                setYourMlbIds(new Set(data.yourMlbIds || []));
-                setIsEmpty(data.isEmpty || false);
-                setCached(HR_LEADERS_CACHE_KEY, { players: data.players, yourMlbIds: data.yourMlbIds });
-                setHrLeadersLoading(false);
-              }
-            })
-            .catch(() => {
-              if (mounted) setHrLeadersLoading(false);
-            })
-        );
-      } else {
-        setHrLeadersLoading(false);
-      }
+    fetch("/api/leagues")
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (data && mounted) {
+          setLeagues(data);
+          setLeaguesLoading(false);
+          setCached(LEAGUES_CACHE_KEY, data);
+        }
+      })
+      .catch(() => {
+        if (mounted) setLeaguesLoading(false);
+      });
 
-      // Wait for all fetches to complete
-      await Promise.all(promises);
-    };
-
-    fetchAllData();
+    fetch("/api/players?limit=5000")
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (data && mounted) {
+          setPlayers(data.players || []);
+          setYourMlbIds(new Set(data.yourMlbIds || []));
+          setIsEmpty(data.isEmpty || false);
+          setHrLeadersLoading(false);
+          setCached(HR_LEADERS_CACHE_KEY, { players: data.players, yourMlbIds: data.yourMlbIds });
+        }
+      })
+      .catch(() => {
+        if (mounted) setHrLeadersLoading(false);
+      });
 
     return () => {
       mounted = false;
     };
-  }, [status, cachedGames, cachedLeagues, cachedHRData]);
+  }, [status]); // Only depends on status — not on cache values
 
-  // Only show loading if auth is still resolving AND we have no cached data
-  if (status === "loading" && !cachedGames && !cachedLeagues && !cachedHRData) {
+  // Only show loading if auth is still resolving
+  if (status === "loading") {
     return <LoadingScreen />;
   }
 
