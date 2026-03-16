@@ -9,10 +9,9 @@ import { BottomNavigation } from "@/app/components/BottomNavigation";
 import { TeamLogo } from "@/app/components/TeamLogo";
 import { BaserunnerDiamond } from "@/app/components/BaserunnerDiamond";
 import { LoadingScreen } from "@/app/components/LoadingScreen";
-import { getCached, setCached } from "@/lib/client-cache";
+import { setCached } from "@/lib/client-cache";
 
 const SCORES_CACHE_KEY = "scores-today";
-const SCORES_TTL_MS = 30 * 1000; // 30 seconds (games change during live play)
 
 
 
@@ -278,11 +277,9 @@ export default function ScoresPage() {
   const { status } = useSession();
   const router = useRouter();
 
-  // Initialize from cache if available, otherwise empty
-  const cachedGames = getCached<ApiGame[]>(SCORES_CACHE_KEY, SCORES_TTL_MS);
-  const [games, setGames] = useState<ApiGame[]>(cachedGames || []);
+  const [games, setGames] = useState<ApiGame[]>([]);
   const [baserunnerStates, setBaserunnerStates] = useState<Record<string, BaserunnerState>>({});
-  const [loading, setLoading] = useState(cachedGames ? false : true);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (status === "unauthenticated") {

@@ -4,6 +4,10 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { BottomNavigation } from "@/app/components/BottomNavigation";
+import { getCached, setCached } from "@/lib/client-cache";
+
+const LEAGUES_CACHE_KEY = "leagues-list";
+const LEAGUES_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 interface League {
   id: string;
@@ -263,8 +267,11 @@ const LeagueCard = ({
 export default function LeagueTabPage() {
   const { status } = useSession();
   const router = useRouter();
-  const [leagues, setLeagues] = useState<League[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  // Initialize from cache if available
+  const cachedLeagues = getCached<League[]>(LEAGUES_CACHE_KEY, LEAGUES_TTL_MS);
+  const [leagues, setLeagues] = useState<League[]>(cachedLeagues || []);
+  const [loading, setLoading] = useState(!cachedLeagues);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -284,6 +291,7 @@ export default function LeagueTabPage() {
       if (res.ok) {
         const data = await res.json();
         setLeagues(data);
+        setCached(LEAGUES_CACHE_KEY, data);
       }
     } catch (error) {
       console.error("Failed to fetch leagues:", error);

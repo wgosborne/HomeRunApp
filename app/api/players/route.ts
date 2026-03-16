@@ -12,9 +12,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Support pagination for progressive loading
+    // Support pagination - no hard limit for prefetching all players
     const searchParams = request.nextUrl.searchParams;
-    const limit = Math.min(parseInt(searchParams.get("limit") || "500"), 500);
+    const limit = parseInt(searchParams.get("limit") || "5000");
     const offset = parseInt(searchParams.get("offset") || "0");
 
     // Fetch MLB players by homeruns with pagination

@@ -25,16 +25,16 @@ export function BottomNavigation() {
       })
       .catch(() => {});
 
-    // Prefetch League data
+    // Prefetch Leagues list
     fetch("/api/leagues")
       .then((res) => res.ok && res.json())
       .then((data) => {
-        if (data) setCached("leagues", data);
+        if (data) setCached("leagues-list", data);
       })
       .catch(() => {});
 
-    // Prefetch HR Leaders (first 100 players)
-    fetch("/api/players?limit=100")
+    // Prefetch HR Leaders (all players)
+    fetch("/api/players?limit=5000")
       .then((res) => res.ok && res.json())
       .then((data) => {
         if (data) {
