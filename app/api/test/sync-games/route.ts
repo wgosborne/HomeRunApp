@@ -4,6 +4,16 @@ import { createLogger } from "@/lib/logger";
 
 const logger = createLogger("test-sync-games");
 
+/**
+ * Guard: Block in production
+ */
+function checkProduction() {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+  return null;
+}
+
 interface MLBScheduleResponse {
   dates: Array<{
     games: Array<{
@@ -55,6 +65,9 @@ const TEAM_ABBREV_MAP: Record<number, string> = {
  * Pass ?days=N to sync last N days of games
  */
 export async function GET(request: Request) {
+  const guardResponse = checkProduction();
+  if (guardResponse) return guardResponse;
+
   try {
     const { searchParams } = new URL(request.url);
     const daysBack = parseInt(searchParams.get("days") || "0", 10);

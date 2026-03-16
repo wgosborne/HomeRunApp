@@ -18,6 +18,20 @@ async function handleDraftTimeout() {
   console.log(`[CRON-DRAFT-TIMEOUT] Starting at ${new Date(cronStartTime).toISOString()}`);
 
   try {
+    // Early exit: if no active drafts, skip immediately
+    const activeLeagueCount = await prisma.league.count({
+      where: { draftStatus: "active" },
+    });
+
+    if (activeLeagueCount === 0) {
+      logger.info("No active drafts, skipping");
+      console.log(`[CRON-DRAFT-TIMEOUT] No active drafts found, exiting early`);
+      return NextResponse.json({
+        message: "no active drafts",
+        processed: 0,
+        leagues: 0,
+      }, { status: 200 });
+    }
     const timeoutThreshold = new Date(cronStartTime - PICK_TIMEOUT_SECONDS * 1000);
     console.log(`[CRON-DRAFT-TIMEOUT] Checking for picks started before ${timeoutThreshold.toISOString()} (${PICK_TIMEOUT_SECONDS}s ago)`);
 

@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { pusherServer } from "@/lib/pusher-server";
 import { handleError, ConflictError, AuthorizationError, NotFoundError } from "@/lib/errors";
 import { createLogger } from "@/lib/logger";
-import { sendPushToUser } from "@/lib/push-service";
+import { sendPushToLeague } from "@/lib/push-service";
 
 const logger = createLogger("api-trade-accept");
 
@@ -206,11 +206,11 @@ export async function POST(
       timestamp: Date.now(),
     });
 
-    // Send push notification to owner
+    // Send push notification to all league members
     try {
-      await sendPushToUser(trade.ownerId, trade.leagueId, {
+      await sendPushToLeague(leagueId, {
         title: "Trade accepted!",
-        body: `${trade.receiver.name} accepted your trade. You now own ${trade.ownerPlayerName}.`,
+        body: `${trade.receiver.name} and ${trade.owner.name} completed a trade: ${trade.receiverPlayerName} for ${trade.ownerPlayerName}.`,
         icon: "/icon-192x192.png",
         badge: "/badge-72x72.png",
         tag: "trade-accepted",
@@ -224,7 +224,6 @@ export async function POST(
     } catch (pushError) {
       logger.error("Error sending trade acceptance push notification", {
         leagueId: trade.leagueId,
-        ownerId: trade.ownerId,
         error: pushError,
       });
     }

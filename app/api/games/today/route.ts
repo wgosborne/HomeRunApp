@@ -5,12 +5,16 @@ import { handleError, AuthenticationError } from "@/lib/errors";
 import { createLogger } from "@/lib/logger";
 import { getPlayerTeamMap } from "@/lib/mlb-stats";
 
+export const dynamic = 'force-dynamic';
+
 const logger = createLogger("games.today");
 
 export interface ApiGame {
   id: string;
   homeTeam: string;
   awayTeam: string;
+  homeTeamLogo: string;
+  awayTeamLogo: string;
   homeScore: number;
   awayScore: number;
   status: string;
@@ -55,21 +59,7 @@ export async function GET() {
       today,
       utcNow: new Date().toISOString() });
 
-    // Helper to get yesterday/tomorrow dates
-    const getDateOffset = (days: number): string => {
-      const d = new Date();
-      d.setDate(d.getDate() + days);
-      return d.toLocaleDateString("en-CA", {
-        timeZone: "America/New_York",
-      });
-    };
-
-    const yesterday = getDateOffset(-1);
-    const tomorrow = getDateOffset(1);
-
-    // Query priority: Live (today) > Final (today) > Preview (today) > Final (yesterday) > Preview (tomorrow)
-    // Goal: Return exactly 9 games total
-
+    // Query all games for today: Live > Upcoming (by startTime) > Final
     // 1. Get all Live games from today
     const liveGames = await prisma.game.findMany({
       where: {
@@ -81,70 +71,29 @@ export async function GET() {
       },
     });
 
-    let allGames = [...liveGames];
-    const remaining = 9 - allGames.length;
+    // 2. Get all Preview games from today (soonest first)
+    const previewGames = await prisma.game.findMany({
+      where: {
+        officialDate: today,
+        status: "Preview",
+      },
+      orderBy: {
+        gameDate: "asc",
+      },
+    });
 
-    // 2. Get Final games from today (most recent first)
-    if (remaining > 0) {
-      const finalToday = await prisma.game.findMany({
-        where: {
-          officialDate: today,
-          status: "Final",
-        },
-        orderBy: {
-          gameDate: "desc",
-        },
-        take: remaining,
-      });
-      allGames.push(...finalToday);
-    }
+    // 3. Get all Final games from today (most recent first)
+    const finalGames = await prisma.game.findMany({
+      where: {
+        officialDate: today,
+        status: "Final",
+      },
+      orderBy: {
+        gameDate: "desc",
+      },
+    });
 
-    // 3. Get Preview games from today (soonest first)
-    if (allGames.length < 9) {
-      const previewToday = await prisma.game.findMany({
-        where: {
-          officialDate: today,
-          status: "Preview",
-        },
-        orderBy: {
-          gameDate: "asc",
-        },
-        take: 9 - allGames.length,
-      });
-      allGames.push(...previewToday);
-    }
-
-    // 4. If still need more games, get Finals from yesterday
-    if (allGames.length < 9) {
-      const finalYesterday = await prisma.game.findMany({
-        where: {
-          officialDate: yesterday,
-          status: "Final",
-        },
-        orderBy: {
-          gameDate: "desc",
-        },
-        take: 9 - allGames.length,
-      });
-      allGames.push(...finalYesterday);
-    }
-
-    // 5. If still need more games, get Previews from tomorrow
-    if (allGames.length < 9) {
-      const previewTomorrow = await prisma.game.findMany({
-        where: {
-          officialDate: tomorrow,
-          status: "Preview",
-        },
-        orderBy: {
-          gameDate: "asc",
-        },
-        take: 9 - allGames.length,
-      });
-      allGames.push(...previewTomorrow);
-    }
-
-    const games = allGames;
+    const games = [...liveGames, ...previewGames, ...finalGames];
 
     if (games.length === 0) {
       logger.info("No games found");
@@ -166,7 +115,16 @@ export async function GET() {
     // Get player team map (uses cached MLB leaders)
     const playerTeamMap = await getPlayerTeamMap();
 
-    // Build response with userPlayerCount for each game
+    // Fetch all teams and create logo map
+    const teams = await prisma.team.findMany({
+      select: {
+        abbreviation: true,
+        logo: true,
+      },
+    });
+    const logoMap = new Map(teams.map((t) => [t.abbreviation, t.logo]));
+
+    // Build response with userPlayerCount and logos for each game
     const response: ApiGame[] = games.map((game) => {
       // Count how many of user's players are in this game
       let userPlayerCount = 0;
@@ -181,6 +139,8 @@ export async function GET() {
         id: game.id,
         homeTeam: game.homeTeam,
         awayTeam: game.awayTeam,
+        homeTeamLogo: logoMap.get(game.homeTeam) || "",
+        awayTeamLogo: logoMap.get(game.awayTeam) || "",
         homeScore: game.homeScore,
         awayScore: game.awayScore,
         status: game.status,

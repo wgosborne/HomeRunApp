@@ -8,64 +8,13 @@ const logger = createLogger("cron-sync-live-games");
 const SEASON_START = new Date("2026-02-20");
 const SEASON_END = new Date("2026-09-28"); // Up to but not including this date
 
-// Map team IDs to MLB abbreviations (includes WBC teams for spring training)
-const TEAM_ABBREV_MAP: Record<number, string> = {
-  // MLB Teams
-  108: "LAA", // Los Angeles Angels
-  109: "ARI", // Arizona Diamondbacks
-  110: "BAL", // Baltimore Orioles
-  111: "BOS", // Boston Red Sox
-  112: "CHC", // Chicago Cubs
-  113: "CIN", // Cincinnati Reds
-  114: "CLE", // Cleveland Guardians
-  115: "COL", // Colorado Rockies
-  116: "DET", // Detroit Tigers
-  117: "HOU", // Houston Astros
-  118: "KC",  // Kansas City Royals
-  119: "LAD", // Los Angeles Dodgers
-  120: "WSH", // Washington Nationals
-  121: "NYM", // New York Mets
-  133: "OAK", // Oakland Athletics
-  134: "PIT", // Pittsburgh Pirates
-  135: "SD",  // San Diego Padres
-  136: "SEA", // Seattle Mariners
-  137: "SF",  // San Francisco Giants
-  138: "STL", // St. Louis Cardinals
-  139: "TB",  // Tampa Bay Rays
-  140: "TEX", // Texas Rangers
-  141: "TOR", // Toronto Blue Jays
-  142: "MIN", // Minnesota Twins
-  143: "PHI", // Philadelphia Phillies
-  144: "ATL", // Atlanta Braves
-  145: "CWS", // Chicago White Sox
-  146: "MIA", // Miami Marlins
-  147: "NYY", // New York Yankees
-  158: "MIL", // Milwaukee Brewers
-  // World Baseball Classic Teams (Spring Training)
-  776: "BRA", // Brazil
-  784: "CAN", // Canada
-  792: "COL", // Colombia
-  798: "CUB", // Cuba
-  805: "DOM", // Dominican Republic
-  821: "GBR", // Great Britain
-  840: "ISR", // Israel
-  841: "ITA", // Italy
-  867: "MEX", // Mexico
-  878: "NED", // Netherlands
-  881: "NIC", // Nicaragua
-  890: "PAN", // Panama
-  897: "PUR", // Puerto Rico
-  940: "USA", // United States
-  944: "VEN", // Venezuela
-};
-
 interface MLBScheduleResponse {
   dates: Array<{
     games: Array<{
       gamePk: number;
       gameType: string;
       status: {
-        abstractGameState: "Preview" | "Live" | "Final";
+        abstractGameState: "Pre-Game" | "In Progress" | "Final";
       };
       gameDate: string;
       teams: {
@@ -100,7 +49,7 @@ interface MLBScheduleResponse {
  * Map game status from abstract game state
  */
 function mapStatus(abstractGameState: string): string {
-  if (abstractGameState === "Live") return "Live";
+  if (abstractGameState === "In Progress") return "Live";
   if (abstractGameState === "Final") return "Final";
   return "Preview";
 }
@@ -112,6 +61,18 @@ function mapStatus(abstractGameState: string): string {
 async function handleGameSync() {
   try {
     const now = new Date();
+
+    // Early exit: if outside 11am to 1am ET game window, skip immediately
+    const easternTime = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
+    const easternHour = easternTime.getHours();
+    if (easternHour >= 1 && easternHour < 11) {
+      logger.info("Outside game window, skipping", { hour: easternHour });
+      console.log(`[CRON-SYNC-GAMES] Outside game window (hour ${easternHour}), exiting early`);
+      return NextResponse.json({
+        message: "outside game window",
+        synced: 0,
+      }, { status: 200 });
+    }
 
     // Season gate: return early if outside 2026-02-20 to 2026-09-27
     if (now < SEASON_START || now >= SEASON_END) {
@@ -173,13 +134,9 @@ async function handleGameSync() {
     for (const dateGroup of data.dates || []) {
       for (const game of dateGroup.games || []) {
         try {
-          // Get team abbreviation from map, or use team ID as fallback
-          const homeTeamAbbrev =
-            TEAM_ABBREV_MAP[game.teams.home.team.id] ||
-            `T${game.teams.home.team.id}`;
-          const awayTeamAbbrev =
-            TEAM_ABBREV_MAP[game.teams.away.team.id] ||
-            `T${game.teams.away.team.id}`;
+          // Use full team names from MLB API (e.g., "Chicago White Sox") for consistency
+          const homeTeamName = game.teams.home.team.name || "Unknown";
+          const awayTeamName = game.teams.away.team.name || "Unknown";
 
           const homeTeamId = game.teams.home.team.id;
           const awayTeamId = game.teams.away.team.id;
@@ -198,12 +155,8 @@ async function handleGameSync() {
           // Status mapping
           const status = mapStatus(game.status.abstractGameState);
 
-          // Format startTime as "H:MM AM/PM" local time
-          const startTime = gameDate.toLocaleString("en-US", {
-            hour: "numeric",
-            minute: "2-digit",
-            hour12: true,
-          });
+          // Store startTime as ISO string for frontend parsing
+          const startTime = gameDate.toISOString();
 
           // BUG FIX #3: Use officialDate from API (Eastern time date for schedule queries)
           // Format must be YYYY-MM-DD to match games/today query filter
@@ -225,11 +178,12 @@ async function handleGameSync() {
               inningHalf,
               officialDate,
               gameType: game.gameType,
+              startTime,
             },
             create: {
               id: game.gamePk.toString(),
-              homeTeam: homeTeamAbbrev,
-              awayTeam: awayTeamAbbrev,
+              homeTeam: homeTeamName,
+              awayTeam: awayTeamName,
               homeTeamId,
               awayTeamId,
               homeScore,

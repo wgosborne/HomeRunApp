@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useRouter, useParams } from "next/navigation";
@@ -8,6 +8,7 @@ import { pusherClient } from "@/lib/pusher-client";
 import { NotificationBell } from "@/app/components/NotificationBell";
 import { TabNavigation, type TabItem } from "@/app/components/TabNavigation";
 import { PlayerAvatar } from "@/app/components/PlayerAvatar";
+import { LoadingScreen } from "@/app/components/LoadingScreen";
 import { TradesTab } from "./components/TradesTab";
 
 interface League {
@@ -143,7 +144,8 @@ function LeaderboardTab({
     );
   }, [standings, todayHomersPerUser]);
 
-  if (loading) {
+  // Only show loading if we have no data at all
+  if (loading && standings.length === 0) {
     return (
       <div
         className="py-8 text-center"
@@ -530,23 +532,28 @@ function MyTeamTab({
   loading,
   standings,
   leagueId,
+  userId,
 }: {
   roster: RosterEntry[];
   loading: boolean;
   standings: StandingsEntry[];
   leagueId: string;
+  userId?: string;
 }) {
   const [totalHomeruns, setTotalHomeruns] = useState(0);
   const [userRank, setUserRank] = useState(0);
 
   useEffect(() => {
     setTotalHomeruns(roster.reduce((sum, p) => sum + p.homeruns, 0));
-    if (standings.length > 0) {
-      setUserRank(standings[0]?.rank || 0);
+    if (standings.length > 0 && userId) {
+      // Find the current user's rank in the standings
+      const userEntry = standings.find((entry) => entry.userId === userId);
+      setUserRank(userEntry?.rank || 0);
     }
-  }, [roster, standings]);
+  }, [roster, standings, userId]);
 
-  if (loading) {
+  // Only show loading if we have no roster data at all
+  if (loading && roster.length === 0) {
     return (
       <div
         className="py-8 text-center"
@@ -888,7 +895,8 @@ function PlayersTab({
   const [expandedTeamId, setExpandedTeamId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
-  if (loading) {
+  // Only show loading if we have no standings data at all
+  if (loading && standings.length === 0) {
     return (
       <div
         className="py-8 text-center"
@@ -1703,11 +1711,11 @@ function SettingsTab({
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [draftDate, setDraftDate] = useState(
+  const [draftDateTime, setDraftDateTime] = useState(
     league.draftDate
-      ? new Date(league.draftDate).toISOString().slice(0, 10)
+      ? new Date(league.draftDate).toISOString().slice(0, 16)
       : "",
-  ); // YYYY-MM-DD format for date input
+  ); // YYYY-MM-DDTHH:mm format for datetime input
   const [savingDraftDate, setSavingDraftDate] = useState(false);
   const [draftDateError, setDraftDateError] = useState<string | null>(null);
 
@@ -1737,8 +1745,8 @@ function SettingsTab({
 
     try {
       const payload: any = {};
-      if (draftDate) {
-        payload.draftDate = new Date(draftDate).toISOString();
+      if (draftDateTime) {
+        payload.draftDate = new Date(draftDateTime).toISOString();
       } else {
         payload.draftDate = null;
       }
@@ -1822,7 +1830,7 @@ function SettingsTab({
         throw new Error(data.error || "Failed to delete league");
       }
 
-      router.push("/dashboard");
+      router.push("/league-tab");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete league");
     } finally {
@@ -1851,7 +1859,7 @@ function SettingsTab({
         throw new Error(data.error || "Failed to leave league");
       }
 
-      router.push("/dashboard");
+      router.push("/league-tab");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to leave league");
     } finally {
@@ -2055,7 +2063,7 @@ function SettingsTab({
                 marginBottom: "16px",
               }}
             >
-              Draft Date
+              Draft Date & Time
             </h3>
             <div style={{ marginBottom: "16px", minWidth: 0 }}>
               <label
@@ -2070,12 +2078,12 @@ function SettingsTab({
                   marginBottom: "8px",
                 }}
               >
-                Scheduled Draft Date (Optional)
+                Scheduled Draft Date & Time (Optional)
               </label>
               <input
-                type="date"
-                value={draftDate}
-                onChange={(e) => setDraftDate(e.target.value)}
+                type="datetime-local"
+                value={draftDateTime}
+                onChange={(e) => setDraftDateTime(e.target.value)}
                 style={{
                   width: "100%",
                   padding: "12px 16px",
@@ -2110,7 +2118,7 @@ function SettingsTab({
                   marginBottom: "0",
                 }}
               >
-                This date is for reference only. The draft will{" "}
+                This date and time are for reference only. The draft will{" "}
                 <strong>not</strong> automatically start at this time. You'll
                 need to manually click "Start Draft" in the Draft tab whenever
                 you're ready. Members will receive a notification when you start
@@ -2358,44 +2366,7 @@ export default function LeagueHomePage() {
 
   // Show loading if leagueId isn't available yet (iOS Safari timing issue)
   if (!leagueId) {
-    return (
-      <main
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundImage: "url(/design-inspiration/CubsFireworkField.jpg)",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundAttachment: "fixed",
-          position: "relative",
-        }}
-        className="noise-texture"
-      >
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: "rgba(15, 25, 35, 0.75)",
-            backdropFilter: "blur(2px)",
-            pointerEvents: "none",
-          }}
-        />
-        <p
-          style={{
-            color: "rgba(255,255,255,0.8)",
-            position: "relative",
-            zIndex: 1,
-          }}
-        >
-          Loading...
-        </p>
-      </main>
-    );
+    return <LoadingScreen />;
   }
 
   const [league, setLeague] = useState<League | null>(null);
@@ -2410,7 +2381,7 @@ export default function LeagueHomePage() {
   const [modalTeamName, setModalTeamName] = useState("");
   const [savingModalTeamName, setSavingModalTeamName] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
-  const [teamNameModalShown, setTeamNameModalShown] = useState(false);
+  const teamNameModalShownRef = useRef(false);
 
   // Reset state when leagueId changes
   useEffect(() => {
@@ -2420,7 +2391,7 @@ export default function LeagueHomePage() {
     setLoading(true);
     setActiveTab("leaderboard");
     setShowTeamNameModal(false);
-    setTeamNameModalShown(false);
+    teamNameModalShownRef.current = false; // Reset ref for new league
   }, [leagueId]);
 
   useEffect(() => {
@@ -2456,41 +2427,64 @@ export default function LeagueHomePage() {
     }
   }, [status, leagueId, session?.user?.id]);
 
+  // Fetch all data (standings + roster) on mount - enables instant tab switching
   useEffect(() => {
-    if (activeTab === "leaderboard") {
-      try {
-        fetchStandings();
-        const interval = setInterval(() => {
-          try {
-            fetchStandings();
-          } catch (error) {
-            console.error("Error in periodic fetchStandings:", error);
-          }
-        }, 20000);
-        return () => clearInterval(interval);
-      } catch (error) {
-        console.error("Error initializing standings:", error);
-      }
-    }
-  }, [activeTab, leagueId]);
+    if (status === "authenticated" && leagueId) {
+      const timer = setTimeout(() => {
+        // Fetch both standings and roster in parallel on mount
+        Promise.all([
+          (async () => {
+            try {
+              await fetchStandings();
+            } catch (error) {
+              console.error("Error fetching standings:", error);
+            }
+          })(),
+          (async () => {
+            try {
+              await fetchRoster();
+            } catch (error) {
+              console.error("Error fetching roster:", error);
+            }
+          })(),
+        ]).then(() => {
+          setLoading(false);
+        });
+      }, 100);
 
-  useEffect(() => {
-    if (activeTab === "myteam" || activeTab === "players") {
-      try {
-        fetchRoster();
-        const interval = setInterval(() => {
-          try {
-            fetchRoster();
-          } catch (error) {
-            console.error("Error in periodic fetchRoster:", error);
-          }
-        }, 20000);
-        return () => clearInterval(interval);
-      } catch (error) {
-        console.error("Error initializing roster:", error);
-      }
+      // Periodic refresh (standings and roster both)
+      const interval = setInterval(() => {
+        Promise.all([
+          (async () => {
+            try {
+              await fetchStandings();
+            } catch (error) {
+              console.error("Error in periodic fetchStandings:", error);
+            }
+          })(),
+          (async () => {
+            try {
+              await fetchRoster();
+            } catch (error) {
+              console.error("Error in periodic fetchRoster:", error);
+            }
+          })(),
+        ]);
+      }, 20000);
+
+      return () => {
+        clearTimeout(timer);
+        clearInterval(interval);
+      };
     }
-  }, [activeTab, leagueId]);
+  }, [status, leagueId]);
+
+  // Redirect from draft tab if draft is complete
+  useEffect(() => {
+    if (activeTab === "draft" && league && league.draftStatus === "complete") {
+      setActiveTab("leaderboard");
+    }
+  }, [league?.draftStatus, activeTab]);
 
   useEffect(() => {
     // Delay Pusher subscription to avoid blocking initial render on mobile
@@ -2524,11 +2518,15 @@ export default function LeagueHomePage() {
         const channel = pusherClient.subscribe(`league-${leagueId}`);
 
         const handleHomerun = () => {
-          if (activeTab === "leaderboard") {
-            fetchStandings();
-          } else if (activeTab === "myteam" || activeTab === "players") {
-            fetchRoster();
-          }
+          // Refresh both standings and roster on any homerun
+          Promise.all([
+            fetchStandings().catch((error) =>
+              console.error("Error refreshing standings:", error)
+            ),
+            fetchRoster().catch((error) =>
+              console.error("Error refreshing roster:", error)
+            ),
+          ]);
         };
 
         channel.bind("homerun", handleHomerun);
@@ -2542,7 +2540,7 @@ export default function LeagueHomePage() {
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [leagueId, activeTab]);
+  }, [leagueId]);
 
   const fetchLeague = async () => {
     try {
@@ -2562,7 +2560,7 @@ export default function LeagueHomePage() {
           (m: any) => m.userId === session?.user?.id,
         );
         if (
-          !teamNameModalShown &&
+          !teamNameModalShownRef.current &&
           !isCommissioner &&
           userMembership &&
           userMembership.teamName &&
@@ -2580,7 +2578,7 @@ export default function LeagueHomePage() {
               if (secondsAgo < 60) {
                 setModalTeamName(userMembership.teamName);
                 setShowTeamNameModal(true);
-                setTeamNameModalShown(true);
+                teamNameModalShownRef.current = true; // Immediately mark as shown
               }
             }
           } catch (error) {
@@ -2588,11 +2586,11 @@ export default function LeagueHomePage() {
           }
         }
       } else if (res.status === 404 || res.status === 403) {
-        // League not found or no access - redirect to dashboard
+        // League not found or no access - redirect to scores
         console.warn(
-          `League ${leagueId} not found (${res.status}), redirecting to dashboard`,
+          `League ${leagueId} not found (${res.status}), redirecting to scores`,
         );
-        setTimeout(() => router.push("/dashboard"), 500);
+        setTimeout(() => router.push("/scores"), 500);
       } else {
         console.error(`Failed to fetch league: ${res.status}`);
       }
@@ -2644,7 +2642,7 @@ export default function LeagueHomePage() {
           position: "relative",
         }}
       >
-        <p style={{ color: "rgba(255,255,255,0.8)" }}>Loading...</p>
+        <p style={{ fontSize: "15px", color: "rgba(255,255,255,0.8)", fontFamily: "'DM Sans', sans-serif" }}>Loading...</p>
       </main>
     );
   }
@@ -2690,6 +2688,8 @@ export default function LeagueHomePage() {
 
       // Close modal and refresh league data (don't reload page)
       setShowTeamNameModal(false);
+      // Mark modal as shown so it doesn't appear again in this session
+      teamNameModalShownRef.current = true;
       // Force refresh of league data to show updated team name
       await fetchLeague();
     } catch (err) {
@@ -2713,7 +2713,7 @@ export default function LeagueHomePage() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
         {/* Back Button */}
         <button
-          onClick={() => router.push("/dashboard")}
+          onClick={() => router.back()}
           className="mb-6 flex items-center transition min-h-[44px]"
           style={{
             color: "rgba(255,255,255,0.45)",
@@ -2835,7 +2835,9 @@ export default function LeagueHomePage() {
             [
               { id: "leaderboard", label: "Leaderboard" },
               { id: "myteam", label: "My Team" },
-              { id: "draft", label: "Draft" },
+              ...(league.draftStatus === "pending" || league.draftStatus === "active"
+                ? [{ id: "draft", label: "Draft" }]
+                : []),
               { id: "trades", label: "Trades" },
               { id: "players", label: "Players" },
               { id: "settings", label: "Settings" },
@@ -2860,6 +2862,7 @@ export default function LeagueHomePage() {
               loading={loading}
               standings={standings}
               leagueId={leagueId}
+              userId={session?.user?.id}
             />
           )}
           {activeTab === "draft" && (
@@ -2874,6 +2877,7 @@ export default function LeagueHomePage() {
             <TradesTab
               leagueId={leagueId}
               isSeasonEnded={!!league.seasonEndedAt}
+              isCommissioner={isCommissioner}
             />
           )}
           {activeTab === "players" && (
@@ -3002,7 +3006,10 @@ export default function LeagueHomePage() {
 
             <div style={{ display: "flex", gap: "12px" }}>
               <button
-                onClick={() => setShowTeamNameModal(false)}
+                onClick={() => {
+                  setShowTeamNameModal(false);
+                  teamNameModalShownRef.current = true;
+                }}
                 disabled={savingModalTeamName}
                 style={{
                   flex: 1,

@@ -5,6 +5,8 @@ import { createLeagueSchema } from "@/lib/validation";
 import { handleError, ValidationError } from "@/lib/errors";
 import { createLogger } from "@/lib/logger";
 
+export const dynamic = 'force-dynamic';
+
 const logger = createLogger("leagues");
 
 // GET /api/leagues - List all user's leagues

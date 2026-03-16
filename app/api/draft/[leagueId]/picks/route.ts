@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { handleError, AuthenticationError, AuthorizationError } from "@/lib/errors";
 import { createLogger } from "@/lib/logger";
 
+export const dynamic = 'force-dynamic';
+
 const logger = createLogger("draft-picks");
 
 export interface DraftPickEntry {

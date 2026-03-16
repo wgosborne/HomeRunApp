@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { PlayerAvatar } from "@/app/components/PlayerAvatar";
+import { LoadingScreen } from "@/app/components/LoadingScreen";
 
 interface HomerunEvent {
   playerName: string;
@@ -12,7 +13,6 @@ interface HomerunEvent {
   gameDate: string;
   inning: number;
   rbi: number;
-  leagueName: string;
   homeTeam: string | null;
   awayTeam: string | null;
   opponent: string | null;
@@ -126,36 +126,7 @@ export default function PlayerDetailPage() {
   }, [mlbId, leagueId, status, router]);
 
   if (status === "loading" || loading) {
-    return (
-      <div
-        style={{
-          minHeight: "100vh",
-          backgroundImage: 'url(/design-inspiration/CubsFireworkField.jpg)',
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundAttachment: "fixed",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          position: "relative",
-        }}
-      >
-        {/* Semi-opaque overlay */}
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: "rgba(15, 25, 35, 0.75)",
-            backdropFilter: "blur(2px)",
-            pointerEvents: "none",
-          }}
-        />
-        <div style={{ color: "rgba(255,255,255,0.8)", position: "relative", zIndex: 1 }}>Loading...</div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   if (error || !player) {
@@ -306,7 +277,7 @@ export default function PlayerDetailPage() {
                 letterSpacing: "1px",
               }}
             >
-              {player.streakStatus === "hot" ? "🔥 Hot" : "❄️ Cold"}
+              {player.streakStatus === "hot" ? "Hot" : "Cold"}
             </div>
           )}
 
@@ -871,7 +842,7 @@ export default function PlayerDetailPage() {
                         borderRadius: "4px",
                       }}
                     >
-                      {hr.isHomeGame ? "🏠 Home" : "✈️ Away"}
+                      {hr.isHomeGame ? "Home" : "Away"}
                     </div>
                   </div>
 
@@ -887,45 +858,25 @@ export default function PlayerDetailPage() {
                     vs {hr.opponent || "Unknown"}
                   </div>
 
-                  {/* Inning and RBI and League */}
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    }}
-                  >
-                    <div style={{ display: "flex", gap: "12px" }}>
-                      <div
-                        style={{
-                          fontFamily: "'DM Sans', sans-serif",
-                          fontSize: "11px",
-                          color: "rgba(255,255,255,0.4)",
-                        }}
-                      >
-                        Inning {hr.inning}
-                      </div>
-                      <div
-                        style={{
-                          fontFamily: "'DM Sans', sans-serif",
-                          fontSize: "11px",
-                          color: "rgba(255,255,255,0.4)",
-                        }}
-                      >
-                        {hr.rbi} RBI{hr.rbi !== 1 ? "s" : ""}
-                      </div>
+                  {/* Inning and RBI */}
+                  <div style={{ display: "flex", gap: "12px" }}>
+                    <div
+                      style={{
+                        fontFamily: "'DM Sans', sans-serif",
+                        fontSize: "11px",
+                        color: "rgba(255,255,255,0.4)",
+                      }}
+                    >
+                      Inning {hr.inning}
                     </div>
                     <div
                       style={{
                         fontFamily: "'DM Sans', sans-serif",
-                        fontSize: "10px",
-                        color: "#CC3433",
-                        textTransform: "uppercase",
-                        letterSpacing: "1px",
-                        fontWeight: 600,
+                        fontSize: "11px",
+                        color: "rgba(255,255,255,0.4)",
                       }}
                     >
-                      {hr.leagueName}
+                      {hr.rbi} RBI{hr.rbi !== 1 ? "s" : ""}
                     </div>
                   </div>
                 </div>

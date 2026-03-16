@@ -6,6 +6,11 @@ import { prisma } from "@/lib/prisma";
  * Check system status and spring training wiring
  */
 export async function GET() {
+  // Guard: Block in production
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+
   try {
     const enableSpringTraining = process.env.NEXT_PUBLIC_ENABLE_SPRING_TRAINING === "true";
 

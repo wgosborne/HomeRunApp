@@ -13,6 +13,19 @@ const logger = createLogger("cron-homerun-poll");
  */
 async function handleHomerungPoll() {
   try {
+    // Early exit: if outside 11am to 1am ET game window, skip immediately
+    const now = new Date();
+    const easternTime = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
+    const easternHour = easternTime.getHours();
+    if (easternHour >= 1 && easternHour < 11) {
+      logger.info("Outside game window, skipping", { hour: easternHour });
+      console.log(`[CRON-HOMERUN-POLL] Outside game window (hour ${easternHour}), exiting early`);
+      return NextResponse.json({
+        message: "outside game window",
+        processed: 0,
+        skipped: 0,
+      }, { status: 200 });
+    }
 
     let processedCount = 0;
     let skippedCount = 0;
@@ -37,6 +50,13 @@ async function handleHomerungPoll() {
               skippedCount++;
               continue;
             }
+
+            // Look up player team from database (source of truth)
+            const playerRecord = await prisma.player.findUnique({
+              where: { mlbId: homerun.mlbId },
+              select: { teamName: true }
+            });
+            const teamDisplay = playerRecord?.teamName || homerun.team || "Unknown";
 
             // Find all leagues where this player appears in roster
             const rosterSpots = await prisma.rosterSpot.findMany({
@@ -97,7 +117,7 @@ async function handleHomerungPoll() {
                   playerName: homerun.playerName,
                   homeruns: updatedSpot.homeruns,
                   inning: homerun.inning,
-                  team: homerun.team,
+                  team: teamDisplay,
                   gameId: homerun.gameId,
                   timestamp: Date.now(),
                 });
@@ -106,7 +126,7 @@ async function handleHomerungPoll() {
                 try {
                   await sendPushToUser(spot.userId, spot.leagueId, {
                     title: `${homerun.playerName} hit a homerun!`,
-                    body: `${homerun.playerName} (${homerun.team}) hit a homerun in the ${homerun.inning}${getOrdinalSuffix(homerun.inning)} inning. You now have ${updatedSpot.homeruns} homerun${updatedSpot.homeruns === 1 ? '' : 's'}.`,
+                    body: `${homerun.playerName} (${teamDisplay}) hit a homerun in the ${homerun.inning}${getOrdinalSuffix(homerun.inning)} inning. You now have ${updatedSpot.homeruns} homerun${updatedSpot.homeruns === 1 ? '' : 's'}.`,
                     icon: '/icon-192x192.png',
                     badge: '/badge-72x72.png',
                     tag: 'homerun-alert',
@@ -115,7 +135,7 @@ async function handleHomerungPoll() {
                     eventType: 'homerun',
                     data: {
                       inning: homerun.inning,
-                      team: homerun.team,
+                      team: teamDisplay,
                       totalHomeruns: updatedSpot.homeruns,
                     },
                   });

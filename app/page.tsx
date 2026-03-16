@@ -10,7 +10,7 @@ export default function HomePage() {
 
   useEffect(() => {
     if (status === "authenticated") {
-      router.push("/dashboard");
+      router.push("/scores");
     } else if (status === "unauthenticated") {
       router.push("/auth/signin");
     }
@@ -60,7 +60,7 @@ export default function HomePage() {
           style={{
             fontFamily: "'DM Sans', sans-serif",
             fontSize: "15px",
-            color: "rgba(255,255,255,0.75)",
+            color: "rgba(255,255,255,0.8)",
           }}
         >
           Loading...

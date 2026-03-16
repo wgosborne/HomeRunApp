@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { handleError, AuthenticationError, AuthorizationError } from "@/lib/errors";
 import { createLogger } from "@/lib/logger";
 
+export const dynamic = 'force-dynamic';
+
 const logger = createLogger("leagues.[leagueId].standings");
 
 export interface StandingsEntry {
@@ -73,8 +75,19 @@ export async function GET(
           },
         },
       },
-      orderBy: { homeruns: "desc" },
     });
+
+    // Fetch player homerun data for all unique mlbIds in the roster
+    const mlbIds = Array.from(new Set(rosterSpots.map(s => s.mlbId).filter((id): id is number => id !== null)));
+    const playerHRMap = new Map<number, number>();
+
+    if (mlbIds.length > 0) {
+      const players = await prisma.player.findMany({
+        where: { mlbId: { in: mlbIds } },
+        select: { mlbId: true, homeruns: true },
+      });
+      players.forEach(p => playerHRMap.set(p.mlbId, p.homeruns));
+    }
 
     // Fetch team names for all users in the league
     const memberships = await prisma.leagueMembership.findMany({
@@ -122,7 +135,9 @@ export async function GET(
       }
 
       const stats = userStats.get(userId)!;
-      stats.totalHomeruns += spot.homeruns;
+      // Use Player.homeruns (source of truth from MLB API) if available, otherwise fall back to RosterSpot.homeruns
+      const playerHomeruns = (spot.mlbId && playerHRMap.has(spot.mlbId)) ? playerHRMap.get(spot.mlbId)! : spot.homeruns;
+      stats.totalHomeruns += playerHomeruns;
       stats.totalPoints += spot.points;
       stats.players.push({
         playerId: spot.playerId,
@@ -130,7 +145,7 @@ export async function GET(
         position: spot.position,
         mlbId: spot.mlbId,
         mlbTeam: spot.mlbTeam,
-        homeruns: spot.homeruns,
+        homeruns: playerHomeruns,
         points: spot.points,
       });
     }

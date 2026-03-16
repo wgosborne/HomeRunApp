@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { LoadingScreen } from "@/app/components/LoadingScreen";
 
 const shadowStack = `
   0 2px 0 rgba(255,255,255,0.05) inset,
@@ -18,7 +19,7 @@ export default function CreateLeaguePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [leagueName, setLeagueName] = useState("");
-  const [draftDate, setDraftDate] = useState(""); // YYYY-MM-DD format for date input
+  const [draftDateTime, setDraftDateTime] = useState(""); // YYYY-MM-DDTHH:mm format for datetime input
   const [teamName, setTeamName] = useState("");
 
   if (status === "unauthenticated") {
@@ -27,44 +28,7 @@ export default function CreateLeaguePage() {
   }
 
   if (status !== "authenticated") {
-    return (
-      <div
-        style={{
-          minHeight: "100vh",
-          backgroundImage: "url(/design-inspiration/CubsFireworkField.jpg)",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundAttachment: "fixed",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          position: "relative",
-        }}
-      >
-        {/* Semi-opaque overlay */}
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: "rgba(15, 25, 35, 0.75)",
-            backdropFilter: "blur(2px)",
-            pointerEvents: "none",
-          }}
-        />
-        <div
-          style={{
-            color: "rgba(255,255,255,0.8)",
-            position: "relative",
-            zIndex: 1,
-          }}
-        >
-          Loading...
-        </div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -81,8 +45,8 @@ export default function CreateLeaguePage() {
         name: leagueName.trim(),
       };
 
-      if (draftDate) {
-        payload.draftDate = new Date(draftDate).toISOString();
+      if (draftDateTime) {
+        payload.draftDate = new Date(draftDateTime).toISOString();
       }
 
       if (teamName.trim()) {
@@ -315,7 +279,7 @@ export default function CreateLeaguePage() {
                 />
               </div>
 
-              {/* Draft Date Field */}
+              {/* Draft Date & Time Field */}
               <div style={{ marginBottom: "24px", minWidth: 0 }}>
                 <label
                   style={{
@@ -329,12 +293,12 @@ export default function CreateLeaguePage() {
                     marginBottom: "8px",
                   }}
                 >
-                  Draft Date (Optional)
+                  Draft Date & Time (Optional)
                 </label>
                 <input
-                  type="date"
-                  value={draftDate}
-                  onChange={(e) => setDraftDate(e.target.value)}
+                  type="datetime-local"
+                  value={draftDateTime}
+                  onChange={(e) => setDraftDateTime(e.target.value)}
                   style={{
                     width: "100%",
                     padding: "12px 16px",
@@ -371,7 +335,7 @@ export default function CreateLeaguePage() {
                     margin: "6px 0 0 0",
                   }}
                 >
-                  Leave blank to set draft date later
+                  Leave blank to set draft date & time later
                 </p>
               </div>
 

@@ -65,26 +65,37 @@ export async function POST(
       throw new ConflictError("Season has already ended");
     }
 
-    // Calculate winner: sum homeruns per user, find max
-    const rosterStats = await prisma.rosterSpot.groupBy({
-      by: ["userId"],
+    // Calculate winner: sum Player.homeruns per user (source of truth from MLB API)
+    const rosterSpots = await prisma.rosterSpot.findMany({
       where: { leagueId },
-      _sum: {
-        homeruns: true,
-      },
-      orderBy: {
-        _sum: {
-          homeruns: "desc",
-        },
-      },
     });
 
-    if (rosterStats.length === 0) {
+    if (rosterSpots.length === 0) {
       throw new ConflictError("No players in league");
     }
 
-    const winnerId = rosterStats[0].userId;
-    const winnerHomerunCount = rosterStats[0]._sum.homeruns || 0;
+    // Fetch player homerun data for all mlbIds
+    const mlbIds = Array.from(new Set(rosterSpots.map(s => s.mlbId).filter((id): id is number => id !== null)));
+    const playerHRMap = new Map<number, number>();
+
+    if (mlbIds.length > 0) {
+      const players = await prisma.player.findMany({
+        where: { mlbId: { in: mlbIds } },
+        select: { mlbId: true, homeruns: true },
+      });
+      players.forEach(p => playerHRMap.set(p.mlbId, p.homeruns));
+    }
+
+    // Group by userId and sum Player.homeruns
+    const userHRMap = new Map<string, number>();
+    for (const spot of rosterSpots) {
+      const playerHR = (spot.mlbId && playerHRMap.has(spot.mlbId)) ? playerHRMap.get(spot.mlbId)! : 0;
+      userHRMap.set(spot.userId, (userHRMap.get(spot.userId) || 0) + playerHR);
+    }
+
+    // Find winner with most homeruns
+    const winnerId = Array.from(userHRMap.entries()).sort(([, a], [, b]) => b - a)[0][0];
+    const winnerHomerunCount = userHRMap.get(winnerId) || 0;
 
     // Get winner details
     const winner = await prisma.user.findUnique({

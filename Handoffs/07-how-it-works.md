@@ -1,184 +1,333 @@
-# How It Works: Fantasy Homerun Tracker
+# How It Works: Fantasy Homerun Tracker Architecture
 
-## Notifications System
-
-### What Are Notifications?
-Push notifications are real-time alerts that appear on users' devices (phones, tablets, desktops) even when the app isn't open. Users enable them once, then receive updates about league events without needing to check the app constantly.
-
-### Technology Used
-- **Web Push API:** Native browser notification system (no third-party vendors)
-- **VAPID Encryption:** Securely sends notifications from server → device
-- **Service Worker:** Background process that receives and displays notifications
-- **Database Storage:** Tracks which users have subscribed (PushSubscription table)
-
-### Complete List: When Users Receive Notifications
-
-A user gets a push notification in these situations:
-
-| Trigger | Who Gets It | Message Example | App Open? | Notes |
-|---------|-------------|-----------------|-----------|-------|
-| **Player hits homerun** | Owner of player's roster spot | "Kyle Schwarber hit a homerun! PHI, 3rd inning. 12 total." | Any | Cron job polls every 5 min |
-| **Draft starts** | All league members | "Draft has started! Wait for your turn." | Away | Commissioner-initiated, all 6 members notified |
-| **Draft starts (first picker)** | First picker only | "Your turn in the draft! You are the first picker." | Away | Different message than others |
-| **It's your turn to pick** | Current picker | "Your turn in the draft! [Prev] just picked [Player]. 60 seconds." | Away ONLY | **Suppressed** if user actively in draft room |
-| **Trade proposal received** | Trade recipient | "Trade proposal from John: Your Judge for their Soto" | Any | Proposer sent the trade |
-| **Trade accepted** | Trade proposer | "Your trade was accepted! You got [Player]." | Any | Recipient accepted their proposal |
-| **Trade rejected** | Trade proposer | "Your trade was rejected." | Any | Recipient declined their proposal |
-
-### When Do Users Get Notifications?
-
-#### Homerun Alerts
-- Every 5 minutes, cron job polls MLB games for homeruns
-- When a player on user's roster hits a homerun, they get instant notification
-- Message: "Kyle Schwarber hit a homerun! Kyle Schwarber (PHI) hit a homerun in the 3rd inning. You now have 12 homeruns."
-- Includes player name, team, inning, updated total
-- **Sent regardless of whether app is open** (always relevant)
-
-#### Draft Start Notification
-- All league members get notified when commissioner starts the draft
-- First picker: "Your turn in the draft! You are the first picker..."
-- Other members: "Draft has started! The draft has started. Wait for your turn to pick."
-- Sent once when draft begins
-
-#### Draft Turn Notifications (Minimized)
-- **ONLY** the user about to pick gets notified when it becomes their turn
-- **SUPPRESSED** if user is actively in the draft room (Pusher updates sufficient)
-- **SENT** if user is away from the app (they need to know to return)
-- Message: "Your turn in the draft! [Previous picker] just picked [Player]. It's your turn now! You have 60 seconds."
-- Smart suppression: Service Worker tracks active draft rooms and blocks redundant notifications
-
-#### Trade Notifications
-- User gets notified when someone proposes a trade
-- User gets notified when trade is accepted/rejected
-- Message: "Trade proposal from John: Your Aaron Judge for their Juan Soto"
-- Real-time broadcast when response arrives
-
-#### League Updates
-- Draft completion, standings changes, roster updates
-- Broadcast to all league members
-- Content varies by event type
-
-### Device & Browser Support
-
-| Platform | Browser | Support |
-|----------|---------|---------|
-| Android | Chrome, Firefox, Edge | ✅ Full Support |
-| Windows | Chrome, Firefox, Edge | ✅ Full Support |
-| Mac | Chrome, Firefox, Edge | ✅ Full Support |
-| iOS (iPhone/iPad) | Safari | ❌ Not Supported |
-
-**Important Limitation:** iOS Safari does NOT support Web Push API. The app automatically hides the notification bell on iOS devices. No workaround available—Apple restricts this to native apps only.
-
-### How Users Enable Notifications (5 Steps)
-
-1. **Find the Bell Icon** — In league page header, top right corner
-2. **Click the Bell** — Opens notification settings popup
-3. **Click "Enable Notifications"** — Browser shows permission request
-4. **Click "Allow"** — Confirms in OS/browser dialog
-5. **See Confirmation** — Green dot appears on bell, message shows "Status: Enabled"
-
-Once enabled, the app stores the user's subscription endpoint (encrypted keys) in the database and sends notifications automatically for all applicable events.
-
-### Smart Notification Suppression (Draft-Specific)
-
-To prevent notification spam during active drafting, the system uses intelligent client-server communication:
-
-**How It Works:**
-1. When user **enters** draft room → Client sends message to Service Worker: `DRAFTING_ACTIVE`
-2. Service Worker **tracks** which leagues user is actively drafting in (in-memory Set)
-3. When push notification arrives for `eventType: 'turn'` → Service Worker **checks** if league is active
-4. If user is **actively drafting** → Notification is **suppressed** (Pusher real-time updates sufficient)
-5. If user is **away from app** → Notification **shows** (they need to come back for their turn)
-6. When user **leaves** draft room → Client sends message: `DRAFTING_INACTIVE`
-
-**Result:** No duplicate "your turn" alerts while drafting, but users away from the app still get notified.
-
-### Current Implementation Status
-
-**Fully Implemented:**
-- ✅ Service worker handles all push events
-- ✅ NotificationBell UI component in league page
-- ✅ Backend functions: sendPushToUser(), sendPushToLeague()
-- ✅ Homerun cron job triggers notifications every 5 minutes
-- ✅ Draft start notifications to ALL league members
-- ✅ Draft turn notifications (next picker only, with smart suppression)
-- ✅ Trade proposal/response notifications
-- ✅ VAPID keys configured (requires env vars)
-- ✅ PushSubscription database table tracks subscriptions
-- ✅ Client-side active draft tracking via Service Worker messages
-- ✅ Smart suppression logic in Service Worker (minimizes redundant notifications)
-
-**Limitations:**
-- iOS Safari: No support (bell hidden, no fallback)
-- Off-season (March): No real MLB homeruns until April 1st
-- Test mode: Uses mock data to preview functionality
-
-### Key Files
-
-- `app/components/NotificationBell.tsx` — UI component, handles subscription
-- `lib/push-service.ts` — Backend functions to send notifications
-- `public/sw.js` — Service worker that displays push notifications
-- `app/api/notifications/subscribe` — Endpoint to save subscription
-- `app/api/notifications/unsubscribe` — Endpoint to remove subscription
-- `app/api/cron/homerun-poll/route.ts` — Triggers homerun notifications
-- `app/api/draft/[leagueId]/start/route.ts` — Triggers draft turn notifications
-- `app/api/trades/[leagueId]/route.ts` — Triggers trade notifications
-
-### Permission Management
-
-Users can manage notifications anytime:
-1. Click bell icon → see current status
-2. Click "Disable Notifications" to opt-out
-3. Permission can be re-enabled at any time
-
-If permission is blocked in browser settings:
-1. Go to browser Settings → Site Settings → Notifications
-2. Find the app domain
-3. Change permission to "Allow"
-
-### For Testing (Developers Only)
-
-**Test Endpoint:**
-- `POST /api/notifications/test`
-- Requires CRON_SECRET header
-- Development mode only (404 in production)
-- Sends all notification types for manual verification
-
-**Testing Smart Suppression:**
-1. Open draft room in browser → Service Worker receives `DRAFTING_ACTIVE` message
-2. Send draft turn notification via test endpoint
-3. **No notification appears** (suppressed because user is actively drafting)
-4. Close/navigate away from draft room → Service Worker receives `DRAFTING_INACTIVE` message
-5. Send draft turn notification again
-6. **Notification appears** (user is away from the app)
-
-Browser DevTools → Application → Service Workers → Messages tab shows communication logs.
-
-### Quick Reference: Key Notification Rules
-
-✅ **ALWAYS Notify:**
-- Homerun on your roster (real-time, exciting event)
-- Draft starts (affects all members)
-- Trade proposal/response (time-sensitive decisions)
-
-✅ **NOTIFY ONLY WHEN AWAY:**
-- Draft turn (suppressed if actively drafting, Pusher updates are enough)
-
-❌ **NEVER Notify:**
-- Other players picking (only next picker gets notified)
-- Standings updates (use Pusher real-time + 5-sec polling)
-- League member roster changes (use Pusher real-time)
-
-### Summary: Notification Fatigue Prevention
-
-- **Total notification types:** 7 unique scenarios
-- **Most active:** Draft turn (1 per pick, only to next picker)
-- **Least active:** Trade events (only when proposer/recipient involved)
-- **Smart suppression:** Checks if user is in draft room (no redundant alerts)
-- **Result:** Minimal spam, maximum awareness
+**Last Updated:** 2026-03-15 | **Status:** Week 8 (End-of-Season Ready)
 
 ---
 
-**Last Updated:** 2026-03-02
-**Status:** Ready for production (requires April 2026 for live MLB homeruns)
-**Notification Optimization:** Draft notifications now minimized to reduce user fatigue
+## System Overview
+
+Multi-tenant fantasy baseball PWA with real-time homerun tracking. Users draft MLB players, track live homeruns, propose trades, and compete on leaderboards. All leagues stay isolated via `leagueId` multi-tenant guards.
+
+**Key Stack:** Next.js 16 + React 19 | Neon Postgres + Prisma | Pusher Channels | Web Push API | statsapi.mlb.com
+
+---
+
+## Data Sources by Page
+
+### 📊 Dashboard (`/dashboard`)
+| Component | Source | Refresh |
+|-----------|--------|---------|
+| **Live Games** | `/api/games/today` → `Game` table (synced by cron every 2 min) | Real-time (2 min cron) |
+| **Scores/Status** | `Game.status`, `Game.homeScore`, `Game.awayScore` | Real-time (5 sec polling) |
+| **Recent Homeruns** | `/api/leagues/[id]/homeruns` → `HomerrunEvent` table (5 min cron) | Real-time (Pusher) |
+| **Your Leagues** | `/api/leagues` → `League` + `LeagueMembership` (user query) | Static (loaded on mount) |
+| **League Status** | `League.draftStatus`, `winnerId` (end-of-season badge) | Real-time (Pusher) |
+
+**Fallback:** Uses mock spring training games if MLB API is down (dev/testing only).
+
+---
+
+### ⚾ League Home (`/league/[leagueId]`)
+
+#### Tab: Draft (`DraftTab`)
+| Data | Source | Real-time? |
+|------|--------|-----------|
+| **Draft Picks History** | `/api/draft/[leagueId]/picks` → `DraftPick` table | ✅ Pusher `draft-{id}` channel |
+| **Available Players** | `/api/draft/[leagueId]/available` → statsapi.mlb.com (filtered by season/pool) | ✅ Search + Player headshots |
+| **Timer/Status** | `/api/draft/[leagueId]/status` → `League.currentPickStartedAt` | ✅ WebSocket (Pusher) |
+| **Current Picker** | Calculated from `round`, `pickNumber`, `memberCount` | ✅ Pusher broadcast |
+
+#### Tab: Leaderboard (`LeaderboardTab`)
+| Data | Source | Real-time? |
+|------|--------|-----------|
+| **Rankings** | `/api/leagues/[id]/standings` → HR count per user | ✅ 5-sec poll + Pusher |
+| **Player Headshots** | `RosterSpot.mlbId` → MLB CDN (img.mlbstatic.com) | Static |
+| **Expanded Rosters** | `/api/leagues/[id]/roster` for each user | ✅ Pusher updates |
+
+#### Tab: My Team (`MyTeamTab`)
+| Data | Source | Real-time? |
+|------|--------|-----------|
+| **Your Roster** | `/api/leagues/[id]/roster?userId=[me]` → `RosterSpot` table | ✅ 5-sec poll + Pusher |
+| **Homerun Counts** | `RosterSpot.homeruns` (updated by homerun-poll cron) | ✅ Pusher per homerun |
+| **Player Headshots** | `RosterSpot.mlbId` | Static |
+
+#### Tab: Trades (`TradesTab`)
+| Data | Source | Real-time? |
+|------|--------|-----------|
+| **Trade List** | `/api/trades/[leagueId]` → `Trade` table | ✅ Pusher `league-{id}` channel |
+| **Trade Status** | `Trade.status` (pending/accepted/rejected/expired) | ✅ Pusher on status change |
+| **Season Lock** | `League.seasonEndedAt` (blocks new proposals) | ✅ Pusher broadcast |
+
+#### Tab: Settings (`SettingsTab`)
+| Data | Source | Real-time? |
+|------|--------|-----------|
+| **League Info** | `League.*` fields (name, date, status) | Static |
+| **End Season Button** | `League.draftStatus = 'complete'` (commissioner only) | Static |
+| **Winner Display** | `League.winnerId` + `User.name` (post-season) | ✅ Pusher broadcast |
+
+---
+
+### 👤 Player Detail (`/player/[leagueId]/[mlbId]`)
+| Data | Source |
+|------|--------|
+| **Player Info** | `/api/players/[mlbId]` → `Player` table or MLB API |
+| **Headshot** | `Player.headshot` OR MLB CDN (fallback to initials) |
+| **Homerun History** | `/api/players/[mlbId]/homeruns` → `HomerrunEvent` table (league-scoped) |
+| **Stats** | `Player.homeruns`, `battingAverage`, `ops`, `homerunsLast14Days` |
+| **Streak Status** | Calculated via `getHotColdStatus()` utility (see below) |
+
+**Hot/Cold Status Calculation (Standardized across app):**
+Uses `lib/player-utils.ts → getHotColdStatus()` function:
+- **Season Rate** = `homeruns / gamesPlayed`
+- **14-Day Rate** = `homerunsLast14Days / gamesPlayedLast14Days`
+- **Hot:** 14-day rate > season rate × 1.25 AND gamesPlayed ≥ 5
+- **Cold:** 14-day rate < season rate × 0.75 AND gamesPlayed ≥ 5
+- **Neutral:** All other cases, player has 0 HRs, or fewer than 5 games played
+
+---
+
+### 📈 HR Leaders (`/hr-leaders`)
+| Data | Source | Real-time? |
+|------|--------|-----------|
+| **All Homeruns Feed** | `/api/homeruns` (paginated) → `HomerrunEvent` table | ✅ Pusher broadcast |
+| **Player Info** | Player name, team, inning, date | From HR records |
+| **Sort Options** | By date, player, team | Client-side |
+| **Badge (Hot/Cold)** | Calculated via `getHotColdStatus()` utility (standardized) |
+
+**Badge Calculation (Standardized via `lib/player-utils.ts`):**
+Uses the same `getHotColdStatus()` function as Player Details:
+- **Season Rate** = `homeruns / gamesPlayed`
+- **14-Day Rate** = `homerunsLast14Days / gamesPlayedLast14Days`
+- **Hot:** 14-day rate > season rate × 1.25 AND gamesPlayed ≥ 5
+- **Cold:** 14-day rate < season rate × 0.75 AND gamesPlayed ≥ 5
+- **Neutral:** All other cases, no badge displayed
+
+---
+
+### 👥 Profile (`/profile`)
+| Data | Source |
+|------|--------|
+| **User Info** | `/api/user/profile` → `User` table (session user) |
+| **Display Name** | `User.name` (editable via `/api/user/update-name`) |
+| **Leagues Won** | `User.wonLeagues` relation (via `League.winnerId`) |
+
+---
+
+## Cron Jobs (Vercel)
+
+### 1️⃣ sync-live-games
+- **Schedule:** Every 2 minutes (`*/2 * * * *`)
+- **Endpoint:** `/api/cron/sync-live-games`
+- **What:** Fetches today's games from statsapi.mlb.com, upserts `Game` table
+- **Early Exit:** Returns `{ synced: 0, errors: 0 }` if no games active (optimized)
+- **Data Updated:** `Game.homeScore`, `Game.awayScore`, `Game.status`, `Game.inning`, `Game.inningHalf`
+- **Dashboard Impact:** Live scores update every 2 minutes
+
+### 2️⃣ homerun-poll
+- **Schedule:** Every 5 minutes (`*/5 * * * *`)
+- **Endpoint:** `/api/cron/homerun-poll`
+- **What:** Polls active MLB games for homeruns, detects new hits
+- **Idempotent:** Uses `playByPlayId` unique constraint (no duplicates)
+- **Data Updated:** Creates `HomerrunEvent` records
+- **Real-time:** Broadcasts via Pusher `league-{id}` channel + Web Push notifications
+- **Early Exit:** Checks `currentTime` in game window (skips off-hours)
+- **Database Impact:** Updates `RosterSpot.homeruns`, broadcasts to all league members
+
+### 3️⃣ sync-player-stats
+- **Schedule:** Nightly at 7 UTC (`0 7 * * *`) = 3 AM PT / 11 PM ET previous day
+- **Endpoint:** `/api/cron/sync-player-stats`
+- **What:** Refreshes all 1000+ players' seasonal stats from statsapi
+- **Data Updated:** `Player.homeruns`, `Player.gamesPlayed`, `Player.battingAverage`, `Player.ops`, `Player.homerunsLast14Days`, `Player.gamesPlayedLast14Days`
+- **Draft Impact:** Available player pool shows current season stats
+
+### 4️⃣ draft-timeout
+- **Schedule:** Every 1 minute (`* * * * *`)
+- **Endpoint:** `/api/cron/draft-timeout`
+- **What:** Checks if draft pick timer exceeded 60s, auto-picks best available player
+- **Authority:** Uses `League.currentPickStartedAt` (server time, prevents client desync)
+- **Early Exit:** Skips if no active drafts (checks `draftStatus = 'active'`)
+- **Data Updated:** Creates `DraftPick`, updates `RosterSpot`, increments round/pick
+- **Real-time:** Broadcasts via Pusher `draft-{id}` channel
+
+### 5️⃣ trade-expire
+- **Schedule:** Every 5 minutes (`*/5 * * * *`)
+- **Endpoint:** `/api/cron/trade-expire`
+- **What:** Expires trades that hit 48-hour deadline
+- **Data Updated:** Sets `Trade.status = 'expired'`
+- **Real-time:** Broadcasts via Pusher `league-{id}` channel
+
+### ❌ backfill-spring-training-homeruns
+- **Status:** DISABLED (removed from vercel.json after opening day cutover)
+- **Why:** Would re-populate spring training HRs after cleanup
+- **Removal Date:** March 25, 2026 (opening day)
+
+---
+
+## Libraries & Utilities
+
+### MLB Data Integration (`lib/mlb-stats.ts`)
+```
+fetchTodaysGames()          → Gets today's MLB schedule from statsapi
+fetchGameHomeruns()         → Polls active game play-by-play for HRs
+getPlayerDetails()          → Looks up player name, team, position (cached)
+searchPlayers()             → Filters 1000+ MLB players by name/position
+syncPlayerStats()           → Refreshes seasonal stats (daily cron)
+fetchPlayerStats()          → Gets live player season stats
+```
+
+### Pusher Real-Time (`lib/pusher-server.ts` & `lib/pusher-client.ts`)
+```
+Channels (per league):
+  draft-{leagueId}          → Draft events (pick-made, timer updates)
+  league-{leagueId}         → League events (homerun detected, trade updates, standings)
+
+Broadcasts:
+  pick-made                 → User picked a player (timer resets)
+  draft-started             → Commissioner started the draft
+  draft-paused/resumed      → Draft state changes
+  draft-completed           → All 10 rounds done
+  homerun-detected          → Player hit a homerun
+  trade-proposed            → New trade proposal
+  trade-accepted/rejected   → Trade response
+  standings-updated         → Homerun counts changed
+```
+
+### Web Push Notifications (`lib/push-service.ts`)
+```
+sendPushToUser()            → Sends notification to single user
+sendPushToLeague()          → Sends to all league members
+Test: /api/notifications/test (dev only, requires CRON_SECRET)
+```
+
+### Service Worker (`public/sw.js`)
+```
+Handles incoming push events
+Displays notifications with user context
+Smart suppression: Blocks draft-turn alerts if user actively in draft room
+Messages to client: DRAFTING_ACTIVE / DRAFTING_INACTIVE
+```
+
+---
+
+## Key Data Flows
+
+### 🏠 When You Load Dashboard
+1. Call `/api/leagues` → Your leagues + memberships loaded
+2. Call `/api/games/today` → Today's games displayed
+3. Cron `sync-live-games` fires every 2 min → Scores update in real-time
+4. Pusher subscribes to all `league-{id}` channels → Real-time homerun alerts
+
+### 📋 When Draft Starts
+1. Commissioner clicks "Start Draft" → `/api/draft/[id]/start` called
+2. Sets `League.draftStatus = 'active'`, `currentPickStartedAt = now()`
+3. Cron `draft-timeout` starts polling every 1 min
+4. Pusher broadcasts `draft-started` to all members
+5. Web Push: All members get "Draft has started" notification
+6. Timer countdown begins (60 sec per pick)
+
+### ⚾ When Homerun Is Hit
+1. Cron `homerun-poll` detects it (every 5 min)
+2. Creates `HomerrunEvent` record (via unique `playByPlayId`)
+3. Updates `RosterSpot.homeruns += 1` for player owner
+4. Pusher broadcasts `homerun-detected` to `league-{id}` channel
+5. Web Push: Owner of player gets notification
+6. Dashboard/Leaderboard refresh via 5-sec poll + real-time updates
+
+### 🤝 When Trade Is Proposed
+1. User calls `/api/trades/[id]` (POST with player IDs)
+2. Creates `Trade` record with `status = 'pending'`
+3. Sets `expiresAt = now() + 48 hours`
+4. Pusher broadcasts `trade-proposed` to receiver
+5. Web Push: Receiver notified "Trade proposal from [user]: [player] for [player]"
+6. Receiver can accept/reject via `/api/trades/[id]/[tradeId]/accept`
+
+### 🏆 When Season Ends
+1. Commissioner clicks "End Season"
+2. Calculates winner = user with most homeruns
+3. Sets `League.seasonEndedAt = now()`, `League.winnerId = userId`
+4. Blocks further trades (409 Conflict on POST)
+5. Pusher broadcasts `season-ended` to all members
+6. Champion banner displays on league page
+7. User's `wonLeagues` relation updates
+
+---
+
+## Real-Time Updates (Pusher + Polling)
+
+**Why Both?**
+- **Pusher:** Instant updates (zero latency) when events occur
+- **5-sec Polling:** Fallback if Pusher connection drops (reliability)
+
+**Channels:**
+- `draft-{leagueId}` → Draft room picks, timer
+- `league-{leagueId}` → Homeruns, standings, trades, season end
+
+**Subscribe On:** League page/draft room load
+**Unsubscribe On:** Leave page/app
+
+---
+
+## Environment Variables Required
+
+**Critical:**
+- `DATABASE_URL` → Neon Postgres
+- `CRON_SECRET` → Required for all cron endpoints
+- `NEXT_PUBLIC_ENABLE_SPRING_TRAINING` → Toggle mock data (false = real season)
+
+**Pusher:**
+- `NEXT_PUBLIC_PUSHER_KEY`, `PUSHER_SECRET`, `PUSHER_CLUSTER`
+
+**Web Push:**
+- `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`
+
+**Auth:**
+- `NEXTAUTH_URL`, `NEXTAUTH_SECRET`
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+
+---
+
+## Testing Endpoints (Dev Only)
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/cron/homerun-poll` | POST | Manually trigger homerun detection (test) |
+| `/api/cron/sync-live-games` | POST | Manually sync today's games (test) |
+| `/api/cron/sync-player-stats` | POST | Manually update player stats (test) |
+| `/api/notifications/test` | POST | Send all notification types (dev/test) |
+| `/api/draft/[id]/reset` | POST | Reset draft to pending (dev) |
+| `/api/draft/[id]/autopick` | POST | Manually trigger auto-pick (dev) |
+
+All require `x-cron-secret` header.
+
+---
+
+## Performance & Scaling
+
+**Database Queries:**
+- Standings (leaderboard): Indexed on `(leagueId, homeruns)`
+- Roster: Indexed on `(leagueId, userId)`
+- Homeruns: Indexed on `(leagueId, gameDate)` + unique `playByPlayId`
+
+**Cron Optimization:**
+- `sync-live-games`: Early exit if no games active
+- `homerun-poll`: Early exit if time outside game hours (9 AM - 11 PM ET)
+- `draft-timeout`: Early exit if no active drafts
+
+**Connection Pooling:** Neon pooler handles concurrent requests
+
+---
+
+## Deployment Checklist
+
+- [ ] All 17 database migrations applied
+- [ ] 5 cron jobs configured in `vercel.json`
+- [ ] `NEXT_PUBLIC_ENABLE_SPRING_TRAINING = false` (production)
+- [ ] All env vars set in Vercel
+- [ ] Pusher channels subscribed on league page
+- [ ] Service worker installed (offline caching)
+- [ ] VAPID keys generated and stored securely
+- [ ] Database backups automated
+
+---
+
+**Next:** See `OPENING_DAY_CUTOVER.md` for March 25 regular season launch procedure.

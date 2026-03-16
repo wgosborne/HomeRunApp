@@ -68,7 +68,7 @@ export default function AuthError() {
         padding: "20px",
       }}
     >
-      <Suspense fallback={<div style={{ color: "white" }}>Loading...</div>}>
+      <Suspense fallback={<div style={{ fontSize: "15px", color: "rgba(255,255,255,0.8)", fontFamily: "'DM Sans', sans-serif" }}>Loading...</div>}>
         <ErrorContent />
       </Suspense>
     </div>
