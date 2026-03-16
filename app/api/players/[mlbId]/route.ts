@@ -70,12 +70,6 @@ export async function GET(
     // Get leagueId from query params if provided
     const leagueId = request.nextUrl.searchParams.get("leagueId");
 
-    // Get ALL homerun events for this player (not filtered by league) for accurate total
-    const allHomeruns = await prisma.homerrunEvent.findMany({
-      where: { mlbId: mlbId },
-      orderBy: { gameDate: "desc" },
-    });
-
     // Get ALL homerun events (not filtered by league - show complete history)
     const homeruns = await prisma.homerrunEvent.findMany({
       where: {
@@ -86,7 +80,13 @@ export async function GET(
       },
     });
 
-    // Fetch game data for each homerun to determine home/away and get opponent team name
+    // Get player info early (needed for opponent calculation)
+    const player = await prisma.player.findUnique({
+      where: { mlbId },
+      select: { fullName: true, teamName: true, position: true, teamId: true },
+    });
+
+    // Batch fetch game data for all homeruns
     const gameMap = new Map<string, { homeTeam: string; awayTeam: string; homeTeamId: number; awayTeamId: number }>();
     const uniqueGameIds = Array.from(new Set(homeruns.map((hr) => hr.gameId)));
 
@@ -106,20 +106,27 @@ export async function GET(
       }
     }
 
-    // Fetch all teams from Team table to map IDs to full names
-    const teams = await prisma.team.findMany({
-      select: { mlbId: true, name: true },
-    });
-    const teamMap = new Map<number, string>();
-    for (const team of teams) {
-      teamMap.set(team.mlbId, team.name);
+    // Collect unique opponent team IDs to fetch only needed teams
+    const opponentTeamIds = new Set<number>();
+    for (const hr of homeruns) {
+      const gameData = gameMap.get(hr.gameId);
+      if (gameData) {
+        const oppId = gameData.homeTeamId === player?.teamId ? gameData.awayTeamId : gameData.homeTeamId;
+        if (oppId) opponentTeamIds.add(oppId);
+      }
     }
 
-    // Get player info from Player table (source of truth for current team)
-    const player = await prisma.player.findUnique({
-      where: { mlbId },
-      select: { fullName: true, teamName: true, position: true, teamId: true },
-    });
+    // Only fetch teams that are actually opponents in this player's homerun history
+    let teamMap = new Map<number, string>();
+    if (opponentTeamIds.size > 0) {
+      const teams = await prisma.team.findMany({
+        where: { mlbId: { in: Array.from(opponentTeamIds) } },
+        select: { mlbId: true, name: true },
+      });
+      for (const team of teams) {
+        teamMap.set(team.mlbId, team.name);
+      }
+    }
 
     let playerName = player?.fullName || homeruns[0]?.playerName;
     let mlbTeam = player?.teamName || null; // Use Player.teamName (current), fall back to homerun data
@@ -215,8 +222,8 @@ export async function GET(
       mlbTeam: mlbTeam || null,
       position: position || null,
       homeruns: formattedHomeruns,
-      // Use Player.homeruns (MLB API source of truth) if available, else count from allHomeruns
-      totalHomeruns: playerStats?.homeruns ?? allHomeruns.length,
+      // Use Player.homeruns (MLB API source of truth) if available, else count from database
+      totalHomeruns: playerStats?.homeruns ?? homeruns.length,
       streakStatus,
     };
 
@@ -246,24 +253,18 @@ export async function GET(
           });
 
           if (rosterSpot) {
-            // Get HR rank for this owner in this league
-            const allRosterSpots = await prisma.rosterSpot.findMany({
-              where: { leagueId },
-              select: { userId: true, homeruns: true },
-            });
+            // Get HR rank for this owner in this league using aggregation
+            const userStandings = await prisma.$queryRaw<Array<{ userId: string; totalHr: number }>>`
+              SELECT "userId", SUM("homeruns") as "totalHr"
+              FROM "RosterSpot"
+              WHERE "leagueId" = ${leagueId}
+              GROUP BY "userId"
+              ORDER BY "totalHr" DESC
+            `;
 
-            // Group by userId and sum homeruns
-            const userHRMap = new Map<string, number>();
-            for (const spot of allRosterSpots) {
-              userHRMap.set(spot.userId, (userHRMap.get(spot.userId) || 0) + spot.homeruns);
-            }
-
-            const sortedUsers = Array.from(userHRMap.entries())
-              .sort(([, a], [, b]) => b - a)
-              .map(([userId]) => userId);
-
-            const ownerIndex = sortedUsers.indexOf(rosterSpot.userId);
+            const ownerIndex = userStandings.findIndex(u => u.userId === rosterSpot.userId);
             const hrRank = ownerIndex >= 0 ? ownerIndex + 1 : 1;
+            const totalPlayers = userStandings.length;
 
             // Get trade history for this player
             const acceptedTrades = await prisma.trade.findMany({
@@ -289,7 +290,7 @@ export async function GET(
 
             response.leagueContext = {
               hrRank,
-              totalPlayers: sortedUsers.length,
+              totalPlayers,
               ownerName: rosterSpot.user.name || "Unknown",
               ownerImage: rosterSpot.user.image || null,
               draftedRound: rosterSpot.draftedRound,
