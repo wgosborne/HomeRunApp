@@ -6,15 +6,13 @@ const logger = createLogger("admin-sync-2025-stats");
 
 interface MLBStatsResponse {
   stats?: Array<{
-    stats?: Array<{
+    splits?: Array<{
       player?: {
         id: number;
         fullName: string;
       };
-      split?: {
-        stat?: {
-          homeRuns?: number;
-        };
+      stat?: {
+        homeRuns?: number;
       };
     }>;
   }>;
@@ -60,61 +58,54 @@ export async function GET() {
     let skipped = 0;
 
     // Process each player's stats
-    const playerStats = data.stats?.[0]?.stats || [];
-    logger.info("Processing player stats", { count: playerStats.length });
+    const splits = data.stats?.[0]?.splits || [];
+    logger.info("Processing player stats", { count: splits.length });
 
-    for (const playerStat of playerStats) {
+    for (const split of splits) {
       try {
-        const mlbId = playerStat.player?.id;
-        const homeRuns = playerStat.split?.stat?.homeRuns;
+        const mlbId = split.player?.id;
+        const homeruns2025 = split.stat?.homeRuns || 0;
 
-        if (!mlbId || homeRuns === undefined) {
-          skipped++;
-          continue;
-        }
-
-        // Look up player in database by mlbId
-        const player = await prisma.player.findUnique({
-          where: { mlbId },
-        });
-
-        if (!player) {
-          logger.debug("Player not found in DB", { mlbId, name: playerStat.player?.fullName });
+        if (!mlbId) {
           skipped++;
           continue;
         }
 
         // Update player record with 2025 HR stats
-        await prisma.player.update({
+        const result = await prisma.player.updateMany({
           where: { mlbId },
           data: {
-            homeruns2025: homeRuns,
+            homeruns2025,
           },
         });
 
-        logger.debug("Updated player 2025 stats", {
-          mlbId,
-          name: player.fullName,
-          homeruns2025: homeRuns,
-        });
-
-        updated++;
+        if (result.count > 0) {
+          logger.debug("Updated player 2025 stats", {
+            mlbId,
+            name: split.player?.fullName,
+            homeruns2025,
+          });
+          updated++;
+        } else {
+          logger.debug("Player not found in DB", { mlbId, name: split.player?.fullName });
+          skipped++;
+        }
       } catch (error) {
         logger.error("Error processing player stat", {
-          playerStat,
+          split,
           error,
         });
         skipped++;
       }
     }
 
-    logger.info("2025 HR stats sync completed", { updated, skipped, total: playerStats.length });
+    logger.info("2025 HR stats sync completed", { updated, skipped, total: splits.length });
 
     return NextResponse.json(
       {
         updated,
         skipped,
-        total: playerStats.length,
+        total: splits.length,
         message: `Synced 2025 HR stats: ${updated} updated, ${skipped} skipped`,
       },
       { status: 200 }
