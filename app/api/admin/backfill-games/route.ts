@@ -52,6 +52,17 @@ function mapStatus(abstractGameState: string): string {
 }
 
 /**
+ * Map MLB team IDs to abbreviations (same as sync-live-games)
+ */
+const TEAM_ABBREV_MAP: Record<number, string> = {
+  108: "LAA", 109: "ARI", 110: "BAL", 111: "BOS", 112: "CHC", 113: "CIN",
+  114: "MIL", 115: "COL", 116: "DET", 117: "HOU", 118: "KC", 119: "LAD",
+  120: "WSH", 121: "NYM", 133: "OAK", 135: "SD", 137: "SF", 138: "STL",
+  139: "TB", 140: "TEX", 141: "TOR", 142: "MIN", 143: "PHI", 144: "ATL",
+  145: "CWS", 146: "MIA", 147: "NYY", 158: "MIL", 159: "CLE",
+};
+
+/**
  * One-time backfill endpoint to upsert games for a date range
  * Uses exact same logic as sync-live-games cron
  */
@@ -101,12 +112,11 @@ export async function GET(request: NextRequest) {
     for (const dateGroup of data.dates || []) {
       for (const game of dateGroup.games || []) {
         try {
-          // Use full team names from MLB API (same as sync-live-games)
-          const homeTeamName = game.teams.home.team.name || "Unknown";
-          const awayTeamName = game.teams.away.team.name || "Unknown";
-
+          // Use team abbreviations (same as sync-live-games)
           const homeTeamId = game.teams.home.team.id;
           const awayTeamId = game.teams.away.team.id;
+          const homeTeamAbbrev = TEAM_ABBREV_MAP[homeTeamId] || game.teams.home.team.abbreviation || "UNK";
+          const awayTeamAbbrev = TEAM_ABBREV_MAP[awayTeamId] || game.teams.away.team.abbreviation || "UNK";
           const gameDate = new Date(game.gameDate);
 
           // Read scores from teams object (same as sync-live-games)
@@ -120,8 +130,13 @@ export async function GET(request: NextRequest) {
           // Status mapping (same as sync-live-games)
           const status = mapStatus(game.status.abstractGameState);
 
-          // Store startTime as ISO string (same as sync-live-games)
-          const startTime = gameDate.toISOString();
+          // Store startTime as CT formatted string (same as sync-live-games)
+          const startTime = gameDate.toLocaleTimeString("en-US", {
+            timeZone: "America/Chicago",
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true,
+          });
 
           // Use officialDate from API (same as sync-live-games)
           let officialDate = (game as any).officialDate;
@@ -134,6 +149,8 @@ export async function GET(request: NextRequest) {
           await prisma.game.upsert({
             where: { id: game.gamePk.toString() },
             update: {
+              homeTeam: homeTeamAbbrev,
+              awayTeam: awayTeamAbbrev,
               homeScore,
               awayScore,
               status,
@@ -145,8 +162,8 @@ export async function GET(request: NextRequest) {
             },
             create: {
               id: game.gamePk.toString(),
-              homeTeam: homeTeamName,
-              awayTeam: awayTeamName,
+              homeTeam: homeTeamAbbrev,
+              awayTeam: awayTeamAbbrev,
               homeTeamId,
               awayTeamId,
               homeScore,

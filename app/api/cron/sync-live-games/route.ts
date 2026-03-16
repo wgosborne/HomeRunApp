@@ -62,7 +62,7 @@ const TEAM_ABBREV_MAP: Record<number, string> = {
   114: "MIL", 115: "COL", 116: "DET", 117: "HOU", 118: "KC", 119: "LAD",
   120: "WSH", 121: "NYM", 133: "OAK", 135: "SD", 137: "SF", 138: "STL",
   139: "TB", 140: "TEX", 141: "TOR", 142: "MIN", 143: "PHI", 144: "ATL",
-  145: "CWS", 146: "MIA", 147: "NYY", 158: "MIL", 159: "CLE",
+  145: "CWS", 146: "MIA", 147: "NYY", 158: "MIL", 159: "CLE", 134: "PIT",
 };
 
 /**
