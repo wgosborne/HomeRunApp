@@ -120,7 +120,7 @@ export async function getAvailablePlayers(
     const available: MLBPlayer[] = players
       .filter((player) => !excludedMlbIds.has(player.mlbId))
       .map((player, index) => ({
-        id: player.mlbId.toString(),
+        id: player.id,
         mlbId: player.mlbId,
         name: player.fullName,
         position: player.position || "OF",
