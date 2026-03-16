@@ -12,24 +12,26 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Fetch all MLB players from database, sorted by homeruns descending
+    // Fetch top 500 MLB players by homeruns (limits payload and improves performance)
     const dbPlayers = await prisma.player.findMany({
       orderBy: { homeruns: "desc" },
+      take: 500,
+      select: {
+        id: true,
+        mlbId: true,
+        fullName: true,
+        position: true,
+        teamName: true,
+        jerseyNumber: true,
+        homeruns: true,
+        gamesPlayed: true,
+        homerunsLast14Days: true,
+        gamesPlayedLast14Days: true,
+      },
     });
 
-    // Transform to match player response format
-    const players = dbPlayers.map((player) => ({
-      id: player.id,
-      mlbId: player.mlbId,
-      fullName: player.fullName,
-      position: player.position,
-      teamName: player.teamName,
-      jerseyNumber: player.jerseyNumber,
-      homeruns: player.homeruns,
-      gamesPlayed: player.gamesPlayed,
-      homerunsLast14Days: player.homerunsLast14Days,
-      gamesPlayedLast14Days: player.gamesPlayedLast14Days,
-    }));
+    // Use fetched players directly (select query already returns needed fields)
+    const players = dbPlayers;
 
     // Fetch user's roster spots to identify their players
     const user = await prisma.user.findUnique({
