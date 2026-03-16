@@ -6,14 +6,15 @@ import { useEffect, useState } from "react";
 import { NotificationDropdown } from "@/app/components/NotificationDropdown";
 import { UserMenu } from "@/app/components/UserMenu";
 import { BottomNavigation } from "@/app/components/BottomNavigation";
-import { TeamLogo } from "@/app/components/TeamLogo";
-import { BaserunnerDiamond } from "@/app/components/BaserunnerDiamond";
 import { LoadingScreen } from "@/app/components/LoadingScreen";
 import { getCached, setCached } from "@/lib/client-cache";
+import { ScoresContent } from "@/app/components/tabs/ScoresContent";
+import { LeagueContent } from "@/app/components/tabs/LeagueContent";
+import { HRLeadersContent } from "@/app/components/tabs/HRLeadersContent";
 
 const SCORES_CACHE_KEY = "scores-today";
-
-
+const LEAGUES_CACHE_KEY = "leagues-list";
+const HR_LEADERS_CACHE_KEY = "hr-leaders";
 
 interface ApiGame {
   id: string;
@@ -36,6 +37,31 @@ interface BaserunnerState {
   second: boolean;
   third: boolean;
   outs: number;
+}
+
+interface League {
+  id: string;
+  name: string;
+  commissionerId: string;
+  userRole: string;
+  teamName?: string;
+  memberships: any[];
+  draftStatus?: string;
+  seasonEndedAt?: string;
+  userRank?: number;
+}
+
+interface Player {
+  id: string;
+  mlbId: number;
+  fullName: string;
+  position: string | null;
+  teamName: string | null;
+  jerseyNumber: string | null;
+  homeruns: number;
+  gamesPlayed: number;
+  homerunsLast14Days: number;
+  gamesPlayedLast14Days: number;
 }
 
 const Header = ({ onBellClick }: { onBellClick: () => void }) => (
@@ -98,252 +124,142 @@ const Header = ({ onBellClick }: { onBellClick: () => void }) => (
   </header>
 );
 
-interface GameRowProps {
-  game: ApiGame;
-  baserunnerState?: BaserunnerState;
-  loadingBaserunner?: boolean;
-}
-
-const GameRow = ({ game, baserunnerState, loadingBaserunner }: GameRowProps) => {
-  const isLive = game.status === "Live";
-  const isFinal = game.status === "Final";
-  const isUpcoming = game.status === "Preview";
-
-  // Team names are already stored as abbreviations in the database
-  const awayAbbr = game.awayTeam;
-  const homeAbbr = game.homeTeam;
-
-  let statusDisplay = "";
-  if (isLive) {
-    statusDisplay = game.inningHalf && game.inning ? `${game.inningHalf} ${game.inning}` : "Live";
-  } else if (isFinal) {
-    statusDisplay = "Final";
-  } else if (isUpcoming) {
-    statusDisplay = game.startTime || "TBD";
-  }
-
-  return (
-    <>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 40px 70px 80px",
-          alignItems: "center",
-          padding: "12px 16px",
-          borderBottom: "1px solid rgba(255,255,255,0.07)",
-          backgroundColor: "rgba(255,255,255,0.02)",
-          transition: "background-color 0.2s",
-          gap: "20px",
-        }}
-        onMouseEnter={(e) => {
-          (e.currentTarget as HTMLDivElement).style.backgroundColor = "rgba(255,255,255,0.04)";
-        }}
-        onMouseLeave={(e) => {
-          (e.currentTarget as HTMLDivElement).style.backgroundColor = "rgba(255,255,255,0.02)";
-        }}
-      >
-        {/* Column 1: Teams stack (away on top, home on bottom) */}
-        <div style={{ display: "flex", flexDirection: "column", minWidth: 0, gap: "8px" }}>
-          {/* Away team row */}
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <TeamLogo
-              name={awayAbbr}
-              logo={game.awayTeamLogo}
-              size="sm"
-            />
-          </div>
-
-          {/* Home team row */}
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <TeamLogo
-              name={homeAbbr}
-              logo={game.homeTeamLogo}
-              size="sm"
-            />
-          </div>
-        </div>
-
-        {/* Column 2: Scores (40px, right-aligned) - only for Live and Final */}
-        {(isLive || isFinal) ? (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "8px",
-              alignItems: "flex-end",
-              textAlign: "right",
-              marginRight: "12px",
-            }}
-          >
-            <div
-              style={{
-                fontFamily: "'Exo 2', sans-serif",
-                fontSize: "18px",
-                fontWeight: 800,
-                color: "#FFFFFF",
-                lineHeight: "1",
-              }}
-            >
-              {game.awayScore}
-            </div>
-            <div
-              style={{
-                fontFamily: "'Exo 2', sans-serif",
-                fontSize: "18px",
-                fontWeight: 800,
-                color: "#FFFFFF",
-                lineHeight: "1",
-              }}
-            >
-              {game.homeScore}
-            </div>
-          </div>
-        ) : null}
-
-        {/* Column 3: Diamond + outs (70px, centered) - Live games only */}
-        {isLive ? (
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-            }}
-          >
-            {baserunnerState && !loadingBaserunner && (
-              <BaserunnerDiamond
-                first={baserunnerState.first}
-                second={baserunnerState.second}
-                third={baserunnerState.third}
-                outs={baserunnerState.outs}
-              />
-            )}
-          </div>
-        ) : null}
-
-        {/* Column 4: Live status text (80px, right-aligned) - or merged columns 3-4 for Upcoming/Final */}
-        {isLive ? (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              justifyContent: "flex-end",
-            }}
-          >
-            <span
-              className="pulse-live"
-              style={{
-                display: "inline-block",
-                width: "6px",
-                height: "6px",
-                borderRadius: "50%",
-                backgroundColor: "#CC3433",
-              }}
-            />
-            <span
-              style={{
-                fontFamily: "'DM Sans', sans-serif",
-                fontSize: "11px",
-                fontWeight: 700,
-                color: "#CC3433",
-                textTransform: "uppercase",
-                letterSpacing: "1px",
-              }}
-            >
-              {statusDisplay}
-            </span>
-          </div>
-        ) : (
-          <span
-            style={{
-              fontFamily: "'DM Sans', sans-serif",
-              fontSize: "11px",
-              color: "rgba(255,255,255,0.4)",
-              textTransform: "uppercase",
-              letterSpacing: "0.5px",
-              gridColumn: "3 / 5",
-              textAlign: "right",
-            }}
-          >
-            {statusDisplay}
-          </span>
-        )}
-      </div>
-    </>
-  );
-};
-
-export default function ScoresPage() {
+export default function UnifiedScoresPage() {
   const { status } = useSession();
   const router = useRouter();
 
-  // Initialize from cache if available
+  // Tab state
+  const [activeTab, setActiveTab] = useState<'scores' | 'league' | 'hr-leaders'>('scores');
+
+  // Games state
   const cachedGames = getCached<ApiGame[]>(SCORES_CACHE_KEY, 30 * 1000);
   const [games, setGames] = useState<ApiGame[]>(cachedGames || []);
   const [baserunnerStates, setBaserunnerStates] = useState<Record<string, BaserunnerState>>({});
+  const [scoresLoading, setScoresLoading] = useState(!cachedGames);
 
+  // Leagues state
+  const cachedLeagues = getCached<League[]>(LEAGUES_CACHE_KEY, 5 * 60 * 1000);
+  const [leagues, setLeagues] = useState<League[]>(cachedLeagues || []);
+  const [leaguesLoading, setLeaguesLoading] = useState(!cachedLeagues);
+
+  // HR Leaders state
+  const cachedHRData = getCached<{ players: Player[]; yourMlbIds: number[] }>(HR_LEADERS_CACHE_KEY, 5 * 60 * 1000);
+  const [players, setPlayers] = useState<Player[]>(cachedHRData?.players || []);
+  const [yourMlbIds, setYourMlbIds] = useState<Set<number>>(new Set(cachedHRData?.yourMlbIds || []));
+  const [hrSearch, setHrSearch] = useState("");
+  const [hrLeadersLoading, setHrLeadersLoading] = useState(!cachedHRData);
+  const [isEmpty, setIsEmpty] = useState(false);
+
+  // Auth guard
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/");
     }
   }, [status, router]);
 
+  // Fetch all data in parallel on mount
   useEffect(() => {
-    if (status === "authenticated") {
-      // Only fetch if cache is stale (prefetch may have populated it)
+    if (status !== "authenticated") return;
+
+    let mounted = true;
+
+    const fetchAllData = async () => {
+      const promises = [];
+
+      // Fetch games if not cached
       if (!cachedGames) {
-        fetchGames();
-      }
-      // Faster polling interval (30 seconds for live games)
-      const fastInterval = setInterval(fetchGames, 30 * 1000);
-      return () => clearInterval(fastInterval);
-    }
-  }, [status, cachedGames]);
+        promises.push(
+          fetch("/api/games/today")
+            .then((res) => res.ok ? res.json() : [])
+            .then((allGames) => {
+              if (mounted) {
+                setGames(allGames || []);
+                setCached(SCORES_CACHE_KEY, allGames || []);
+                setScoresLoading(false);
 
-  const fetchGames = async () => {
-    try {
-      const res = await fetch("/api/games/today");
-      if (!res.ok) {
-        throw new Error("Failed to fetch games");
-      }
-      const allGames = await res.json();
-
-      // API returns games in correct order: Live > Preview > Final
-      setGames(allGames || []);
-      setCached(SCORES_CACHE_KEY, allGames || []);
-
-      // Fetch baserunner state for live games
-      const liveGames = (allGames || []).filter((g: ApiGame) => g.status === "Live");
-      if (liveGames.length > 0) {
-        await Promise.all(
-          liveGames.map(async (game: ApiGame) => {
-            try {
-              const feedRes = await fetch(`/api/games/${game.id}/live-feed`);
-              if (feedRes.ok) {
-                const state = await feedRes.json();
-                setBaserunnerStates((prev) => ({ ...prev, [game.id]: state }));
+                // Fetch baserunner states for live games
+                const liveGames = (allGames || []).filter((g: ApiGame) => g.status === "Live");
+                if (liveGames.length > 0) {
+                  liveGames.forEach((game: ApiGame) => {
+                    fetch(`/api/games/${game.id}/live-feed`)
+                      .then((res) => res.ok ? res.json() : null)
+                      .then((state) => {
+                        if (state && mounted) {
+                          setBaserunnerStates((prev) => ({ ...prev, [game.id]: state }));
+                        }
+                      })
+                      .catch(() => {});
+                  });
+                }
               }
-            } catch (error) {
-              console.error(`Error fetching baserunner state for game ${game.id}:`, error);
-            }
-          })
+            })
+            .catch(() => {
+              if (mounted) setScoresLoading(false);
+            })
         );
+      } else {
+        setScoresLoading(false);
       }
-    } catch (error) {
-      console.error("Error fetching games:", error);
-      if (!games.length) {
-        setGames([]);
+
+      // Fetch leagues if not cached
+      if (!cachedLeagues) {
+        promises.push(
+          fetch("/api/leagues")
+            .then((res) => res.ok ? res.json() : [])
+            .then((data) => {
+              if (mounted) {
+                setLeagues(data);
+                setCached(LEAGUES_CACHE_KEY, data);
+                setLeaguesLoading(false);
+              }
+            })
+            .catch(() => {
+              if (mounted) setLeaguesLoading(false);
+            })
+        );
+      } else {
+        setLeaguesLoading(false);
       }
-    }
-  };
+
+      // Fetch HR leaders if not cached
+      if (!cachedHRData) {
+        promises.push(
+          fetch("/api/players?limit=5000")
+            .then((res) => res.ok ? res.json() : { players: [], yourMlbIds: [], isEmpty: false })
+            .then((data) => {
+              if (mounted) {
+                setPlayers(data.players || []);
+                setYourMlbIds(new Set(data.yourMlbIds || []));
+                setIsEmpty(data.isEmpty || false);
+                setCached(HR_LEADERS_CACHE_KEY, { players: data.players, yourMlbIds: data.yourMlbIds });
+                setHrLeadersLoading(false);
+              }
+            })
+            .catch(() => {
+              if (mounted) setHrLeadersLoading(false);
+            })
+        );
+      } else {
+        setHrLeadersLoading(false);
+      }
+
+      // Wait for all fetches to complete
+      await Promise.all(promises);
+    };
+
+    fetchAllData();
+
+    return () => {
+      mounted = false;
+    };
+  }, [status, cachedGames, cachedLeagues, cachedHRData]);
 
   // Only show loading if auth is still resolving AND we have no cached data
-  if (status === "loading" && !cachedGames) {
+  if (status === "loading" && !cachedGames && !cachedLeagues && !cachedHRData) {
     return <LoadingScreen />;
   }
 
   if (status === "unauthenticated") {
-    router.push("/");
     return null;
   }
 
@@ -388,85 +304,34 @@ export default function ScoresPage() {
           maxWidth: "100%",
         }}
       >
-        {/* Section header */}
-        <div
-          style={{
-            paddingLeft: "18px",
-            paddingRight: "18px",
-            paddingTop: "10px",
-            paddingBottom: "6px",
-            marginBottom: "13px",
-          }}
-        >
-          <span
-            style={{
-              fontFamily: "'Exo 2', sans-serif",
-              fontSize: "11px",
-              fontWeight: 700,
-              letterSpacing: "3px",
-              textTransform: "uppercase",
-              color: "#FFFFFF",
-              backgroundColor: "rgba(204, 52, 51, 0.6)",
-              paddingLeft: "10px",
-              paddingRight: "10px",
-              paddingTop: "6px",
-              paddingBottom: "6px",
-              borderRadius: "6px",
-              textShadow: "0 0 16px rgba(204,52,51,0.35), 0 0 32px rgba(204,52,51,0.15)",
-              display: "inline-block",
-            }}
-          >
-            Today's Games
-          </span>
+        {/* Scores Tab - display: none keeps it mounted */}
+        <div style={{ display: activeTab === 'scores' ? 'block' : 'none' }}>
+          <ScoresContent
+            games={games}
+            baserunnerStates={baserunnerStates}
+            loading={scoresLoading}
+          />
         </div>
 
-        {/* Games list */}
-        {games.length > 0 ? (
-          <div
-            style={{
-              borderRadius: "14px",
-              overflow: "hidden",
-              border: "1px solid rgba(255,255,255,0.07)",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.2)",
-              marginLeft: "18px",
-              marginRight: "18px",
-            }}
-          >
-            {games.map((game) => (
-              <GameRow
-                key={game.id}
-                game={game}
-                baserunnerState={baserunnerStates[game.id]}
-                loadingBaserunner={game.status === "Live" && !baserunnerStates[game.id]}
-              />
-            ))}
-          </div>
-        ) : (
-          <div
-            style={{
-              borderRadius: "14px",
-              backgroundColor: "rgba(255,255,255,0.04)",
-              border: "1px solid rgba(255,255,255,0.07)",
-              padding: "24px",
-              textAlign: "center",
-              marginLeft: "18px",
-              marginRight: "18px",
-            }}
-          >
-            <p
-              style={{
-                fontFamily: "'DM Sans', sans-serif",
-                fontSize: "13px",
-                color: "rgba(255,255,255,0.4)",
-              }}
-            >
-              No games scheduled today
-            </p>
-          </div>
-        )}
+        {/* League Tab - display: none keeps it mounted */}
+        <div style={{ display: activeTab === 'league' ? 'block' : 'none' }}>
+          <LeagueContent leagues={leagues} loading={leaguesLoading} />
+        </div>
+
+        {/* HR Leaders Tab - display: none keeps it mounted */}
+        <div style={{ display: activeTab === 'hr-leaders' ? 'block' : 'none' }}>
+          <HRLeadersContent
+            players={players}
+            yourMlbIds={yourMlbIds}
+            search={hrSearch}
+            onSearchChange={setHrSearch}
+            loading={hrLeadersLoading}
+            isEmpty={isEmpty}
+          />
+        </div>
       </div>
 
-      <BottomNavigation />
+      <BottomNavigation activeTab={activeTab} onTabChange={setActiveTab} />
     </main>
   );
 }

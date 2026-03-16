@@ -1,23 +1,37 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 
 interface NavItem {
   id: string;
   label: string;
-  path: string;
+  tabId: 'scores' | 'league' | 'hr-leaders';
   icon: (isActive: boolean) => React.ReactNode;
 }
 
-export function BottomNavigation() {
+interface BottomNavigationProps {
+  activeTab?: 'scores' | 'league' | 'hr-leaders';
+  onTabChange?: (tab: 'scores' | 'league' | 'hr-leaders') => void;
+}
+
+export function BottomNavigation({ activeTab, onTabChange }: BottomNavigationProps) {
   const pathname = usePathname();
-  const router = useRouter();
+
+  // Fallback to pathname-based detection if props not provided (for backward compatibility)
+  const tabFromPath = () => {
+    if (pathname === "/scores") return "scores";
+    if (pathname === "/league-tab") return "league";
+    if (pathname === "/hr-leaders") return "hr-leaders";
+    return "scores";
+  };
+
+  const currentTab = activeTab || tabFromPath();
 
   const navItems: NavItem[] = [
     {
       id: "scores",
       label: "Scores",
-      path: "/scores",
+      tabId: "scores",
       icon: (isActive) => (
         <svg
           className="w-6 h-6"
@@ -37,7 +51,7 @@ export function BottomNavigation() {
     {
       id: "league",
       label: "League",
-      path: "/league-tab",
+      tabId: "league",
       icon: (isActive) => (
         <svg
           className="w-6 h-6"
@@ -57,7 +71,7 @@ export function BottomNavigation() {
     {
       id: "hr-leaders",
       label: "HR Leaders",
-      path: "/hr-leaders",
+      tabId: "hr-leaders",
       icon: (isActive) => (
         <svg
           className="w-6 h-6"
@@ -75,13 +89,6 @@ export function BottomNavigation() {
       ),
     },
   ];
-
-  const isActive = (path: string) => {
-    if (path === "/scores") {
-      return pathname === "/scores";
-    }
-    return pathname === path;
-  };
 
   return (
     <nav
@@ -104,11 +111,11 @@ export function BottomNavigation() {
       }}
     >
       {navItems.map((item) => {
-        const active = isActive(item.path);
+        const active = currentTab === item.tabId;
         return (
           <button
             key={item.id}
-            onClick={() => router.push(item.path)}
+            onClick={() => onTabChange?.(item.tabId)}
             style={{
               display: "flex",
               flexDirection: "column",
