@@ -116,18 +116,17 @@ const mlbTeams = [
   { mlbId: 145, name: "Chicago White Sox", city: "Chicago", abbreviation: "CWS", logo: "https://www.mlbstatic.com/team-logos/145.svg" },
   { mlbId: 146, name: "Miami Marlins", city: "Miami", abbreviation: "MIA", logo: "https://www.mlbstatic.com/team-logos/146.svg" },
   { mlbId: 159, name: "Cleveland Guardians", city: "Cleveland", abbreviation: "CLE", logo: "https://www.mlbstatic.com/team-logos/159.svg" },
+  { mlbId: 147, name: "Yankees", city: "New York", abbreviation: "NYY", logo: "https://www.mlbstatic.com/team-logos/147.svg" },
+  { mlbId: 134, name: "Pirates", city: "Pittsburgh", abbreviation: "PIT", logo: "https://www.mlbstatic.com/team-logos/134.svg" },
 ];
 
 async function main() {
-  // Seed teams (one-time, safe to run multiple times with upsert)
+  // Seed teams (safe to run multiple times with skipDuplicates)
   console.log("Seeding MLB teams...");
-  for (const team of mlbTeams) {
-    await prisma.team.upsert({
-      where: { mlbId: team.mlbId },
-      update: { name: team.name, city: team.city, abbreviation: team.abbreviation, logo: team.logo },
-      create: team,
-    });
-  }
+  await prisma.team.createMany({
+    data: mlbTeams,
+    skipDuplicates: true,
+  });
   console.log("MLB teams seeded successfully");
 
   // Create all-mlb league for backfill operations

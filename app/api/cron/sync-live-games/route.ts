@@ -55,6 +55,17 @@ function mapStatus(abstractGameState: string): string {
 }
 
 /**
+ * Map MLB team IDs to abbreviations
+ */
+const TEAM_ABBREV_MAP: Record<number, string> = {
+  108: "LAA", 109: "ARI", 110: "BAL", 111: "BOS", 112: "CHC", 113: "CIN",
+  114: "MIL", 115: "COL", 116: "DET", 117: "HOU", 118: "KC", 119: "LAD",
+  120: "WSH", 121: "NYM", 133: "OAK", 135: "SD", 137: "SF", 138: "STL",
+  139: "TB", 140: "TEX", 141: "TOR", 142: "MIN", 143: "PHI", 144: "ATL",
+  145: "CWS", 146: "MIA", 147: "NYY", 158: "MIL", 159: "CLE",
+};
+
+/**
  * Shared handler for game sync cron job
  * Vercel sends GET requests by default
  */
@@ -135,12 +146,11 @@ async function handleGameSync() {
     for (const dateGroup of data.dates || []) {
       for (const game of dateGroup.games || []) {
         try {
-          // Use full team names from MLB API (e.g., "Chicago White Sox") for consistency
-          const homeTeamName = game.teams.home.team.name || "Unknown";
-          const awayTeamName = game.teams.away.team.name || "Unknown";
-
+          // Use team abbreviations for consistency with Team table
           const homeTeamId = game.teams.home.team.id;
           const awayTeamId = game.teams.away.team.id;
+          const homeTeamAbbrev = TEAM_ABBREV_MAP[homeTeamId] || game.teams.home.team.abbreviation || "UNK";
+          const awayTeamAbbrev = TEAM_ABBREV_MAP[awayTeamId] || game.teams.away.team.abbreviation || "UNK";
           const gameDate = new Date(game.gameDate);
 
           // BUG FIX #2: Read scores from teams object, NOT linescore
@@ -187,6 +197,8 @@ async function handleGameSync() {
           await prisma.game.upsert({
             where: { id: game.gamePk.toString() },
             update: {
+              homeTeam: homeTeamAbbrev,
+              awayTeam: awayTeamAbbrev,
               homeScore,
               awayScore,
               status,
@@ -198,8 +210,8 @@ async function handleGameSync() {
             },
             create: {
               id: game.gamePk.toString(),
-              homeTeam: homeTeamName,
-              awayTeam: awayTeamName,
+              homeTeam: homeTeamAbbrev,
+              awayTeam: awayTeamAbbrev,
               homeTeamId,
               awayTeamId,
               homeScore,

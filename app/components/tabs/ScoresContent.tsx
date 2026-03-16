@@ -83,11 +83,17 @@ const GameRow = ({
           {/* Away team row */}
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
             <TeamLogo name={awayAbbr} logo={game.awayTeamLogo} size="sm" />
+            <span style={{ fontSize: "12px", fontWeight: 600, color: "#FFFFFF", textTransform: "uppercase" }}>
+              {awayAbbr}
+            </span>
           </div>
 
           {/* Home team row */}
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
             <TeamLogo name={homeAbbr} logo={game.homeTeamLogo} size="sm" />
+            <span style={{ fontSize: "12px", fontWeight: 600, color: "#FFFFFF", textTransform: "uppercase" }}>
+              {homeAbbr}
+            </span>
           </div>
         </div>
 
