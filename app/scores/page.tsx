@@ -9,7 +9,7 @@ import { BottomNavigation } from "@/app/components/BottomNavigation";
 import { TeamLogo } from "@/app/components/TeamLogo";
 import { BaserunnerDiamond } from "@/app/components/BaserunnerDiamond";
 import { LoadingScreen } from "@/app/components/LoadingScreen";
-import { setCached } from "@/lib/client-cache";
+import { getCached, setCached } from "@/lib/client-cache";
 
 const SCORES_CACHE_KEY = "scores-today";
 
@@ -277,9 +277,10 @@ export default function ScoresPage() {
   const { status } = useSession();
   const router = useRouter();
 
-  const [games, setGames] = useState<ApiGame[]>([]);
+  // Initialize from cache if available
+  const cachedGames = getCached<ApiGame[]>(SCORES_CACHE_KEY, 30 * 1000);
+  const [games, setGames] = useState<ApiGame[]>(cachedGames || []);
   const [baserunnerStates, setBaserunnerStates] = useState<Record<string, BaserunnerState>>({});
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -289,12 +290,15 @@ export default function ScoresPage() {
 
   useEffect(() => {
     if (status === "authenticated") {
-      fetchGames();
-      // Faster polling interval (30 seconds for live games, 2 min for general updates)
+      // Only fetch if cache is stale (prefetch may have populated it)
+      if (!cachedGames) {
+        fetchGames();
+      }
+      // Faster polling interval (30 seconds for live games)
       const fastInterval = setInterval(fetchGames, 30 * 1000);
       return () => clearInterval(fastInterval);
     }
-  }, [status]);
+  }, [status, cachedGames]);
 
   const fetchGames = async () => {
     try {
@@ -330,13 +334,17 @@ export default function ScoresPage() {
       if (!games.length) {
         setGames([]);
       }
-    } finally {
-      setLoading(false);
     }
   };
 
-  if (status === "loading" || loading) {
+  // Only show loading if auth is still resolving AND we have no cached data
+  if (status === "loading" && !cachedGames) {
     return <LoadingScreen />;
+  }
+
+  if (status === "unauthenticated") {
+    router.push("/");
+    return null;
   }
 
   return (

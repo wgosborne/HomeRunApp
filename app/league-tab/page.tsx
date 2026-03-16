@@ -271,7 +271,6 @@ export default function LeagueTabPage() {
   // Initialize from cache if available
   const cachedLeagues = getCached<League[]>(LEAGUES_CACHE_KEY, LEAGUES_TTL_MS);
   const [leagues, setLeagues] = useState<League[]>(cachedLeagues || []);
-  const [loading, setLoading] = useState(!cachedLeagues);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -281,9 +280,12 @@ export default function LeagueTabPage() {
 
   useEffect(() => {
     if (status === "authenticated") {
-      fetchLeagues();
+      // Only fetch if cache is stale (prefetch may have populated it)
+      if (!cachedLeagues) {
+        fetchLeagues();
+      }
     }
-  }, [status]);
+  }, [status, cachedLeagues]);
 
   const fetchLeagues = async () => {
     try {
@@ -295,12 +297,11 @@ export default function LeagueTabPage() {
       }
     } catch (error) {
       console.error("Failed to fetch leagues:", error);
-    } finally {
-      setLoading(false);
     }
   };
 
-  if (status === "loading" || loading) {
+  // Only show loading if auth is still resolving AND we have no cached data
+  if (status === "loading" && !cachedLeagues) {
     return (
       <div
         style={{
@@ -332,6 +333,11 @@ export default function LeagueTabPage() {
         </div>
       </div>
     );
+  }
+
+  if (status === "unauthenticated") {
+    router.push("/");
+    return null;
   }
 
   return (

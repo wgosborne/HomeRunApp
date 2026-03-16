@@ -131,7 +131,6 @@ export default function HRLeadersPage() {
   const [players, setPlayers] = useState<Player[]>(cachedData?.players || []);
   const [yourMlbIds, setYourMlbIds] = useState<Set<number>>(new Set(cachedData?.yourMlbIds || []));
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(!cachedData);
   const [isEmpty, setIsEmpty] = useState(false);
 
   // Fetch players on mount with progressive loading
@@ -158,17 +157,18 @@ export default function HRLeadersPage() {
         }
       } catch (error) {
         console.error("Error fetching players:", error);
-      } finally {
-        setLoading(false);
       }
     };
 
-    fetchPlayers();
+    // Only fetch if cache is stale (prefetch may have populated it)
+    if (!cachedData) {
+      fetchPlayers();
+    }
 
     return () => {
       mounted = false;
     };
-  }, [status, router]);
+  }, [status, router, cachedData]);
 
   // Build player rows with badges (memoized)
   const playerRows: PlayerRow[] = useMemo(
@@ -194,8 +194,14 @@ export default function HRLeadersPage() {
     );
   }, [playerRows, search]);
 
-  if (status === "loading" || loading) {
+  // Only show loading if auth is still resolving AND we have no cached data
+  if (status === "loading" && !cachedData) {
     return <LoadingScreen />;
+  }
+
+  if (status === "unauthenticated") {
+    router.push("/");
+    return null;
   }
 
   return (
