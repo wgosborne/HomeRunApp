@@ -144,7 +144,8 @@ function LeaderboardTab({
     );
   }, [standings, todayHomersPerUser]);
 
-  if (loading) {
+  // Only show loading if we have no data at all
+  if (loading && standings.length === 0) {
     return (
       <div
         className="py-8 text-center"
@@ -551,7 +552,8 @@ function MyTeamTab({
     }
   }, [roster, standings, userId]);
 
-  if (loading) {
+  // Only show loading if we have no roster data at all
+  if (loading && roster.length === 0) {
     return (
       <div
         className="py-8 text-center"
@@ -893,7 +895,8 @@ function PlayersTab({
   const [expandedTeamId, setExpandedTeamId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
-  if (loading) {
+  // Only show loading if we have no standings data at all
+  if (loading && standings.length === 0) {
     return (
       <div
         className="py-8 text-center"
