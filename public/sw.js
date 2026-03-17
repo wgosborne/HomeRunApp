@@ -115,7 +115,6 @@ self.addEventListener('push', (event) => {
         leagueId,
         playerId,
         eventType,
-        url: `/league/${leagueId}`,
       },
       // Web Notification API supports these visual options
       actions: [
@@ -151,33 +150,47 @@ self.addEventListener('push', (event) => {
 
 /**
  * Handle notification clicks
- * Navigate user to relevant page
+ * Navigate user to relevant page based on eventType
  */
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
-  const { action, data } = event;
-  const { url, leagueId } = data || {};
+  const { action } = event;
+  const data = event.notification.data || {};
+  const { leagueId, eventType, playerId } = data;
 
-  // Determine which URL to navigate to based on action
-  let targetUrl = url || '/';
-  if (action === 'close') {
-    // Do nothing, just close
-    return;
+  if (action === 'close') return;
+
+  // Determine deep link based on event type
+  let targetUrl = '/scores'; // default fallback
+
+  if (eventType === 'homerun' && leagueId) {
+    targetUrl = `/league/${leagueId}?tab=leaderboard`;
+  } else if (eventType === 'turn' && leagueId) {
+    targetUrl = `/draft/${leagueId}`;
+  } else if (eventType === 'trade' && leagueId) {
+    targetUrl = `/league/${leagueId}?tab=trades`;
+  } else if (eventType === 'league_update' && leagueId) {
+    targetUrl = `/league/${leagueId}`;
+  } else if (leagueId) {
+    targetUrl = `/league/${leagueId}`;
   }
 
   event.waitUntil(
     clients
       .matchAll({ type: 'window', includeUncontrolled: true })
       .then((clientList) => {
-        // Check if window already open to this league
+        // If app is already open, focus and navigate
         for (const client of clientList) {
-          if (client.url.includes(`/league/${leagueId}`) && 'focus' in client) {
-            return client.focus();
+          if ('focus' in client) {
+            client.focus();
+            if ('navigate' in client) {
+              return client.navigate(targetUrl);
+            }
+            return;
           }
         }
-
-        // Otherwise open new window
+        // App not open — open new window
         if (clients.openWindow) {
           return clients.openWindow(targetUrl);
         }
