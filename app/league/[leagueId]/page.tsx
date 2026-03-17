@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { pusherClient } from "@/lib/pusher-client";
 import { NotificationBell } from "@/app/components/NotificationBell";
 import { TabNavigation, type TabItem } from "@/app/components/TabNavigation";
@@ -1830,7 +1830,7 @@ function SettingsTab({
         throw new Error(data.error || "Failed to delete league");
       }
 
-      router.push("/league-tab");
+      router.push("/scores");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete league");
     } finally {
@@ -1859,7 +1859,7 @@ function SettingsTab({
         throw new Error(data.error || "Failed to leave league");
       }
 
-      router.push("/league-tab");
+      router.push("/scores");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to leave league");
     } finally {
@@ -2486,6 +2486,15 @@ export default function LeagueHomePage() {
     }
   }, [league?.draftStatus, activeTab]);
 
+  // Read tab query param on mount and activate the correct tab
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab && ['leaderboard', 'myteam', 'draft', 'trades', 'players', 'settings'].includes(tab)) {
+      setActiveTab(tab as TabType);
+    }
+  }, [searchParams]);
+
   useEffect(() => {
     // Delay Pusher subscription to avoid blocking initial render on mobile
     const timer = setTimeout(() => {
@@ -2713,7 +2722,7 @@ export default function LeagueHomePage() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
         {/* Back Button */}
         <button
-          onClick={() => router.back()}
+          onClick={() => router.push('/scores')}
           className="mb-6 flex items-center transition min-h-[44px]"
           style={{
             color: "rgba(255,255,255,0.45)",
