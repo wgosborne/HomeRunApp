@@ -298,7 +298,7 @@ export function TradesTab({
       </div>
 
       {/* Proposal Form */}
-      {!isSeasonEnded && showProposalForm && (
+      {!isSeasonEnded && showProposalForm && tradeWindowOpen && (
         <TradeProposalForm
           leagueId={leagueId}
           onSuccess={() => {
