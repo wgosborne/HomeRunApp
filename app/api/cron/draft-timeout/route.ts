@@ -182,7 +182,7 @@ async function handleDraftTimeout() {
         }
 
         // Broadcast pick via Pusher
-        const channel = `draft-${league.id}`;
+        const channel = `presence-draft-${league.id}`;
         console.log(`[CRON-DRAFT-TIMEOUT] League ${league.id}: broadcasting pick-made via Pusher to ${channel}`);
         try {
           await pusherServer.trigger(channel, "pick-made", {

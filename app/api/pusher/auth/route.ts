@@ -32,8 +32,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate user is a member of the league (extract leagueId from channel name)
-    // Channel format: draft-[leagueId]
-    const channelParts = channel.split("-");
+    // Channel format: draft-[leagueId], league-[leagueId], or presence-draft-[leagueId]
+    const normalizedChannel = channel.replace(/^presence-/, "");
+    const channelParts = normalizedChannel.split("-");
     const leagueId = channelParts.slice(1).join("-");
 
     if (!leagueId) {
@@ -57,11 +58,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Authorize the private channel subscription
-    const auth = pusherServer.authorizeChannel(socketId, channel);
+    // Authorize the channel subscription
+    // For presence channels, include user presence data
+    const isPresence = channel.startsWith("presence-");
+    const auth = pusherServer.authorizeChannel(
+      socketId,
+      channel,
+      isPresence ? { user_id: user.id, user_info: { name: user.name } } : undefined
+    );
     logger.info("Authorized channel subscription", {
       userId: user.id,
       channel,
+      isPresence,
     });
 
     return NextResponse.json(auth);

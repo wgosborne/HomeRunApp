@@ -109,7 +109,7 @@ export function DraftRoom({ leagueId, userId }: DraftRoomProps) {
 
   // Pusher real-time subscription
   useEffect(() => {
-    const channel = pusherClient.subscribe(`draft-${leagueId}`);
+    const channel = pusherClient.subscribe(`presence-draft-${leagueId}`);
 
     // Listen for pick made events
     const handlePickMade = (data: any) => {

@@ -168,7 +168,7 @@ export async function POST(
     }
 
     // Broadcast pick to all members via Pusher
-    const channel = `draft-${leagueId}`;
+    const channel = `presence-draft-${leagueId}`;
     const pickerName = league.memberships[pickerIndexInRound].user?.name || "Unknown";
 
     await pusherServer.trigger(channel, "pick-made", {
@@ -191,19 +191,46 @@ export async function POST(
         const nextPickerId = league.memberships[nextPickerIndexInRound].userId;
         const nextRound = Math.ceil(nextPickNumber / memberCount);
 
-        await sendPushToUser(nextPickerId, leagueId, {
-          title: 'Your turn in the draft!',
-          body: `${pickerName} just picked ${validatedData.playerName}. It's your turn now! You have 60 seconds to make your selection.`,
-          icon: '/icon-192x192.png',
-          badge: '/badge-72x72.png',
-          tag: 'draft-turn',
-          leagueId,
-          eventType: 'turn',
-          data: {
-            round: nextRound,
-            pickNumber: nextPickNumber,
-          },
-        });
+        // Check if next picker is actively in the draft room via presence
+        let shouldSendPush = true;
+        try {
+          const response = await pusherServer.get({
+            path: `/channels/${channel}/users`,
+          });
+          const body = await response.json();
+          const activeUserIds: string[] = (body.users ?? []).map((u: any) => u.id);
+
+          // Skip push if next picker is already viewing the draft room
+          if (activeUserIds.includes(nextPickerId)) {
+            shouldSendPush = false;
+            logger.info('Skipping draft turn push - picker is active in draft room', {
+              leagueId,
+              nextPickerId,
+            });
+          }
+        } catch (presenceError) {
+          logger.warn('Error checking draft presence, will send push anyway', {
+            leagueId,
+            error: presenceError,
+          });
+          // If presence check fails, still send the push to be safe
+        }
+
+        if (shouldSendPush) {
+          await sendPushToUser(nextPickerId, leagueId, {
+            title: 'Your turn in the draft!',
+            body: `${pickerName} just picked ${validatedData.playerName}. It's your turn now! You have 60 seconds to make your selection.`,
+            icon: '/icon-192x192.png',
+            badge: '/badge-72x72.png',
+            tag: 'draft-turn',
+            leagueId,
+            eventType: 'turn',
+            data: {
+              round: nextRound,
+              pickNumber: nextPickNumber,
+            },
+          });
+        }
       } catch (pushError) {
         logger.error('Error sending draft turn push notification', {
           leagueId,
