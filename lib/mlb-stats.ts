@@ -100,40 +100,33 @@ export async function getAvailablePlayers(
     // Import prisma dynamically to avoid circular dependency issues
     const { prisma } = await import("@/lib/prisma");
 
-    // Convert excludePlayerIds (strings) to numbers for comparison with mlbId
-    const excludedMlbIds = new Set(
-      excludePlayerIds.map((id) => {
-        const num = parseInt(id, 10);
-        return isNaN(num) ? undefined : num;
-      }).filter((id) => id !== undefined) as number[]
-    );
-
-    // Query all players from database, ordered by 2025 homeruns (desc) then fullName (asc)
+    // Query available players from database, ordered by 2025 homeruns (desc) then fullName (asc)
     const players = await prisma.player.findMany({
+      where: {
+        id: { notIn: excludePlayerIds }, // Filter at DB level — much more efficient
+      },
       orderBy: [
         { homeruns2025: "desc" },
         { fullName: "asc" },
       ],
     });
 
-    // Filter out drafted players and map to MLBPlayer shape
-    const available: MLBPlayer[] = players
-      .filter((player) => !excludedMlbIds.has(player.mlbId))
-      .map((player, index) => ({
-        id: player.id,
-        mlbId: player.mlbId,
-        name: player.fullName,
-        position: player.position || "OF",
-        team: player.teamName || "Unknown",
-        homeRuns: player.homeruns,
-        homeRuns2025: player.homeruns2025,
-        rank: index + 1,
-      }));
+    // Map to MLBPlayer shape
+    const available: MLBPlayer[] = players.map((player, index) => ({
+      id: player.id,
+      mlbId: player.mlbId,
+      name: player.fullName,
+      position: player.position || "OF",
+      team: player.teamName || "Unknown",
+      homeRuns: player.homeruns,
+      homeRuns2025: player.homeruns2025,
+      rank: index + 1,
+    }));
 
     logger.info("Retrieved available players from database", {
       total: players.length,
       available: available.length,
-      excluded: excludedMlbIds.size,
+      excluded: excludePlayerIds.length,
     });
 
     return available;
