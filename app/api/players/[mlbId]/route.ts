@@ -156,7 +156,7 @@ export async function GET(
 
     // Fetch player stats for streak calculation
     const playerStats = await prisma.player.findUnique({
-      where: { id: mlbId.toString() },
+      where: { mlbId },
       select: {
         homeruns: true,
         gamesPlayed: true,
