@@ -50,7 +50,7 @@ interface MLBScheduleResponse {
     games: Array<{
       gamePk: number;
       status: {
-        abstractGameState: "Pre-Game" | "In Progress" | "Final";
+        abstractGameState: "Pre-Game" | "In Progress" | "Live" | "Final";
       };
     }>;
   }>;
@@ -308,7 +308,9 @@ export async function fetchTodaysGames(): Promise<
   Array<{ gamePk: number; status: string }>
 > {
   try {
-    const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+    const today = new Date().toLocaleDateString("en-CA", {
+      timeZone: "America/New_York"
+    }); // Returns YYYY-MM-DD in ET
     const gameTypes = getAllowedGameTypes();
 
     // Set 10-second timeout for MLB API call
@@ -338,7 +340,7 @@ export async function fetchTodaysGames(): Promise<
       for (const game of dateGroup.games || []) {
         const status = game.status.abstractGameState;
         // Only process games that are in progress or finished
-        if (status === "In Progress" || status === "Final") {
+        if (status === "In Progress" || status === "Live" || status === "Final") {
           games.push({
             gamePk: game.gamePk,
             status,
