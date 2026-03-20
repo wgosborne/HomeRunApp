@@ -91,8 +91,16 @@ async function handleHomerungPoll() {
               select: { id: true, teamName: true },
             });
 
-            const internalPlayerId = playerRecord?.id;
-            const teamDisplay = playerRecord?.teamName || homerun.team || "Unknown";
+            if (!playerRecord) {
+              logger.info("Player not found in DB, skipping roster lookup", {
+                mlbId: homerun.mlbId,
+                playerName: homerun.playerName
+              });
+              continue; // Skip to next homerun
+            }
+
+            const internalPlayerId = playerRecord.id;
+            const teamDisplay = playerRecord.teamName || homerun.team || "Unknown";
 
             // Use internal cuid for roster spot lookup
             const rosterSpots = await prisma.rosterSpot.findMany({
