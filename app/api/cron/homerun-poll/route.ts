@@ -85,19 +85,31 @@ async function handleHomerungPoll() {
               data: { homeruns: { increment: 1 } },
             });
 
-            // Look up internal Player.id (cuid) from mlbId
-            const playerRecord = await prisma.player.findUnique({
+            // Look up or create minimal Player record
+            const playerRecord = await prisma.player.upsert({
               where: { mlbId: homerun.mlbId },
-              select: { id: true, teamName: true },
+              create: {
+                mlbId: homerun.mlbId,
+                fullName: homerun.playerName,
+                teamName: homerun.team || null,
+                homeruns: 0, // will be incremented below
+              },
+              update: {}, // never overwrite existing bio data
             });
 
             if (!playerRecord) {
-              logger.info("Player not found in DB, skipping roster lookup", {
+              logger.info("Failed to find or create player record, skipping", {
                 mlbId: homerun.mlbId,
-                playerName: homerun.playerName
+                playerName: homerun.playerName,
               });
-              continue; // Skip to next homerun
+              continue;
             }
+
+            logger.info("Player record found or created", {
+              mlbId: homerun.mlbId,
+              playerName: homerun.playerName,
+              wasCreated: !playerRecord.bioSyncedAt, // null bioSyncedAt means auto-created
+            });
 
             const internalPlayerId = playerRecord.id;
             const teamDisplay = playerRecord.teamName || homerun.team || "Unknown";
