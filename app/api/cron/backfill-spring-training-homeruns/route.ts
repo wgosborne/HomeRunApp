@@ -106,6 +106,31 @@ async function handleBackfill(startDate: string, endDate: string) {
               continue;
             }
 
+            // Fetch jersey number if we have mlbId
+            let jerseyNumber: number | null = null;
+            if (homerun.mlbId) {
+              jerseyNumber = await getPlayerJerseyNumber(homerun.mlbId);
+            }
+
+            // Create ONE global homerun event record (all-mlb league)
+            await prisma.homerrunEvent.create({
+              data: {
+                leagueId: "all-mlb",
+                playerId: homerun.playerId,
+                playerName: homerun.playerName,
+                mlbId: homerun.mlbId,
+                jerseyNumber: jerseyNumber,
+                playByPlayId: homerun.playByPlayId,
+                gameId: homerun.gameId,
+                gameDate: homerun.gameDate,
+                inning: homerun.inning,
+                rbi: homerun.rbi,
+                team: homerun.team,
+                homeTeam: homerun.homeTeam,
+                awayTeam: homerun.awayTeam,
+              },
+            });
+
             // Look up internal Player.id (cuid) from mlbId
             const playerRecord = await prisma.player.findUnique({
               where: { mlbId: homerun.mlbId },
@@ -113,12 +138,6 @@ async function handleBackfill(startDate: string, endDate: string) {
             });
             const internalPlayerId = playerRecord?.id;
             const teamDisplay = playerRecord?.teamName || homerun.team || "Unknown";
-
-            // Fetch jersey number if we have mlbId
-            let jerseyNumber: number | null = null;
-            if (homerun.mlbId) {
-              jerseyNumber = await getPlayerJerseyNumber(homerun.mlbId);
-            }
 
             // Use internal cuid for roster spot lookup
             const rosterSpots = await prisma.rosterSpot.findMany({
@@ -133,29 +152,9 @@ async function handleBackfill(startDate: string, endDate: string) {
               },
             });
 
-            // If player is in leagues, create event for each league and update rosters
-            if (rosterSpots.length > 0) {
-              for (const spot of rosterSpots) {
+            // Update rosters and send notifications for users who own this player
+            for (const spot of rosterSpots) {
               try {
-                // Create homerun event record
-                await prisma.homerrunEvent.create({
-                  data: {
-                    leagueId: spot.leagueId,
-                    playerId: homerun.playerId,
-                    playerName: homerun.playerName,
-                    mlbId: homerun.mlbId,
-                    jerseyNumber: jerseyNumber,
-                    playByPlayId: homerun.playByPlayId,
-                    gameId: homerun.gameId,
-                    gameDate: homerun.gameDate,
-                    inning: homerun.inning,
-                    rbi: homerun.rbi,
-                    team: homerun.team,
-                    homeTeam: homerun.homeTeam,
-                    awayTeam: homerun.awayTeam,
-                  },
-                });
-
                 // Update roster spot with new homerun count and points
                 const updatedSpot = await prisma.rosterSpot.update({
                   where: { id: spot.id },
@@ -213,60 +212,11 @@ async function handleBackfill(startDate: string, endDate: string) {
 
                 processedCount++;
               } catch (error) {
-                // If it's a unique constraint violation (duplicate), skip
-                if (
-                  error instanceof Error &&
-                  error.message.includes("Unique constraint")
-                ) {
-                  skippedCount++;
-                  continue;
-                }
-                logger.error("Error backfilling homerun for league", {
+                logger.error("Error backfilling homerun for roster spot", {
                   leagueId: spot.leagueId,
                   playByPlayId: homerun.playByPlayId,
                   error,
                 });
-              }
-              }
-            } else {
-              // Player not in any user league - store in all-mlb league
-              try {
-                await prisma.homerrunEvent.create({
-                  data: {
-                    leagueId: "all-mlb",
-                    playerId: homerun.playerId,
-                    playerName: homerun.playerName,
-                    mlbId: homerun.mlbId,
-                    jerseyNumber: jerseyNumber,
-                    playByPlayId: homerun.playByPlayId,
-                    gameId: homerun.gameId,
-                    gameDate: homerun.gameDate,
-                    inning: homerun.inning,
-                    rbi: homerun.rbi,
-                    team: homerun.team,
-                    homeTeam: homerun.homeTeam,
-                    awayTeam: homerun.awayTeam,
-                  },
-                });
-
-                logger.info("Backfilled all-MLB homerun event", {
-                  playerName: homerun.playerName,
-                  playByPlayId: homerun.playByPlayId,
-                });
-
-                processedCount++;
-              } catch (error) {
-                if (
-                  error instanceof Error &&
-                  error.message.includes("Unique constraint")
-                ) {
-                  skippedCount++;
-                } else {
-                  logger.error("Error backfilling all-MLB homerun", {
-                    playByPlayId: homerun.playByPlayId,
-                    error,
-                  });
-                }
               }
             }
           } catch (error) {

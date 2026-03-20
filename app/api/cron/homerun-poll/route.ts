@@ -54,6 +54,31 @@ async function handleHomerungPoll() {
               continue;
             }
 
+            // Fetch jersey number if we have mlbId
+            let jerseyNumber: number | null = null;
+            if (homerun.mlbId) {
+              jerseyNumber = await getPlayerJerseyNumber(homerun.mlbId);
+            }
+
+            // Create ONE global homerun event record (all-mlb league)
+            await prisma.homerrunEvent.create({
+              data: {
+                leagueId: "all-mlb",
+                playerId: homerun.playerId,
+                playerName: homerun.playerName,
+                mlbId: homerun.mlbId,
+                jerseyNumber: jerseyNumber,
+                playByPlayId: homerun.playByPlayId,
+                gameId: homerun.gameId,
+                gameDate: homerun.gameDate,
+                inning: homerun.inning,
+                rbi: homerun.rbi,
+                team: homerun.team,
+                homeTeam: homerun.homeTeam,
+                awayTeam: homerun.awayTeam,
+              },
+            });
+
             // Look up internal Player.id (cuid) from mlbId
             const playerRecord = await prisma.player.findUnique({
               where: { mlbId: homerun.mlbId },
@@ -80,31 +105,6 @@ async function handleHomerungPoll() {
 
             for (const spot of rosterSpots) {
               try {
-                // Fetch jersey number if we have mlbId
-                let jerseyNumber: number | null = null;
-                if (homerun.mlbId) {
-                  jerseyNumber = await getPlayerJerseyNumber(homerun.mlbId);
-                }
-
-                // Create homerun event record
-                await prisma.homerrunEvent.create({
-                  data: {
-                    leagueId: spot.leagueId,
-                    playerId: homerun.playerId,
-                    playerName: homerun.playerName,
-                    mlbId: homerun.mlbId,
-                    jerseyNumber: jerseyNumber,
-                    playByPlayId: homerun.playByPlayId,
-                    gameId: homerun.gameId,
-                    gameDate: homerun.gameDate,
-                    inning: homerun.inning,
-                    rbi: homerun.rbi,
-                    team: homerun.team,
-                    homeTeam: homerun.homeTeam,
-                    awayTeam: homerun.awayTeam,
-                  },
-                });
-
                 // Update roster spot with new homerun count and points
                 const updatedSpot = await prisma.rosterSpot.update({
                   where: { id: spot.id },
@@ -162,15 +162,7 @@ async function handleHomerungPoll() {
 
                 processedCount++;
               } catch (error) {
-                // If it's a unique constraint violation (duplicate), skip
-                if (
-                  error instanceof Error &&
-                  error.message.includes("Unique constraint")
-                ) {
-                  skippedCount++;
-                  continue;
-                }
-                logger.error("Error processing homerun for league", {
+                logger.error("Error processing homerun for roster spot", {
                   leagueId: spot.leagueId,
                   playByPlayId: homerun.playByPlayId,
                   error,
