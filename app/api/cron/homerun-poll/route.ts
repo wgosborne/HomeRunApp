@@ -79,6 +79,12 @@ async function handleHomerungPoll() {
               },
             });
 
+            // Increment Player.homeruns for real-time HR count
+            await prisma.player.updateMany({
+              where: { mlbId: homerun.mlbId },
+              data: { homeruns: { increment: 1 } },
+            });
+
             // Look up internal Player.id (cuid) from mlbId
             const playerRecord = await prisma.player.findUnique({
               where: { mlbId: homerun.mlbId },
