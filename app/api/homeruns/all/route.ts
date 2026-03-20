@@ -63,17 +63,26 @@ export async function GET() {
       select: { playerId: true, leagueId: true },
     });
 
-    const userDraftedPlayers = new Map<string, string>(); // playerId -> leagueId
+    // Convert internal cuids to mlbIds for comparison with homerun events
+    const internalPlayerIds = userRosterSpots.map((spot) => spot.playerId);
+    const playerLookup = await prisma.player.findMany({
+      where: { id: { in: internalPlayerIds } },
+      select: { id: true, mlbId: true },
+    });
+
+    const userDraftedPlayers = new Map<number, string>(); // mlbId -> leagueId
     for (const spot of userRosterSpots) {
-      userDraftedPlayers.set(spot.playerId, spot.leagueId);
+      const player = playerLookup.find((p) => p.id === spot.playerId);
+      if (player?.mlbId) {
+        userDraftedPlayers.set(player.mlbId, spot.leagueId);
+      }
     }
 
-    // Get 360 most recent homerun events from database
+    // Get all homerun events from database
     const allEvents = await prisma.homerrunEvent.findMany({
       orderBy: {
         createdAt: "desc",
       },
-      take: 360,
       include: {
         league: {
           select: { id: true, name: true },
@@ -99,12 +108,12 @@ export async function GET() {
     // Build response with league context
     const response: ApiHomerun[] = allEvents.map((event) => {
       // Check if this player is on the current user's roster
-      const isMyPlayer = userDraftedPlayers.has(event.playerId);
+      const isMyPlayer = event.mlbId ? userDraftedPlayers.has(event.mlbId) : false;
 
       // Get league name - either from user's league or from the event's league
       let leagueName: string | null = null;
-      if (isMyPlayer) {
-        const userLeagueId = userDraftedPlayers.get(event.playerId);
+      if (isMyPlayer && event.mlbId) {
+        const userLeagueId = userDraftedPlayers.get(event.mlbId);
         const league = userLeagueMemberships.find(
           (m) => m.league.id === userLeagueId
         );

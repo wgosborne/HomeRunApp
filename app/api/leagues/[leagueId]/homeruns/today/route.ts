@@ -81,12 +81,26 @@ export async function GET(
       return NextResponse.json([]);
     }
 
-    // Get roster spot ownership for all playerIds in events
-    const playerIds = new Set(events.map((e) => e.playerId));
+    // Convert mlbIds to internal cuids for roster lookup
+    const mlbIds = Array.from(new Set(events.map((e) => e.mlbId).filter((id) => id !== null && id !== undefined) as number[]));
+    const playerIdMap = new Map<number, string>(); // mlbId -> internal cuid
+
+    if (mlbIds.length > 0) {
+      const players = await prisma.player.findMany({
+        where: { mlbId: { in: mlbIds } },
+        select: { mlbId: true, id: true },
+      });
+      for (const player of players) {
+        playerIdMap.set(player.mlbId, player.id);
+      }
+    }
+
+    // Get roster spot ownership using internal cuids
+    const internalPlayerIds = Array.from(playerIdMap.values());
     const rosterSpots = await prisma.rosterSpot.findMany({
       where: {
         playerId: {
-          in: Array.from(playerIds),
+          in: internalPlayerIds,
         },
         leagueId,
       },
@@ -97,18 +111,24 @@ export async function GET(
       },
     });
 
-    // Build ownership map: playerId -> owner
-    const ownershipMap = new Map<string, { id: string; name: string }>();
+    // Build ownership map: mlbId -> owner
+    const ownershipMap = new Map<number, { id: string; name: string }>();
     for (const spot of rosterSpots) {
-      ownershipMap.set(spot.playerId, {
-        id: spot.user.id,
-        name: spot.user.name || "Unknown",
-      });
+      // Find the mlbId that maps to this internal playerId
+      for (const [mlbId, internalId] of playerIdMap) {
+        if (internalId === spot.playerId) {
+          ownershipMap.set(mlbId, {
+            id: spot.user.id,
+            name: spot.user.name || "Unknown",
+          });
+          break;
+        }
+      }
     }
 
     // Build response
     const response: TodayHomerunEvent[] = events.map((event) => {
-      const owner = ownershipMap.get(event.playerId);
+      const owner = event.mlbId ? ownershipMap.get(event.mlbId) : undefined;
 
       return {
         playerId: event.playerId,

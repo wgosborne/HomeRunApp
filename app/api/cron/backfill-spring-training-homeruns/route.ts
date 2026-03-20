@@ -106,11 +106,12 @@ async function handleBackfill(startDate: string, endDate: string) {
               continue;
             }
 
-            // Look up player team from database (source of truth)
+            // Look up internal Player.id (cuid) from mlbId
             const playerRecord = await prisma.player.findUnique({
               where: { mlbId: homerun.mlbId },
-              select: { teamName: true }
+              select: { id: true, teamName: true },
             });
+            const internalPlayerId = playerRecord?.id;
             const teamDisplay = playerRecord?.teamName || homerun.team || "Unknown";
 
             // Fetch jersey number if we have mlbId
@@ -119,9 +120,9 @@ async function handleBackfill(startDate: string, endDate: string) {
               jerseyNumber = await getPlayerJerseyNumber(homerun.mlbId);
             }
 
-            // Find all leagues where this player appears in roster
+            // Use internal cuid for roster spot lookup
             const rosterSpots = await prisma.rosterSpot.findMany({
-              where: { playerId: homerun.playerId },
+              where: { playerId: internalPlayerId },
               include: {
                 league: {
                   select: { id: true },

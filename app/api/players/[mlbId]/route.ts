@@ -239,64 +239,74 @@ export async function GET(
         if (!user) {
           logger.warn("User not found for league context", { email: session.user.email });
         } else {
-          // Find owner of this player in the league
-          const rosterSpot = await prisma.rosterSpot.findFirst({
-            where: {
-              leagueId,
-              playerId: mlbId.toString(),
-            },
-            include: {
-              user: {
-                select: { name: true, image: true },
-              },
-            },
+          // Get internal Player.id (cuid) to look up roster spot
+          const playerRecord = await prisma.player.findUnique({
+            where: { mlbId },
+            select: { id: true },
           });
 
-          if (rosterSpot) {
-            // Get HR rank for this owner in this league using aggregation
-            const userStandings = await prisma.$queryRaw<Array<{ userId: string; totalHr: number }>>`
-              SELECT "userId", SUM("homeruns") as "totalHr"
-              FROM "RosterSpot"
-              WHERE "leagueId" = ${leagueId}
-              GROUP BY "userId"
-              ORDER BY "totalHr" DESC
-            `;
-
-            const ownerIndex = userStandings.findIndex(u => u.userId === rosterSpot.userId);
-            const hrRank = ownerIndex >= 0 ? ownerIndex + 1 : 1;
-            const totalPlayers = userStandings.length;
-
-            // Get trade history for this player
-            const acceptedTrades = await prisma.trade.findMany({
+          if (!playerRecord) {
+            logger.warn("Player record not found for league context", { mlbId });
+          } else {
+            // Find owner of this player in the league using internal cuid
+            const rosterSpot = await prisma.rosterSpot.findFirst({
               where: {
                 leagueId,
-                status: "accepted",
-                OR: [
-                  { ownerPlayerId: mlbId.toString() },
-                  { receiverPlayerId: mlbId.toString() },
-                ],
+                playerId: playerRecord.id,
               },
               include: {
-                owner: { select: { name: true } },
-                receiver: { select: { name: true } },
+                user: {
+                  select: { name: true, image: true },
+                },
               },
             });
 
-            const tradeHistory = acceptedTrades.map((trade) => ({
-              fromOwnerName: trade.owner.name || "Unknown",
-              toOwnerName: trade.receiver.name || "Unknown",
-              tradedAt: trade.respondedAt?.toISOString() || trade.createdAt.toISOString(),
-            }));
+            if (rosterSpot) {
+              // Get HR rank for this owner in this league using aggregation
+              const userStandings = await prisma.$queryRaw<Array<{ userId: string; totalHr: number }>>`
+                SELECT "userId", SUM("homeruns") as "totalHr"
+                FROM "RosterSpot"
+                WHERE "leagueId" = ${leagueId}
+                GROUP BY "userId"
+                ORDER BY "totalHr" DESC
+              `;
 
-            response.leagueContext = {
-              hrRank,
-              totalPlayers,
-              ownerName: rosterSpot.user.name || "Unknown",
-              ownerImage: rosterSpot.user.image || null,
-              draftedRound: rosterSpot.draftedRound,
-              draftedPickNumber: rosterSpot.draftedPickNumber,
-              tradeHistory,
-            };
+              const ownerIndex = userStandings.findIndex(u => u.userId === rosterSpot.userId);
+              const hrRank = ownerIndex >= 0 ? ownerIndex + 1 : 1;
+              const totalPlayers = userStandings.length;
+
+              // Get trade history for this player using internal cuid
+              const acceptedTrades = await prisma.trade.findMany({
+                where: {
+                  leagueId,
+                  status: "accepted",
+                  OR: [
+                    { ownerPlayerId: playerRecord.id },
+                    { receiverPlayerId: playerRecord.id },
+                  ],
+                },
+                include: {
+                  owner: { select: { name: true } },
+                  receiver: { select: { name: true } },
+                },
+              });
+
+              const tradeHistory = acceptedTrades.map((trade) => ({
+                fromOwnerName: trade.owner.name || "Unknown",
+                toOwnerName: trade.receiver.name || "Unknown",
+                tradedAt: trade.respondedAt?.toISOString() || trade.createdAt.toISOString(),
+              }));
+
+              response.leagueContext = {
+                hrRank,
+                totalPlayers,
+                ownerName: rosterSpot.user.name || "Unknown",
+                ownerImage: rosterSpot.user.image || null,
+                draftedRound: rosterSpot.draftedRound,
+                draftedPickNumber: rosterSpot.draftedPickNumber,
+                tradeHistory,
+              };
+            }
           }
         }
       } catch (error) {

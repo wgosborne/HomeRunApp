@@ -36,8 +36,10 @@ async function handleHomerungPoll() {
 
     for (const game of games) {
       try {
+        logger.info("Processing game", { gamePk: game.gamePk, status: game.status });
         // Fetch homeruns from this game
         const homeruns = await fetchGameHomeruns(game.gamePk);
+        logger.info("Game homeruns fetched", { gamePk: game.gamePk, count: homeruns.length });
 
         for (const homerun of homeruns) {
           try {
@@ -47,20 +49,23 @@ async function handleHomerungPoll() {
             });
 
             if (existingEvent) {
+              logger.info("Skipping duplicate homerun", { playByPlayId: homerun.playByPlayId, playerName: homerun.playerName });
               skippedCount++;
               continue;
             }
 
-            // Look up player team from database (source of truth)
+            // Look up internal Player.id (cuid) from mlbId
             const playerRecord = await prisma.player.findUnique({
               where: { mlbId: homerun.mlbId },
-              select: { teamName: true }
+              select: { id: true, teamName: true },
             });
+
+            const internalPlayerId = playerRecord?.id;
             const teamDisplay = playerRecord?.teamName || homerun.team || "Unknown";
 
-            // Find all leagues where this player appears in roster
+            // Use internal cuid for roster spot lookup
             const rosterSpots = await prisma.rosterSpot.findMany({
-              where: { playerId: homerun.playerId },
+              where: { playerId: internalPlayerId },
               include: {
                 league: {
                   select: { id: true },
@@ -69,7 +74,7 @@ async function handleHomerungPoll() {
             });
 
             logger.debug("Found roster spots for player", {
-              playerId: homerun.playerId,
+              playerId: internalPlayerId,
               leagueCount: rosterSpots.length,
             });
 
@@ -188,6 +193,12 @@ async function handleHomerungPoll() {
         continue;
       }
     }
+
+    logger.info("Homerun poll complete", {
+      gamesProcessed: games.length,
+      processed: processedCount,
+      skipped: skippedCount,
+    });
 
     return NextResponse.json(
       {
