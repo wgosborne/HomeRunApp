@@ -26,7 +26,8 @@ interface TestHomerrunFlowResponse {
 /**
  * GET /api/dev/test-homerun-flow
  * Test the homerun notification flow without database writes
- * Query params: mlbId, secret
+ * Query params: mlbId, secret, userId (optional)
+ * If userId is provided, only sends notification to that user
  */
 export async function GET(request: NextRequest) {
   try {
@@ -57,6 +58,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Get optional userId filter
+    const userIdFilter = request.nextUrl.searchParams.get("userId");
+
     // Look up player by mlbId
     const player = await prisma.player.findUnique({
       where: { mlbId },
@@ -81,13 +85,19 @@ export async function GET(request: NextRequest) {
       mlbId,
       playerName: player.fullName,
       rosterSpotsCount: rosterSpots.length,
+      userIdFilter,
     });
+
+    // Filter roster spots if userId is provided
+    const spotsToNotify = userIdFilter
+      ? rosterSpots.filter((spot) => spot.userId === userIdFilter)
+      : rosterSpots;
 
     let notificationsSent = 0;
     const testRosterSpots: TestRosterSpot[] = [];
 
     // Send test notifications (no database writes)
-    for (const spot of rosterSpots) {
+    for (const spot of spotsToNotify) {
       try {
         testRosterSpots.push({
           leagueId: spot.leagueId,
