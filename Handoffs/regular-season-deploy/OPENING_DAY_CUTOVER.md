@@ -72,57 +72,49 @@ postgresql://neondb_owner:npg_Lrp2WhByf4bO@ep-solitary-haze-ajyjbyu1-pooler.c-3.
 
 ### ⚠️ CAUTION: Run these in a transaction or have a backup
 
-1. **Clear all spring training homerun events:**
-   ```sql
-   DELETE FROM "HomerrunEvent"
-   WHERE "createdAt" < (NOW() - INTERVAL '30 days');
-   ```
-   Expected: Removes spring training HR logs (Feb–Mar). Confirm count before executing.
+-- 1. Clear all homerun events
+DELETE FROM "HomerrunEvent";
 
-2. **Reset roster spots to 0 homeruns & points:**
-   ```sql
-   UPDATE "RosterSpot"
-   SET "homeruns" = 0, "points" = 0;
-   ```
-   Expected: All user rosters reset. Verify no data loss with SELECT count(*) first.
+-- 2. Clear all trades
+DELETE FROM "Trade";
 
-3. **Reset player stats for new season:**
-   ```sql
-   UPDATE "Player"
-   SET "homeruns" = 0,
-       "gamesPlayed" = 0,
-       "battingAverage" = NULL,
-       "ops" = NULL,
-       "homerunsLast14Days" = 0,
-       "gamesPlayedLast14Days" = 0,
-       "lastStatsUpdatedAt" = NULL;
-   ```
-   Expected: All 1000+ players reset to 0 stats. Next sync-player-stats will refill.
+-- 3. Clear all draft picks
+DELETE FROM "DraftPick";
 
-4. **Clear spring training games:**
-   ```sql
-   DELETE FROM "Game"
-   WHERE "gameType" = 'S' OR "gameDate" < '2026-03-25'::timestamp;
-   ```
-   Expected: Removes all spring training games (through March 24). Verify count.
+-- 4. Clear all roster spots
+DELETE FROM "RosterSpot";
 
-5. **Team table note:**
-   ```sql
-   -- Team table is STATIC and does NOT need reset.
-   -- Teams (30 MLB teams) are persistent across seasons.
-   -- Do NOT delete or modify Team records.
-   SELECT COUNT(*) FROM "Team";  -- Should be 30, unchanged
-   ```
+-- 5. Clear all league settings
+DELETE FROM "LeagueSettings";
 
-6. **Verify cleanup:**
-   ```sql
-   SELECT COUNT(*) FROM "HomerrunEvent";           -- Should be 0 or very low
-   SELECT COUNT(*) FROM "Game" WHERE "gameType" = 'S';  -- Should be 0
-   SELECT COUNT(*) FROM "RosterSpot" WHERE "homeruns" > 0;  -- Should be 0
-   SELECT COUNT(*) FROM "Player" WHERE "homeruns" > 0;  -- Should be 0
-   SELECT COUNT(*) FROM "Team";  -- Should still be 30 (unchanged)
-   ```
+-- 6. Clear all league memberships
+DELETE FROM "LeagueMembership";
 
+-- 7. Clear all leagues
+DELETE FROM "League";
+
+-- 8. Clear all games
+DELETE FROM "Game";
+
+-- 9. Reset all player stats
+UPDATE "Player"
+SET "homeruns" = 0,
+    "gamesPlayed" = 0,
+    "battingAverage" = NULL,
+    "ops" = NULL,
+    "homerunsLast14Days" = 0,
+    "gamesPlayedLast14Days" = 0,
+    "lastStatsUpdatedAt" = NULL;
+
+-- 10. Verify
+SELECT COUNT(*) FROM "HomerrunEvent";    -- 0
+SELECT COUNT(*) FROM "League";           -- 0
+SELECT COUNT(*) FROM "RosterSpot";       -- 0
+SELECT COUNT(*) FROM "DraftPick";        -- 0
+SELECT COUNT(*) FROM "Game";             -- 0
+SELECT COUNT(*) FROM "Player" WHERE "homeruns" > 0; -- 0
+SELECT COUNT(*) FROM "Team";             -- 30 unchanged
+SELECT COUNT(*) FROM "User";             -- Keep users
 ---
 
 ## The Cutover (Go-Live Steps)
