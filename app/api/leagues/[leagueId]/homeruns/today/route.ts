@@ -56,17 +56,17 @@ export async function GET(
       throw new AuthorizationError("You are not a member of this league");
     }
 
-    // Get start and end of today (UTC)
-    const today = new Date();
-    today.setUTCHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+    // Get start and end of today (Eastern time)
+    const now = new Date();
+    const easternDate = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
+    const today = new Date(easternDate.getFullYear(), easternDate.getMonth(), easternDate.getDate());
+    const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
 
     // Get all homerun events from today
     const events = await prisma.homerrunEvent.findMany({
       where: {
         leagueId,
-        createdAt: {
+        gameDate: {
           gte: today,
           lt: tomorrow,
         },
