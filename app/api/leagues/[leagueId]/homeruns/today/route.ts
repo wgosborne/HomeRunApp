@@ -62,10 +62,10 @@ export async function GET(
     const today = new Date(easternDate.getFullYear(), easternDate.getMonth(), easternDate.getDate());
     const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
 
-    // Get all homerun events from today
+    // Get all homerun events from today (all-mlb stores global events)
     const events = await prisma.homerrunEvent.findMany({
       where: {
-        leagueId,
+        leagueId: "all-mlb",
         gameDate: {
           gte: today,
           lt: tomorrow,
