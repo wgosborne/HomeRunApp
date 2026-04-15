@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
@@ -144,6 +144,16 @@ function LeaderboardTab({
     );
   }, [standings, todayHomersPerUser]);
 
+  // Scroll to expanded team when user is selected
+  useEffect(() => {
+    if (expandedUserId) {
+      const element = document.getElementById(`team-${expandedUserId}`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+  }, [expandedUserId]);
+
   // Only show loading if we have no data at all
   if (loading && standings.length === 0) {
     return (
@@ -188,215 +198,213 @@ function LeaderboardTab({
           style={{ paddingLeft: "16px", paddingRight: "16px" }}
         >
           {standings.map((entry) => (
-            <div
-              key={entry.userId}
-              style={{
-                borderRadius: "14px",
-                backgroundColor: "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(255,255,255,0.07)",
-                boxShadow: shadowStack,
-                overflow: "hidden",
-                display: "flex",
-              }}
-              className="cursor-pointer hover:opacity-90 transition"
-              onClick={() =>
-                setExpandedUserId(
-                  expandedUserId === entry.userId ? null : entry.userId,
-                )
-              }
-            >
-              {/* Accent stripe */}
+            <React.Fragment key={entry.userId}>
               <div
                 style={{
-                  width: "4px",
-                  backgroundColor:
-                    entry.rank === 1
-                      ? "#CC3433"
-                      : entry.rank === 2
-                        ? "#0E3386"
-                        : "rgba(255,255,255,0.12)",
-                  boxShadow:
-                    entry.rank === 1
-                      ? "2px 0 12px rgba(204,52,51,0.4)"
-                      : "none",
-                }}
-              />
-
-              {/* Card body */}
-              <div
-                style={{
-                  flex: 1,
-                  padding: "14px 16px",
+                  borderRadius: "14px",
+                  backgroundColor: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(255,255,255,0.07)",
+                  boxShadow: shadowStack,
+                  overflow: "hidden",
                   display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
                 }}
+                className="cursor-pointer hover:opacity-90 transition"
+                onClick={() =>
+                  setExpandedUserId(
+                    expandedUserId === entry.userId ? null : entry.userId,
+                  )
+                }
               >
-                {/* Left side */}
+                {/* Accent stripe */}
                 <div
                   style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "12px",
+                    width: "4px",
+                    backgroundColor:
+                      entry.rank === 1
+                        ? "#CC3433"
+                        : entry.rank === 2
+                          ? "#0E3386"
+                          : "rgba(255,255,255,0.12)",
+                    boxShadow:
+                      entry.rank === 1
+                        ? "2px 0 12px rgba(204,52,51,0.4)"
+                        : "none",
+                  }}
+                />
+
+                {/* Card body */}
+                <div
+                  style={{
                     flex: 1,
+                    padding: "14px 16px",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
                   }}
                 >
-                  <span
+                  {/* Left side */}
+                  <div
                     style={{
-                      fontFamily: "'Exo 2', sans-serif",
-                      fontSize: "13px",
-                      fontWeight: 700,
-                      color: "rgba(255,255,255,0.3)",
-                      minWidth: "20px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "12px",
+                      flex: 1,
                     }}
                   >
-                    {entry.rank}
-                  </span>
-                  <div>
+                    <span
+                      style={{
+                        fontFamily: "'Exo 2', sans-serif",
+                        fontSize: "13px",
+                        fontWeight: 700,
+                        color: "rgba(255,255,255,0.3)",
+                        minWidth: "20px",
+                      }}
+                    >
+                      {entry.rank}
+                    </span>
+                    <div>
+                      <p
+                        style={{
+                          fontFamily: "'Exo 2', sans-serif",
+                          fontSize: "16px",
+                          fontWeight: 700,
+                          color: "white",
+                        }}
+                      >
+                        {entry.teamName}
+                      </p>
+                      <p
+                        style={{
+                          fontFamily: "'DM Sans', sans-serif",
+                          fontSize: "11px",
+                          color: "rgba(255,255,255,0.35)",
+                        }}
+                      >
+                        {entry.userName}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Right side */}
+                  <div style={{ textAlign: "right", marginLeft: "16px" }}>
                     <p
                       style={{
                         fontFamily: "'Exo 2', sans-serif",
-                        fontSize: "16px",
-                        fontWeight: 700,
+                        fontSize: "32px",
+                        fontWeight: 800,
                         color: "white",
                       }}
                     >
-                      {entry.teamName}
+                      {entry.totalHomeruns}
                     </p>
                     <p
                       style={{
                         fontFamily: "'DM Sans', sans-serif",
-                        fontSize: "11px",
-                        color: "rgba(255,255,255,0.35)",
+                        fontSize: "9px",
+                        color: "rgba(255,255,255,0.25)",
+                        textTransform: "uppercase",
+                        letterSpacing: "1px",
                       }}
                     >
-                      {entry.userName}
+                      Season HR
                     </p>
                   </div>
                 </div>
-
-                {/* Right side */}
-                <div style={{ textAlign: "right", marginLeft: "16px" }}>
-                  <p
-                    style={{
-                      fontFamily: "'Exo 2', sans-serif",
-                      fontSize: "32px",
-                      fontWeight: 800,
-                      color: "white",
-                    }}
-                  >
-                    {entry.totalHomeruns}
-                  </p>
-                  <p
-                    style={{
-                      fontFamily: "'DM Sans', sans-serif",
-                      fontSize: "9px",
-                      color: "rgba(255,255,255,0.25)",
-                      textTransform: "uppercase",
-                      letterSpacing: "1px",
-                    }}
-                  >
-                    Season HR
-                  </p>
-                </div>
               </div>
-            </div>
-          ))}
-        </div>
 
-        {/* Expanded players list */}
-        {expandedUserId && (
-          <div
-            style={{
-              paddingLeft: "16px",
-              paddingRight: "16px",
-              marginTop: "8px",
-            }}
-          >
-            {standings.find((s) => s.userId === expandedUserId)?.players && (
-              <div
-                style={{
-                  backgroundColor: "rgba(14,51,134,0.08)",
-                  border: "1px solid rgba(14,51,134,0.15)",
-                  borderRadius: "12px",
-                  padding: "12px 16px",
-                }}
-              >
-                <p
+              {/* Expanded players list - inline after each team */}
+              {expandedUserId === entry.userId && (
+                <div
+                  id={`team-${entry.userId}`}
                   style={{
-                    fontFamily: "'DM Sans', sans-serif",
-                    fontSize: "11px",
-                    fontWeight: 600,
-                    textTransform: "uppercase",
-                    color: "rgba(255,255,255,0.4)",
-                    marginBottom: "12px",
+                    paddingLeft: "16px",
+                    paddingRight: "16px",
+                    marginTop: "8px",
+                    scrollMarginTop: "72px",
                   }}
                 >
-                  Players (
-                  {standings.find((s) => s.userId === expandedUserId)
-                    ?.playerCount || 0}
-                  )
-                </p>
-                <div className="space-y-2">
-                  {standings
-                    .find((s) => s.userId === expandedUserId)
-                    ?.players.map((player) => (
-                      <Link
-                        key={player.playerId}
-                        href={
-                          player.mlbId
-                            ? `/player/${player.mlbId}?leagueId=${leagueId}`
-                            : "#"
-                        }
+                  {entry.players && (
+                    <div
+                      style={{
+                        backgroundColor: "rgba(14,51,134,0.08)",
+                        border: "1px solid rgba(14,51,134,0.15)",
+                        borderRadius: "12px",
+                        padding: "12px 16px",
+                      }}
+                    >
+                      <p
                         style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          gap: "8px",
-                          opacity: player.mlbId ? 1 : 0.5,
-                          pointerEvents: player.mlbId ? "auto" : "none",
+                          fontFamily: "'DM Sans', sans-serif",
+                          fontSize: "11px",
+                          fontWeight: 600,
+                          textTransform: "uppercase",
+                          color: "rgba(255,255,255,0.4)",
+                          marginBottom: "12px",
                         }}
                       >
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "8px",
-                          }}
-                        >
-                          <PlayerAvatar
-                            mlbId={player.mlbId}
-                            playerName={player.playerName}
-                            size="sm"
-                            isYourPlayer={false}
-                          />
-                          <span
+                        Players ({entry.playerCount || 0})
+                      </p>
+                      <div className="space-y-2">
+                        {entry.players.map((player) => (
+                          <Link
+                            key={player.playerId}
+                            href={
+                              player.mlbId
+                                ? `/player/${player.mlbId}?leagueId=${leagueId}`
+                                : "#"
+                            }
                             style={{
-                              fontFamily: "'DM Sans', sans-serif",
-                              fontSize: "11px",
-                              color: "rgba(255,255,255,0.7)",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              gap: "8px",
+                              opacity: player.mlbId ? 1 : 0.5,
+                              pointerEvents: player.mlbId ? "auto" : "none",
                             }}
                           >
-                            {player.playerName}
-                          </span>
-                        </div>
-                        <span
-                          style={{
-                            fontFamily: "'Exo 2', sans-serif",
-                            fontSize: "12px",
-                            fontWeight: 700,
-                            color: "#CC3433",
-                          }}
-                        >
-                          {player.homeruns}
-                        </span>
-                      </Link>
-                    ))}
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "8px",
+                              }}
+                            >
+                              <PlayerAvatar
+                                mlbId={player.mlbId}
+                                playerName={player.playerName}
+                                size="sm"
+                                isYourPlayer={false}
+                              />
+                              <span
+                                style={{
+                                  fontFamily: "'DM Sans', sans-serif",
+                                  fontSize: "11px",
+                                  color: "rgba(255,255,255,0.7)",
+                                }}
+                              >
+                                {player.playerName}
+                              </span>
+                            </div>
+                            <span
+                              style={{
+                                fontFamily: "'Exo 2', sans-serif",
+                                fontSize: "12px",
+                                fontWeight: 700,
+                                color: "#CC3433",
+                              }}
+                            >
+                              {player.homeruns}
+                            </span>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
-          </div>
-        )}
+              )}
+            </React.Fragment>
+          ))}
+        </div>
       </div>
 
       {/* Today's Leaders Section */}
